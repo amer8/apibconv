@@ -24,8 +24,9 @@ type OpenAPI struct {
 }
 
 type Method struct {
-	OperationID string `json:"operationId"`
-	Summary     string `json:"summary"`
+	OperationID string  `json:"operationId"`
+	Summary     string  `json:"summary"`
+	Description *string `json:"description"`
 	Parameters  []struct {
 		Name     string `json:"name"`
 		Required bool   `json:"required"`
@@ -68,9 +69,10 @@ type Method struct {
 type Schema struct {
 	Type       string `json:"type"`
 	Properties map[string]struct {
-		Format   string `json:"format"`
-		Type     string `json:"type"`
-		Nullable bool   `json:"nullable"`
+		Format   string  `json:"format"`
+		Type     string  `json:"type"`
+		Example  *string `json:"example"`
+		Nullable bool    `json:"nullable"`
 	} `json:"properties"`
 	Required []string `json:"required"`
 }
@@ -136,10 +138,14 @@ func formatAttributes(schema Schema) string {
 
 	sb.WriteString("+ Attributes \n")
 	for propName, prop := range schema.Properties {
+		var example string
+		if prop.Example != nil {
+			example = ": " + *prop.Example
+		}
 		if prop.Nullable {
-			sb.WriteString("    + " + propName + " (" + prop.Type + ", optional, nullable)\n")
+			sb.WriteString("    + " + propName + example + " (" + prop.Type + ", optional, nullable)\n")
 		} else {
-			sb.WriteString("    + " + propName + " (" + prop.Type + ", optional)\n")
+			sb.WriteString("    + " + propName + example + " (" + prop.Type + ", optional)\n")
 		}
 	}
 
@@ -152,6 +158,10 @@ func formatBody(schemaType string, schema Schema) string {
 
 		for propName, prop := range schema.Properties {
 			propValue := propValue(prop.Type)
+			if prop.Example != nil {
+				propValue = *prop.Example
+			}
+
 			if prop.Nullable {
 				example[propName] = nil
 			} else {
@@ -166,6 +176,9 @@ func formatBody(schemaType string, schema Schema) string {
 
 		for propName, prop := range schema.Properties {
 			propValue := propValue(prop.Type)
+			if prop.Example != nil {
+				propValue = *prop.Example
+			}
 			if prop.Nullable {
 				example[0] = map[string]interface{}{propName: nil}
 			} else {
@@ -205,7 +218,11 @@ func propValue(valueType string) interface{} {
 func formatOperation(method, path string, operation Method, componentSchemas map[string]Schema) string {
 	var sb strings.Builder
 
-	sb.WriteString("## " + operation.Summary + " [" + strings.ToUpper(method) + " " + path + "]\n\n")
+	sb.WriteString("## " + operation.Summary + " [" + strings.ToUpper(method) + " " + path + "]\n")
+	if operation.Description != nil {
+		sb.WriteString(*operation.Description + "\n")
+	}
+	sb.WriteString("\n")
 
 	var hasQuery bool
 	for _, param := range operation.Parameters {
