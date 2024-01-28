@@ -1,3 +1,3 @@
 module github.com/amer8/apibconv
 
-go 1.20
+go 1.21
