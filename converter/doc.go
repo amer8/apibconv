@@ -1,0 +1,179 @@
+// Package converter provides bidirectional conversion between OpenAPI 3.0/3.1 and API Blueprint specifications.
+//
+// # Overview
+//
+// This package enables high-performance, zero-allocation conversion between two popular API specification formats:
+//   - OpenAPI 3.0/3.1 (JSON format)
+//   - API Blueprint (Markdown-based format)
+//
+// The converter supports both directions: OpenAPI → API Blueprint and API Blueprint → OpenAPI,
+// making it easy to work with either format based on your needs. It also supports conversion
+// between OpenAPI 3.0 and 3.1 versions.
+//
+// # Key Features
+//
+//   - Bidirectional conversion (OpenAPI ↔ API Blueprint)
+//   - OpenAPI version support (3.0 and 3.1) with automatic conversion
+//   - Zero-allocation buffer operations using sync.Pool
+//   - Streaming API for large files
+//   - Support for paths, operations, parameters, request bodies, and responses
+//   - Automatic content type handling (application/json)
+//   - Handles OpenAPI 3.1 features: type arrays, webhooks, JSON Schema 2020-12
+//
+// # Quick Start
+//
+// Convert OpenAPI to API Blueprint:
+//
+//	openapiJSON := `{"openapi": "3.0.0", "info": {"title": "My API", "version": "1.0.0"}, "paths": {}}`
+//	apiBlueprint, err := converter.FromJSONString(openapiJSON)
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	fmt.Println(apiBlueprint)
+//
+// Convert API Blueprint to OpenAPI:
+//
+//	apibContent := `FORMAT: 1A
+//	# My API
+//	## Group Users
+//	## /users [/users]
+//	### List Users [GET]
+//	+ Response 200 (application/json)`
+//
+//	openapiJSON, err := converter.ToOpenAPIString(apibContent)
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	fmt.Println(openapiJSON)
+//
+// # Version Conversion
+//
+// Convert API Blueprint to OpenAPI 3.1:
+//
+//	opts := &converter.ConversionOptions{
+//	    OutputVersion: converter.Version31,
+//	}
+//	spec, err := converter.ParseAPIBlueprintWithOptions(apibData, opts)
+//	// spec.OpenAPI is "3.1.0"
+//
+// Convert between OpenAPI versions:
+//
+//	spec30, _ := converter.Parse([]byte(`{"openapi": "3.0.0", ...}`))
+//	spec31, err := converter.ConvertToVersion(spec30, converter.Version31, nil)
+//	// Nullable fields become type arrays: ["string", "null"]
+//
+//	spec31to30, err := converter.ConvertToVersion(spec31, converter.Version30, nil)
+//	// Type arrays become nullable: true
+//
+// # Conversion Workflows
+//
+// There are four main workflows for using this package:
+//
+// 1. Direct Conversion (simplest):
+//
+//	result, err := converter.FromJSONString(openapiJSON)
+//	result, err := converter.ToOpenAPIString(apibContent)
+//
+// 2. Parse, Modify, Format (for programmatic manipulation):
+//
+//	spec, err := converter.Parse(data)
+//	spec.Info.Title = "Modified API"
+//	result, err := converter.Format(spec)
+//
+// 3. Streaming (for large files):
+//
+//	err := converter.Convert(inputReader, outputWriter)
+//	err := converter.ConvertToOpenAPI(inputReader, outputWriter)
+//
+// 4. Version Conversion:
+//
+//	spec31, err := converter.ConvertToVersion(spec30, converter.Version31, nil)
+//	spec30, err := converter.ConvertToVersion(spec31, converter.Version30, nil)
+//
+// # Performance
+//
+// The package is optimized for performance with zero allocations for buffer operations:
+//
+//   - Uses sync.Pool for buffer reuse
+//   - Streaming API avoids loading entire files into memory
+//   - Zero external dependencies (uses standard library only)
+//
+// Benchmark results:
+//
+//	BenchmarkWriteAPIBlueprint-16     34.5M      73.19 ns/op      0 B/op    0 allocs/op
+//	BenchmarkBufferPool-16            1B+         1.75 ns/op      0 B/op    0 allocs/op
+//
+// # Function Categories
+//
+// Version Conversion:
+//
+//   - ConvertToVersion: Convert between OpenAPI 3.0 and 3.1
+//   - DetectVersion: Detect OpenAPI version from spec string
+//   - GetSchemaType: Get primary type from schema (handles both 3.0 and 3.1)
+//   - IsNullable: Check if schema allows null values
+//
+// OpenAPI → API Blueprint Conversion:
+//
+//   - FromJSON, FromJSONString: Convert JSON bytes/string to API Blueprint
+//   - ToBytes: Convert JSON bytes to API Blueprint bytes
+//   - ConvertString: Alias for FromJSONString
+//   - Convert: Streaming I/O conversion
+//
+// API Blueprint → OpenAPI Conversion:
+//
+//   - ToOpenAPI: Convert API Blueprint bytes to OpenAPI JSON bytes (3.0 default)
+//   - ToOpenAPIWithOptions: Convert with version options
+//   - ToOpenAPIString: Convert API Blueprint string to OpenAPI JSON string
+//   - ConvertToOpenAPI: Streaming I/O conversion
+//
+// Parsing:
+//
+//   - Parse, ParseReader: Parse OpenAPI JSON (3.0 or 3.1)
+//   - ParseWithConversion: Parse and convert to target version
+//   - ParseAPIBlueprint: Parse API Blueprint to OpenAPI 3.0
+//   - ParseAPIBlueprintWithOptions: Parse with version options
+//   - ParseAPIBlueprintReader: Parse API Blueprint from reader
+//
+// Formatting:
+//
+//   - Format, FormatTo: Format OpenAPI spec to API Blueprint
+//   - MustFormat, MustFromJSON: Panic on error (useful for testing)
+//
+// # OpenAPI Structure
+//
+// The OpenAPI type represents a minimal but complete OpenAPI 3.0/3.1 specification:
+//
+//	type OpenAPI struct {
+//	    OpenAPI            string                 // Version (e.g., "3.0.0", "3.1.0")
+//	    Info               Info                   // API metadata
+//	    Servers            []Server               // Server URLs
+//	    Paths              map[string]PathItem    // API endpoints
+//	    Webhooks           map[string]PathItem    // Webhooks (3.1+)
+//	    Components         *Components            // Reusable schemas
+//	    JSONSchemaDialect  string                 // JSON Schema dialect (3.1+)
+//	}
+//
+// Each PathItem contains HTTP operations (GET, POST, PUT, DELETE, PATCH), and each
+// Operation includes parameters, request bodies, and responses.
+//
+// The Schema type supports both OpenAPI 3.0 and 3.1:
+//   - In 3.0: Type is a string, Nullable is a boolean
+//   - In 3.1: Type can be string or []string, nullable types use type arrays
+//
+// # Error Handling
+//
+// Functions return descriptive errors for:
+//
+//   - Invalid JSON in Parse functions
+//   - Malformed API Blueprint in ParseAPIBlueprint functions
+//   - Nil spec pointers in Format functions
+//   - I/O errors in streaming functions
+//
+// Use the Must* variants (MustFormat, MustFromJSON) when you're certain the input
+// is valid and want to panic on errors (typically in tests).
+//
+// # Thread Safety
+//
+// All exported functions are safe for concurrent use. The internal buffer pool
+// (sync.Pool) is thread-safe and optimized for concurrent access.
+package converter

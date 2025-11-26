@@ -1,0 +1,139 @@
+{
+  "asyncapi": "2.6.0",
+  "info": {
+    "title": "Real-time Chat API",
+    "version": "1.0.0",
+    "description": "WebSocket-based real-time chat application",
+    "contact": {
+      "name": "API Support",
+      "url": "https://example.com/support"
+    },
+    "license": {
+      "name": "Apache 2.0",
+      "url": "https://www.apache.org/licenses/LICENSE-2.0.html"
+    }
+  },
+  "servers": {
+    "production": {
+      "url": "wss://chat.example.com/v1",
+      "protocol": "ws",
+      "description": "Production WebSocket server"
+    },
+    "development": {
+      "url": "ws://localhost:8080/v1",
+      "protocol": "ws",
+      "description": "Development WebSocket server"
+    }
+  },
+  "channels": {
+    "room/{roomId}": {
+      "description": "Chat room channel for sending and receiving messages",
+      "parameters": {
+        "roomId": {
+          "description": "Unique room identifier",
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]+$"
+          }
+        }
+      },
+      "subscribe": {
+        "summary": "Receive messages from the chat room",
+        "message": {
+          "$ref": "#/components/messages/chatMessage"
+        }
+      },
+      "publish": {
+        "summary": "Send messages to the chat room",
+        "message": {
+          "$ref": "#/components/messages/chatMessage"
+        }
+      }
+    },
+    "user/{userId}/presence": {
+      "description": "User presence status updates",
+      "parameters": {
+        "userId": {
+          "description": "User identifier",
+          "schema": {
+            "type": "string"
+          }
+        }
+      },
+      "subscribe": {
+        "summary": "Receive user presence updates",
+        "message": {
+          "$ref": "#/components/messages/presenceUpdate"
+        }
+      }
+    }
+  },
+  "components": {
+    "messages": {
+      "chatMessage": {
+        "name": "ChatMessage",
+        "title": "Chat Message",
+        "summary": "A chat message from a user",
+        "contentType": "application/json",
+        "payload": {
+          "type": "object",
+          "required": ["id", "userId", "text", "timestamp"],
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "Unique message identifier"
+            },
+            "userId": {
+              "type": "string",
+              "description": "ID of the user who sent the message"
+            },
+            "username": {
+              "type": "string",
+              "description": "Display name of the user"
+            },
+            "text": {
+              "type": "string",
+              "description": "Message content",
+              "maxLength": 1000
+            },
+            "timestamp": {
+              "type": "string",
+              "format": "date-time",
+              "description": "When the message was sent"
+            },
+            "edited": {
+              "type": "boolean",
+              "description": "Whether the message has been edited"
+            }
+          }
+        }
+      },
+      "presenceUpdate": {
+        "name": "PresenceUpdate",
+        "title": "Presence Update",
+        "summary": "User presence status change",
+        "contentType": "application/json",
+        "payload": {
+          "type": "object",
+          "required": ["userId", "status", "timestamp"],
+          "properties": {
+            "userId": {
+              "type": "string",
+              "description": "User identifier"
+            },
+            "status": {
+              "type": "string",
+              "enum": ["online", "away", "offline"],
+              "description": "User's current status"
+            },
+            "timestamp": {
+              "type": "string",
+              "format": "date-time",
+              "description": "When the status changed"
+            }
+          }
+        }
+      }
+    }
+  }
+}

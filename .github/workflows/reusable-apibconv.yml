@@ -1,0 +1,62 @@
+name: Reusable API Blueprint Converter
+
+on:
+  workflow_call:
+    inputs:
+      openapi-file:
+        description: 'Path to OpenAPI specification file'
+        required: true
+        type: string
+      output-file:
+        description: 'Path for output API Blueprint file'
+        required: true
+        type: string
+      apibconv-version:
+        description: 'Version of apibconv to use (default: latest)'
+        required: false
+        type: string
+        default: 'latest'
+      upload-artifact:
+        description: 'Whether to upload the generated file as an artifact'
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  convert:
+    name: Convert OpenAPI to API Blueprint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Install apibconv
+        run: |
+          if [ "${{ inputs.apibconv-version }}" = "latest" ]; then
+            go install github.com/amer8/apibconv@latest
+          else
+            go install github.com/amer8/apibconv@${{ inputs.apibconv-version }}
+          fi
+
+      - name: Convert OpenAPI to API Blueprint
+        run: |
+          apibconv -f "${{ inputs.openapi-file }}" -o "${{ inputs.output-file }}"
+          echo "Conversion complete!"
+          echo "Output file: ${{ inputs.output-file }}"
+
+      - name: Display preview
+        run: |
+          echo "First 30 lines of generated API Blueprint:"
+          head -n 30 "${{ inputs.output-file }}"
+
+      - name: Upload API Blueprint artifact
+        if: ${{ inputs.upload-artifact }}
+        uses: actions/upload-artifact@v5
+        with:
+          name: api-blueprint
+          path: ${{ inputs.output-file }}

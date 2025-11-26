@@ -1,0 +1,34 @@
+# Binaries
+/apibconv
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test binary
+*.test
+
+# Output coverage
+*.out
+coverage.txt
+benchmark*.txt
+
+# Go workspace file
+go.work
+
+# GoReleaser
+dist/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Example outputs
+examples/*.apib

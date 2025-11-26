@@ -1,0 +1,215 @@
+{
+  "asyncapi": "2.6.0",
+  "info": {
+    "title": "IoT Device Telemetry API",
+    "version": "1.0.0",
+    "description": "MQTT-based API for IoT device telemetry and control",
+    "license": {
+      "name": "MIT"
+    }
+  },
+  "servers": {
+    "production": {
+      "url": "mqtt://iot.example.com:1883",
+      "protocol": "mqtt",
+      "description": "Production MQTT broker",
+      "security": [
+        {
+          "mqttAuth": []
+        }
+      ]
+    }
+  },
+  "channels": {
+    "devices/{deviceId}/telemetry": {
+      "description": "Device telemetry data stream",
+      "parameters": {
+        "deviceId": {
+          "description": "Unique device identifier",
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9-]+$"
+          }
+        }
+      },
+      "publish": {
+        "summary": "Device publishes telemetry data",
+        "message": {
+          "$ref": "#/components/messages/telemetryData"
+        }
+      }
+    },
+    "devices/{deviceId}/commands": {
+      "description": "Commands sent to devices",
+      "parameters": {
+        "deviceId": {
+          "description": "Target device identifier",
+          "schema": {
+            "type": "string"
+          }
+        }
+      },
+      "subscribe": {
+        "summary": "Device receives commands",
+        "message": {
+          "$ref": "#/components/messages/deviceCommand"
+        }
+      }
+    },
+    "devices/{deviceId}/status": {
+      "description": "Device status and health information",
+      "parameters": {
+        "deviceId": {
+          "description": "Device identifier",
+          "schema": {
+            "type": "string"
+          }
+        }
+      },
+      "publish": {
+        "summary": "Device publishes status updates",
+        "message": {
+          "$ref": "#/components/messages/deviceStatus"
+        }
+      }
+    }
+  },
+  "components": {
+    "messages": {
+      "telemetryData": {
+        "name": "TelemetryData",
+        "title": "Device Telemetry",
+        "summary": "Sensor readings and metrics from IoT device",
+        "contentType": "application/json",
+        "payload": {
+          "type": "object",
+          "required": ["deviceId", "timestamp", "measurements"],
+          "properties": {
+            "deviceId": {
+              "type": "string",
+              "description": "Device identifier"
+            },
+            "timestamp": {
+              "type": "string",
+              "format": "date-time",
+              "description": "When the measurement was taken"
+            },
+            "measurements": {
+              "type": "object",
+              "properties": {
+                "temperature": {
+                  "type": "number",
+                  "description": "Temperature in Celsius",
+                  "minimum": -50,
+                  "maximum": 100
+                },
+                "humidity": {
+                  "type": "number",
+                  "description": "Relative humidity percentage",
+                  "minimum": 0,
+                  "maximum": 100
+                },
+                "pressure": {
+                  "type": "number",
+                  "description": "Atmospheric pressure in hPa"
+                },
+                "batteryLevel": {
+                  "type": "integer",
+                  "description": "Battery level percentage",
+                  "minimum": 0,
+                  "maximum": 100
+                }
+              }
+            },
+            "location": {
+              "type": "object",
+              "properties": {
+                "latitude": {
+                  "type": "number",
+                  "minimum": -90,
+                  "maximum": 90
+                },
+                "longitude": {
+                  "type": "number",
+                  "minimum": -180,
+                  "maximum": 180
+                }
+              }
+            }
+          }
+        }
+      },
+      "deviceCommand": {
+        "name": "DeviceCommand",
+        "title": "Device Command",
+        "summary": "Command sent to control an IoT device",
+        "contentType": "application/json",
+        "payload": {
+          "type": "object",
+          "required": ["commandId", "action"],
+          "properties": {
+            "commandId": {
+              "type": "string",
+              "description": "Unique command identifier"
+            },
+            "action": {
+              "type": "string",
+              "enum": ["reboot", "update_firmware", "set_interval", "calibrate"],
+              "description": "Action to perform"
+            },
+            "parameters": {
+              "type": "object",
+              "description": "Command-specific parameters"
+            },
+            "timestamp": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        }
+      },
+      "deviceStatus": {
+        "name": "DeviceStatus",
+        "title": "Device Status",
+        "summary": "Health and connectivity status of the device",
+        "contentType": "application/json",
+        "payload": {
+          "type": "object",
+          "required": ["deviceId", "status", "timestamp"],
+          "properties": {
+            "deviceId": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string",
+              "enum": ["online", "offline", "error", "maintenance"],
+              "description": "Current device status"
+            },
+            "uptime": {
+              "type": "integer",
+              "description": "Device uptime in seconds"
+            },
+            "firmwareVersion": {
+              "type": "string",
+              "description": "Current firmware version"
+            },
+            "lastError": {
+              "type": "string",
+              "description": "Last error message if status is error"
+            },
+            "timestamp": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "mqttAuth": {
+        "type": "userPassword",
+        "description": "MQTT username/password authentication"
+      }
+    }
+  }
+}

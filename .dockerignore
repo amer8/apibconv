@@ -1,0 +1,37 @@
+# Git
+.git
+.gitignore
+
+# Build artifacts
+dist/
+*.exe
+*.dll
+*.so
+*.dylib
+apibconv
+
+# Tests
+*.test
+*.out
+coverage.txt
+benchmark*.txt
+
+# CI/CD
+.github/
+
+# Documentation
+*.md
+!README.md
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Examples (not needed in container)
+examples/
