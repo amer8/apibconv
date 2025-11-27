@@ -5,7 +5,7 @@
 [![Go Reference](https://pkg.go.dev/badge/github.com/amer8/apibconv.svg)](https://pkg.go.dev/github.com/amer8/apibconv)
 [![Go Report Card](https://goreportcard.com/badge/github.com/amer8/apibconv)](https://goreportcard.com/report/github.com/amer8/apibconv)
 [![Go Version](https://img.shields.io/github/go-mod/go-version/amer8/apibconv)](go.mod)
-[![Docker Image](https://ghcr-badge.egpl.dev/amer8/apibconv/latest_tag?trim=major&label=latest)](https://github.com/amer8/apibconv/pkgs/container/apibconv)
+[![Docker Image](https://ghcr-badge.egpl.dev/amer8/apibconv/latest_tag?label=latest&ignore=latest,0,0.1)](https://github.com/amer8/apibconv/pkgs/container/apibconv)
 [![License](https://img.shields.io/github/license/amer8/apibconv)](LICENSE)
 
 Convert between API Blueprint (*.apib), OpenAPI 3.0/3.1, and AsyncAPI 2.6/3.0 specifications.
