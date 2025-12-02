@@ -68,7 +68,6 @@
 package main
 
 import (
-	"bufio"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -296,40 +295,40 @@ func detectInputFormat(filename string) (string, error) {
 	}
 	defer func() { _ = file.Close() }()
 
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
+	// Read first 1KB to detect format
+	// This is more robust than bufio.Scanner for minified files which might be one huge line
+	buf := make([]byte, 1024)
+	n, err := file.Read(buf)
+	if err != nil && err != io.EOF {
+		return "", err
+	}
+
+	content := string(buf[:n])
+
+	// Check for API Blueprint signatures
+	// We check line-based signatures within the buffer
+	lines := strings.Split(strings.ReplaceAll(content, "\r\n", "\n"), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
 		}
-		// Check for API Blueprint format header
 		if strings.HasPrefix(line, "FORMAT:") || strings.HasPrefix(line, "# ") {
 			return "apib", nil
 		}
-		// Check for AsyncAPI
-		if strings.Contains(line, "\"asyncapi\"") {
-			return "asyncapi", nil
-		}
-		// Check for OpenAPI
-		if strings.Contains(line, "\"openapi\"") {
-			return "openapi", nil
-		}
-		// If we see JSON start, try to parse first few fields
+		// If we see a JSON start object, stop checking for APIB line headers to avoid false positives in JSON strings
 		if strings.HasPrefix(line, "{") {
-			// Read a bit more to detect format
-			content := line
-			for i := 0; i < 10 && scanner.Scan(); i++ {
-				content += scanner.Text()
-			}
-			if strings.Contains(content, "\"asyncapi\"") {
-				return "asyncapi", nil
-			}
-			if strings.Contains(content, "\"openapi\"") {
-				return "openapi", nil
-			}
-			// Default to OpenAPI if uncertain
-			return "openapi", nil
+			break
 		}
+	}
+
+	// Check for AsyncAPI
+	if strings.Contains(content, "\"asyncapi\"") {
+		return "asyncapi", nil
+	}
+	// Check for OpenAPI
+	if strings.Contains(content, "\"openapi\"") {
+		return "openapi", nil
 	}
 
 	return "openapi", nil // Default
