@@ -41,11 +41,12 @@ func TestIntegration_Examples(t *testing.T) {
 				t.Fatalf("Failed to unmarshal JSON structure: %v", err)
 			}
 
-			if typeCheck.OpenAPI != "" {
+			switch {
+			case typeCheck.OpenAPI != "":
 				testOpenAPIConversion(t, content)
-			} else if typeCheck.AsyncAPI != "" {
+			case typeCheck.AsyncAPI != "":
 				testAsyncAPIConversion(t, content, typeCheck.AsyncAPI)
-			} else {
+			default:
 				t.Logf("Skipping %s: unknown format", file.Name())
 			}
 		})
@@ -84,7 +85,6 @@ func testOpenAPIConversion(t *testing.T, content []byte) {
 }
 
 func testAsyncAPIConversion(t *testing.T, content []byte, version string) {
-	// 1. Parse and Convert based on version
 	var apibOutput string
 	var err error
 	var buf bytes.Buffer
@@ -102,13 +102,6 @@ func testAsyncAPIConversion(t *testing.T, content []byte, version string) {
 	apibOutput = buf.String()
 	if !strings.Contains(apibOutput, "FORMAT: 1A") {
 		t.Error("Output does not contain API Blueprint format header")
-	}
-
-	// 2. Verify some content exists
-	if !strings.Contains(apibOutput, "HOST:") && !strings.Contains(apibOutput, "host:") {
-		// Not all asyncapis have servers, so this might be optional, 
-		// but our examples generally do.
-		// t.Log("Warning: No HOST found in output")
 	}
 }
 
@@ -165,7 +158,7 @@ func TestWorkflow_AsyncAPI_To_OpenAPI(t *testing.T) {
 	if spec.Info.Title != "Workflow Test" {
 		t.Errorf("Title lost in translation. Got %q", spec.Info.Title)
 	}
-	
+
 	// The AsyncAPI "user/signup" channel should become a path
 	// The "subscribe" operation (receive) should become a "GET" operation (standard mapping in this lib)
 	pathItem, exists := spec.Paths["/user/signup"]
