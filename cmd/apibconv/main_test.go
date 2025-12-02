@@ -62,6 +62,25 @@ func TestDetectInputFormat(t *testing.T) {
 			expected: "asyncapi",
 		},
 		{
+			name: "Minified OpenAPI",
+			content: `{"openapi":"3.0.0","info":{"title":"Test","version":"1.0.0"}}`,
+			expected: "openapi",
+		},
+		{
+			name: "Minified AsyncAPI",
+			content: `{"asyncapi":"2.6.0","info":{"title":"Test","version":"1.0.0"}}`,
+			expected: "asyncapi",
+		},
+		{
+			name: "Whitespace OpenAPI",
+			content: `
+			
+			{
+				"openapi": "3.0.0"
+			}`,
+			expected: "openapi",
+		},
+		{
 			name: "API Blueprint by extension",
 			content: `FORMAT: 1A
 # Test API
