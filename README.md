@@ -348,13 +348,23 @@ All functions use zero-allocation buffer pooling internally for optimal memory e
 
 ## Performance
 
-This package achieves **zero allocations for buffer operations** through careful optimization using `sync.Pool` for buffer reuse.
+This package is optimized for high performance and low memory usage, utilizing `sync.Pool` for buffer reuse to achieve **zero allocations** for buffer operations.
+
+### Core Benchmarks
 
 ```
-BenchmarkWriteAPIBlueprint-16     34.5M      73.19 ns/op      0 B/op    0 allocs/op
-BenchmarkBufferPool-16            1B+         1.75 ns/op      0 B/op    0 allocs/op
-BenchmarkMemoryReuse/WithPool-16  1B+         1.14 ns/op      0 B/op    0 allocs/op
+BenchmarkWriteAPIBlueprint-14     37.3M      32.19 ns/op      0 B/op    0 allocs/op
+BenchmarkBufferPool-14            1B+         0.98 ns/op      0 B/op    0 allocs/op
 ```
+
+### Conversion Throughput
+
+| Conversion | Throughput (avg) |
+|------------|------------------|
+| OpenAPI 3.0 → API Blueprint | ~115 MB/s |
+| API Blueprint → OpenAPI 3.0 | ~42 MB/s |
+| API Blueprint → AsyncAPI 2.6 | ~60 MB/s |
+| API Blueprint → AsyncAPI 3.0 | ~50 MB/s |
 
 ## GitHub Actions Integration
 

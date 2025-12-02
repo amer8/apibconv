@@ -16,6 +16,9 @@ benchmark*.txt
 # Go workspace file
 go.work
 
+# Go build cache
+.tmp
+
 # GoReleaser
 dist/
 
