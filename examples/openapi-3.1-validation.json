@@ -1,0 +1,62 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Validation Example API",
+    "version": "1.0.0",
+    "description": "Demonstrates OpenAPI 3.1 / JSON Schema 2020-12 Validation Features"
+  },
+  "paths": {
+    "/validate": {
+      "post": {
+        "summary": "Complex Validation",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tupleData": {
+                    "type": "array",
+                    "description": "A tuple where the first item is a string and the second is an integer (prefixItems)",
+                    "prefixItems": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "integer"
+                      }
+                    ]
+                  },
+                  "paymentInfo": {
+                    "type": "object",
+                    "description": "Demonstrates dependentSchemas: if creditCard is present, billingAddress is required",
+                    "properties": {
+                      "creditCard": {
+                        "type": "string"
+                      },
+                      "billingAddress": {
+                        "type": "string"
+                      }
+                    },
+                    "dependentSchemas": {
+                      "creditCard": {
+                        "required": [
+                          "billingAddress"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Validation successful"
+          }
+        }
+      }
+    }
+  }
+}
