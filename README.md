@@ -346,6 +346,21 @@ err = converter.ConvertToOpenAPI(input2, output2)
 
 All functions use zero-allocation buffer pooling internally for optimal memory efficiency.
 
+## Included Examples
+
+The `examples/` directory contains various specification files demonstrating supported features:
+
+- **OpenAPI 3.1**:
+  - `openapi-webhooks.json`: Demonstrates top-level `webhooks` support.
+  - `openapi-3.1-validation.json`: Shows JSON Schema 2020-12 validation (`prefixItems`, `dependentSchemas`).
+- **OpenAPI 3.0**:
+  - `openapi-advanced-params.json`: Usage of header and cookie parameters.
+  - `petstore.json`: The classic Petstore example.
+- **AsyncAPI**:
+  - `chat-asyncapi-v2.6.json`: WebSocket chat application.
+  - `events-asyncapi-v3.0.json`: Kafka event streaming (v3.0).
+  - `iot-asyncapi-v2.6-mqtt.json`: IoT MQTT telemetry.
+
 ## Performance
 
 This package achieves **zero allocations for buffer operations** through careful optimization using `sync.Pool` for buffer reuse.
