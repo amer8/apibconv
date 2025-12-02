@@ -6,9 +6,6 @@ updates:
       interval: "daily"
     labels:
       - "dependencies"
-    commit-message:
-      prefix: "ci"
-      include: "scope"
     groups:
       actions:
         patterns:
@@ -20,9 +17,6 @@ updates:
       interval: "daily"
     labels:
       - "dependencies"
-    commit-message:
-      prefix: "chore"
-      include: "scope"
     groups:
       docker:
         patterns:
