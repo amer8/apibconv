@@ -2,40 +2,41 @@
 FROM golang:1.25-alpine AS builder
 
 # Install build dependencies
-RUN apk add --no-cache git ca-certificates
+RUN apk add --no-cache git
 
 WORKDIR /build
 
-# Copy go mod files
+# Copy go mod files first for better caching
 COPY go.mod go.sum ./
 RUN go mod download
 
 # Copy source code
 COPY . .
 
-# Build binary with optimizations
+# Build arguments
+ARG VERSION=dev
+
+# Build static binary
+# -ldflags="-s -w" strips debug symbols for smaller size
+# -trimpath removes file system paths from the binary
 RUN CGO_ENABLED=0 GOOS=linux go build \
+    -trimpath \
     -ldflags="-s -w -X main.version=${VERSION}" \
     -o apibconv .
 
 # Runtime stage
-FROM alpine:latest
+FROM scratch
 
-# Install ca-certificates for HTTPS
-RUN apk --no-cache add ca-certificates
+# Copy CA certificates for HTTPS support
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
-WORKDIR /app
+# Copy the binary
+COPY --from=builder /build/apibconv /apibconv
 
-# Copy binary from builder
-COPY --from=builder /build/apibconv /usr/local/bin/apibconv
+# Use a non-root user (ID 65532 is commonly used for nonroot)
+USER 65532:65532
 
-# Create data directory
-RUN mkdir /data
 WORKDIR /data
 
-# Run as non-root user
-RUN adduser -D -u 1000 apibconv
-USER apibconv
-
-ENTRYPOINT ["apibconv"]
+ENTRYPOINT ["/apibconv"]
 CMD ["--help"]
