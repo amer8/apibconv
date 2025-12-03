@@ -64,7 +64,7 @@ The tool automatically detects the input format and converts accordingly:
 
 ```sh
 # Convert OpenAPI to API Blueprint
-apibconv -f examples/petstore.json -o petstore.apib
+apibconv -f examples/openapi/petstore/petstore.json -o petstore.apib
 
 # Convert API Blueprint to OpenAPI 3.0 (default)
 apibconv -f petstore.apib -o openapi.json

@@ -52,3 +52,122 @@ func TestMSONParsing(t *testing.T) {
 		t.Errorf("Expected ref to User, got %s", content.Schema.Ref)
 	}
 }
+
+func TestMSONParsing_Attributes(t *testing.T) {
+	apib := `FORMAT: 1A
+# Test API
+
+## Data Structures
+
+### ComplexObject (object)
++ id (number, required)
++ name: Alice (string, optional) - The user name
++ tags (array[string])
++ active: true (boolean)
++ parent (User, optional)
+`
+
+	spec, err := ParseAPIBlueprint([]byte(apib))
+	if err != nil {
+		t.Fatalf("ParseAPIBlueprint failed: %v", err)
+	}
+
+	schema := spec.Components.Schemas["ComplexObject"]
+	if schema == nil {
+		t.Fatal("ComplexObject schema not found")
+	}
+
+	// ID
+	idProp := schema.Properties["id"]
+	if idProp.Type != "number" {
+		t.Errorf("Expected id type number, got %v", idProp.Type)
+	}
+	if !sliceContains(schema.Required, "id") {
+		t.Error("Expected id to be required")
+	}
+
+	// Name
+	nameProp := schema.Properties["name"]
+	if nameProp.Type != "string" {
+		t.Errorf("Expected name type string, got %v", nameProp.Type)
+	}
+	if nameProp.Example != "Alice" {
+		t.Errorf("Expected name example Alice, got %v", nameProp.Example)
+	}
+	if nameProp.Description != "The user name" {
+		t.Errorf("Expected name description 'The user name', got %q", nameProp.Description)
+	}
+	if sliceContains(schema.Required, "name") {
+		t.Error("Expected name to be optional")
+	}
+
+	// Tags
+	tagsProp := schema.Properties["tags"]
+	if tagsProp.Type != "array" {
+		t.Errorf("Expected tags type array, got %v", tagsProp.Type)
+	}
+	if tagsProp.Items == nil || tagsProp.Items.Type != "string" {
+		t.Error("Expected tags items to be string")
+	}
+
+	// Active
+	activeProp := schema.Properties["active"]
+	if activeProp.Type != "boolean" {
+		t.Errorf("Expected active type boolean, got %v", activeProp.Type)
+	}
+	if activeProp.Example != true {
+		t.Errorf("Expected active example true, got %v", activeProp.Example)
+	}
+
+	// Parent (Ref)
+	parentProp := schema.Properties["parent"]
+	if parentProp.Ref != "#/components/schemas/User" {
+		t.Errorf("Expected parent ref to User, got %s", parentProp.Ref)
+	}
+}
+
+func TestMSONParsing_InlineAttributes(t *testing.T) {
+	apib := `FORMAT: 1A
+# Test API
+
+## /test [/test]
+
+### POST [POST]
+
++ Request (application/json)
+    + Attributes
+        + count: 10 (number)
+`
+	spec, err := ParseAPIBlueprint([]byte(apib))
+	if err != nil {
+		t.Fatalf("ParseAPIBlueprint failed: %v", err)
+	}
+
+	op := spec.Paths["/test"].Post
+	content := op.RequestBody.Content["application/json"]
+	schema := content.Schema
+
+	if schema == nil {
+		t.Fatal("Expected schema in request body")
+	}
+	
+	countProp := schema.Properties["count"]
+	if countProp == nil {
+		t.Fatal("Expected count property")
+	}
+	if countProp.Type != "number" {
+		t.Errorf("Expected type number, got %v", countProp.Type)
+	}
+	if countProp.Example != 10.0 {
+		t.Errorf("Expected example 10, got %v", countProp.Example)
+	}
+}
+
+func sliceContains(slice []string, item string) bool {
+	for _, s := range slice {
+		if s == item {
+			return true
+		}
+	}
+	return false
+}
