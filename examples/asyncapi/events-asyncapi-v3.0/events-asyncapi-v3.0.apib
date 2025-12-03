@@ -1,0 +1,38 @@
+FORMAT: 1A
+
+# User Events API
+
+Kafka-based event streaming API for user lifecycle events
+
+HOST: 
+
+## /user.deleted [/user.deleted]
+
+Channel for user deletion events
+
+### Publish user deletion event [POST]
+
+Send a message when a user account is deleted
+
++ Request (application/json)
+
+## /user.profile.updated [/user.profile.updated]
+
+Channel for user profile update events
+
+### Notified when a user profile is updated [GET]
+
+Consume profile update events
+
++ Response 200 (application/json)
+
+## /user.signup [/user.signup]
+
+Channel for user signup events
+
+### Notified when a new user signs up [GET]
+
+Consume user signup events from the Kafka topic
+
++ Response 200 (application/json)
+

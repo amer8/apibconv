@@ -1,0 +1,28 @@
+FORMAT: 1A
+
+# Real-time Chat API
+
+WebSocket-based real-time chat application
+
+HOST: ws://localhost:8080/v1
+
+## /room/{roomId} [/room/{roomId}]
+
+Chat room channel for sending and receiving messages
+
+### Receive messages from the chat room [GET]
+
++ Response 200 (application/json)
+
+### Send messages to the chat room [POST]
+
++ Request (application/json)
+
+## /user/{userId}/presence [/user/{userId}/presence]
+
+User presence status updates
+
+### Receive user presence updates [GET]
+
++ Response 200 (application/json)
+

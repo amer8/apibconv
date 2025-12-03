@@ -1,0 +1,31 @@
+FORMAT: 1A
+# MSON Test API
+
+## Data Structures
+
+### User (object)
++ id: 1 (number, required) - The user ID
++ name: `John Doe` (string, required) - The user name
++ active: true (boolean) - Is user active
+
+### Item (object)
++ id: 100 (number)
++ name: `Item 1` (string)
+
+## Group Users
+
+## /users [/users]
+
+### Create User [POST]
+
++ Request (application/json)
+    + Attributes (User)
+
++ Response 201 (application/json)
+    + Attributes (User)
+
+### List Items [GET]
+
++ Response 200 (application/json)
+    + Attributes
+        + items (array[Item])

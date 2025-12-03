@@ -33,11 +33,11 @@ import (
 //	    },
 //	}
 type AsyncAPI struct {
-	AsyncAPI   string                     `json:"asyncapi"`           // AsyncAPI specification version (e.g., "2.6.0")
-	Info       Info                       `json:"info"`               // API metadata including title, description, and version
-	Servers    map[string]AsyncAPIServer  `json:"servers,omitempty"`  // Server definitions with protocol information
-	Channels   map[string]Channel         `json:"channels"`           // Channel definitions for publish/subscribe operations
-	Components *AsyncAPIComponents        `json:"components,omitempty"` // Reusable components (messages, schemas)
+	AsyncAPI   string                    `json:"asyncapi"`             // AsyncAPI specification version (e.g., "2.6.0")
+	Info       Info                      `json:"info"`                 // API metadata including title, description, and version
+	Servers    map[string]AsyncAPIServer `json:"servers,omitempty"`    // Server definitions with protocol information
+	Channels   map[string]Channel        `json:"channels"`             // Channel definitions for publish/subscribe operations
+	Components *AsyncAPIComponents       `json:"components,omitempty"` // Reusable components (messages, schemas)
 }
 
 // AsyncAPIServer represents a server in AsyncAPI specification.
@@ -77,9 +77,9 @@ type AsyncAPIServer struct {
 //	    },
 //	}
 type Channel struct {
-	Description string              `json:"description,omitempty"` // Description of the channel
-	Subscribe   *AsyncAPIOperation  `json:"subscribe,omitempty"`   // Client subscribes to receive messages
-	Publish     *AsyncAPIOperation  `json:"publish,omitempty"`     // Client publishes messages to this channel
+	Description string             `json:"description,omitempty"` // Description of the channel
+	Subscribe   *AsyncAPIOperation `json:"subscribe,omitempty"`   // Client subscribes to receive messages
+	Publish     *AsyncAPIOperation `json:"publish,omitempty"`     // Client publishes messages to this channel
 }
 
 // AsyncAPIOperation represents an operation on a channel (publish or subscribe).
@@ -617,12 +617,12 @@ func ConvertAPIBlueprintToAsyncAPI(r io.Reader, w io.Writer, protocol string) er
 //	    },
 //	}
 type AsyncAPIV3 struct {
-	AsyncAPI   string                     `json:"asyncapi"`           // AsyncAPI specification version (e.g., "3.0.0")
-	Info       Info                       `json:"info"`               // API metadata including title, description, and version
-	Servers    map[string]AsyncAPIServer  `json:"servers,omitempty"`  // Server definitions with protocol information
-	Channels   map[string]ChannelV3       `json:"channels,omitempty"` // Channel definitions (address + messages)
-	Operations map[string]OperationV3     `json:"operations"`         // Operations with send/receive actions
-	Components *AsyncAPIComponents        `json:"components,omitempty"` // Reusable components (messages, schemas)
+	AsyncAPI   string                    `json:"asyncapi"`             // AsyncAPI specification version (e.g., "3.0.0")
+	Info       Info                      `json:"info"`                 // API metadata including title, description, and version
+	Servers    map[string]AsyncAPIServer `json:"servers,omitempty"`    // Server definitions with protocol information
+	Channels   map[string]ChannelV3      `json:"channels,omitempty"`   // Channel definitions (address + messages)
+	Operations map[string]OperationV3    `json:"operations"`           // Operations with send/receive actions
+	Components *AsyncAPIComponents       `json:"components,omitempty"` // Reusable components (messages, schemas)
 }
 
 // ChannelV3 represents a channel in AsyncAPI 3.0 specification.
@@ -660,10 +660,10 @@ type ChannelV3 struct {
 //	    Channel: &ChannelReference{Ref: "#/channels/userSignup"},
 //	}
 type OperationV3 struct {
-	Action      string             `json:"action"`                // Action: "send" or "receive"
-	Summary     string             `json:"summary,omitempty"`     // Short summary of the operation
-	Description string             `json:"description,omitempty"` // Detailed description
-	Channel     *ChannelReference  `json:"channel,omitempty"`     // Reference to a channel
+	Action      string            `json:"action"`                // Action: "send" or "receive"
+	Summary     string            `json:"summary,omitempty"`     // Short summary of the operation
+	Description string            `json:"description,omitempty"` // Detailed description
+	Channel     *ChannelReference `json:"channel,omitempty"`     // Reference to a channel
 }
 
 // ChannelReference represents a reference to a channel in AsyncAPI 3.0.

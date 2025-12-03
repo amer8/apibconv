@@ -1,0 +1,99 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "MSON Test API",
+    "version": ""
+  },
+  "paths": {
+    "/users": {
+      "get": {
+        "summary": "List Items",
+        "responses": {
+          "200": {
+            "description": "Response 200",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Item"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create User",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/User"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Response 201",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Item": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "example": 100
+          },
+          "name": {
+            "type": "string",
+            "example": "Item 1"
+          }
+        }
+      },
+      "User": {
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "active": {
+            "description": "Is user active",
+            "type": "boolean",
+            "example": true
+          },
+          "id": {
+            "description": "The user ID",
+            "type": "number",
+            "example": 1
+          },
+          "name": {
+            "description": "The user name",
+            "type": "string",
+            "example": "John Doe"
+          }
+        }
+      }
+    }
+  }
+}

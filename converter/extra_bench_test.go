@@ -34,8 +34,8 @@ func generateAPIBlueprintContent(size SpecSize) string {
 func BenchmarkAPIBlueprintToOpenAPI_Sizes(b *testing.B) {
 	for _, size := range specSizes {
 		content := generateAPIBlueprintContent(size)
-		
-b.Run(size.Name, func(b *testing.B) {
+
+		b.Run(size.Name, func(b *testing.B) {
 			b.SetBytes(int64(len(content)))
 			b.ReportAllocs()
 

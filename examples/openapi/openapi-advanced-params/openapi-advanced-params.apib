@@ -1,0 +1,24 @@
+FORMAT: 1A
+
+# Advanced Parameters API
+
+Demonstrates Header and Cookie parameters
+
+## Group Secure-resource
+
+## /secure-resource [/secure-resource]
+
+### Resource with header and cookie params [GET]
+
++ Parameters
+    + X-API-Key (required, string) - API Key for authentication
+    + session_id (optional, string) - User session identifier
+
++ Response 200
+
+    Access granted
+
++ Response 401
+
+    Unauthorized
+

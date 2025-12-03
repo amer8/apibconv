@@ -35,13 +35,13 @@ import (
 //
 //go:generate easyjson -all converter.go
 type OpenAPI struct {
-	OpenAPI            string              `json:"openapi"`                     // OpenAPI specification version (e.g., "3.0.0", "3.1.0")
-	Info               Info                `json:"info"`                        // API metadata including title, description, and version
-	Servers            []Server            `json:"servers,omitempty"`           // Array of Server objects providing connectivity information
-	Paths              map[string]PathItem `json:"paths"`                       // Available paths and operations for the API
-	Webhooks           map[string]PathItem `json:"webhooks,omitempty"`          // Webhooks for async callbacks (OpenAPI 3.1+)
-	Components         *Components         `json:"components,omitempty"`        // Reusable components (schemas, parameters, etc.)
-	JSONSchemaDialect  string              `json:"jsonSchemaDialect,omitempty"` // JSON Schema dialect (OpenAPI 3.1+)
+	OpenAPI           string              `json:"openapi"`                     // OpenAPI specification version (e.g., "3.0.0", "3.1.0")
+	Info              Info                `json:"info"`                        // API metadata including title, description, and version
+	Servers           []Server            `json:"servers,omitempty"`           // Array of Server objects providing connectivity information
+	Paths             map[string]PathItem `json:"paths"`                       // Available paths and operations for the API
+	Webhooks          map[string]PathItem `json:"webhooks,omitempty"`          // Webhooks for async callbacks (OpenAPI 3.1+)
+	Components        *Components         `json:"components,omitempty"`        // Reusable components (schemas, parameters, etc.)
+	JSONSchemaDialect string              `json:"jsonSchemaDialect,omitempty"` // JSON Schema dialect (OpenAPI 3.1+)
 }
 
 // Info represents the metadata about the API.
@@ -250,8 +250,8 @@ type Response struct {
 // This defines what type of content is sent or received, along with optional
 // examples to help users understand the expected format.
 type MediaType struct {
-	Schema  *Schema                `json:"schema,omitempty"`  // The schema defining the content structure
-	Example interface{}            `json:"example,omitempty"` // An example of the media type content
+	Schema  *Schema     `json:"schema,omitempty"`  // The schema defining the content structure
+	Example interface{} `json:"example,omitempty"` // An example of the media type content
 }
 
 // Schema represents a data type schema used in requests and responses.
@@ -302,6 +302,11 @@ type MediaType struct {
 //	    Example: []string{"apple", "banana", "orange"},
 //	}
 type Schema struct {
+	// Common fields
+	Ref         string   `json:"$ref,omitempty"`        // Reference to another schema
+	Description string   `json:"description,omitempty"` // Description of the schema
+	Required    []string `json:"required,omitempty"`    // List of required properties
+
 	// Type is the data type. In OpenAPI 3.0, this is a string ("string", "number", etc.).
 	// In OpenAPI 3.1, this can be a string or []string (e.g., []string{"string", "null"}).
 	Type interface{} `json:"type,omitempty"`
@@ -418,6 +423,11 @@ func writeAPIBlueprint(buf *bytes.Buffer, spec *OpenAPI) {
 		buf.WriteString("HOST: ")
 		buf.WriteString(spec.Servers[0].URL)
 		buf.WriteString("\n\n")
+	}
+
+	// Data Structures
+	if spec.Components != nil && len(spec.Components.Schemas) > 0 {
+		writeDataStructures(buf, spec.Components.Schemas)
 	}
 
 	// Sort paths for consistent output
@@ -537,15 +547,11 @@ func writeRequest(buf *bytes.Buffer, req *RequestBody) {
 
 	// Get JSON content type if exists
 	if content, ok := req.Content["application/json"]; ok {
-		if content.Example != nil {
+		if content.Schema != nil {
+			writeMSON(buf, content.Schema, 1)
+			buf.WriteString("\n")
+		} else if content.Example != nil {
 			exampleJSON, err := json.MarshalIndent(content.Example, "        ", "    ")
-			if err == nil {
-				buf.WriteString("        ")
-				buf.Write(exampleJSON)
-				buf.WriteString("\n\n")
-			}
-		} else if content.Schema != nil && content.Schema.Example != nil {
-			exampleJSON, err := json.MarshalIndent(content.Schema.Example, "        ", "    ")
 			if err == nil {
 				buf.WriteString("        ")
 				buf.Write(exampleJSON)
@@ -572,15 +578,11 @@ func writeResponses(buf *bytes.Buffer, responses map[string]Response) {
 		if content, ok := resp.Content["application/json"]; ok {
 			buf.WriteString(" (application/json)\n\n")
 
-			if content.Example != nil {
+			if content.Schema != nil {
+				writeMSON(buf, content.Schema, 1)
+				buf.WriteString("\n")
+			} else if content.Example != nil {
 				exampleJSON, err := json.MarshalIndent(content.Example, "        ", "    ")
-				if err == nil {
-					buf.WriteString("        ")
-					buf.Write(exampleJSON)
-					buf.WriteString("\n\n")
-				}
-			} else if content.Schema != nil && content.Schema.Example != nil {
-				exampleJSON, err := json.MarshalIndent(content.Schema.Example, "        ", "    ")
 				if err == nil {
 					buf.WriteString("        ")
 					buf.Write(exampleJSON)
