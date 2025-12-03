@@ -1,21 +1,27 @@
 package converter
 
-// Package converter provides bidirectional conversion between OpenAPI 3.0/3.1 and API Blueprint specifications.
+// Package converter provides bidirectional conversion between OpenAPI 3.0/3.1, AsyncAPI 2.x/3.x, and API Blueprint specifications.
 //
 // # Overview
 //
-// This package enables high-performance, zero-allocation conversion between two popular API specification formats:
+// This package enables high-performance, zero-allocation conversion between three popular API specification formats:
 //   - OpenAPI 3.0/3.1 (JSON format)
+//   - AsyncAPI 2.x/3.x (JSON format)
 //   - API Blueprint (Markdown-based format)
 //
-// The converter supports both directions: OpenAPI → API Blueprint and API Blueprint → OpenAPI,
-// making it easy to work with either format based on your needs. It also supports conversion
-// between OpenAPI 3.0 and 3.1 versions.
+// The converter supports multiple directions:
+//   - OpenAPI ↔ API Blueprint
+//   - AsyncAPI ↔ API Blueprint
+//   - OpenAPI 3.0 ↔ OpenAPI 3.1
+//
+// It makes it easy to work with any of these formats based on your needs.
 //
 // # Key Features
 //
 //   - Bidirectional conversion (OpenAPI ↔ API Blueprint)
+//   - Bidirectional conversion (AsyncAPI ↔ API Blueprint)
 //   - OpenAPI version support (3.0 and 3.1) with automatic conversion
+//   - AsyncAPI version support (2.0-2.6 and 3.0)
 //   - Zero-allocation buffer operations using sync.Pool
 //   - Streaming API for large files
 //   - Support for paths, operations, parameters, request bodies, and responses
@@ -48,6 +54,14 @@ package converter
 //	    log.Fatal(err)
 //	}
 //	fmt.Println(openapiJSON)
+//
+// Convert AsyncAPI to API Blueprint:
+//
+//	asyncapiJSON := `{"asyncapi": "2.6.0", "info": {"title": "My Event API", "version": "1.0.0"}, "channels": {}}`
+//	// Auto-detects version (2.x or 3.x)
+//	spec, err := converter.ParseAsyncAPI([]byte(asyncapiJSON))
+//	blueprint := converter.AsyncAPIToAPIBlueprint(spec)
+//	fmt.Println(blueprint)
 //
 // # Version Conversion
 //
@@ -161,6 +175,17 @@ package converter
 //   - ToOpenAPIWithOptions: Convert with version options
 //   - ToOpenAPIString: Convert API Blueprint string to OpenAPI JSON string
 //   - ConvertToOpenAPI: Streaming I/O conversion
+//
+// AsyncAPI Conversion:
+//
+//   - ParseAsyncAPI: Parse AsyncAPI 2.x JSON
+//   - ParseAsyncAPIV3: Parse AsyncAPI 3.x JSON
+//   - AsyncAPIToAPIBlueprint: Convert AsyncAPI 2.x to API Blueprint
+//   - AsyncAPIV3ToAPIBlueprint: Convert AsyncAPI 3.x to API Blueprint
+//   - APIBlueprintToAsyncAPI: Convert API Blueprint to AsyncAPI 2.x
+//   - APIBlueprintToAsyncAPIV3: Convert API Blueprint to AsyncAPI 3.x
+//   - ConvertAPIBlueprintToAsyncAPI: Streaming conversion to AsyncAPI 2.x
+//   - ConvertAPIBlueprintToAsyncAPIV3: Streaming conversion to AsyncAPI 3.x
 //
 // Parsing:
 //
