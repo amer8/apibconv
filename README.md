@@ -10,7 +10,7 @@
 
 Convert between API Blueprint (*.apib), OpenAPI 3.0/3.1, and AsyncAPI 2.6/3.0 specifications.
 
-- [API Blueprint](https://apiblueprint.org/documentation/specification.html)
+- [API Blueprint](https://apiblueprint.org/documentation/specification.html) and [MSON](https://apiblueprint.org/documentation/mson/specification.html)
 - [AsyncAPI v3.x](https://www.asyncapi.com/docs/reference/specification/v3.0.0)
 - [AsyncAPI v2.x](https://v2.asyncapi.com/docs/reference/specification/v2.6.0)
 - [OpenAPI v3.1.x](https://swagger.io/specification/)
