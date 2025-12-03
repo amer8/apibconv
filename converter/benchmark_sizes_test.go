@@ -111,8 +111,8 @@ func generateOpenAPISpec(numPaths, operationsPerPath int) *OpenAPI {
 
 // SpecSize represents a specification size category
 type SpecSize struct {
-	Name             string
-	NumPaths         int
+	Name              string
+	NumPaths          int
 	OperationsPerPath int
 }
 

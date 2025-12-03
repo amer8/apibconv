@@ -142,9 +142,9 @@ jobs:
       - name: Test binary
         run: |
           ./apibconv -version
-          ./apibconv -f examples/petstore.json -o examples/petstore.apib
+          ./apibconv -f examples/openapi/petstore/petstore.json -o examples/openapi/petstore/petstore-gen.apib
           echo "Generated API Blueprint:"
-          head -n 20 examples/petstore.apib
+          head -n 20 examples/openapi/petstore/petstore-gen.apib
 
       - name: Upload artifact
         uses: actions/upload-artifact@v5

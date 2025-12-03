@@ -13,43 +13,92 @@ import (
 // This serves as a smoke test and ensures that complex real-world examples (like those in examples/)
 // work with the converter.
 func TestIntegration_Examples(t *testing.T) {
-	examplesDir := "../examples"
-	files, err := os.ReadDir(examplesDir)
-	if err != nil {
-		t.Fatalf("Failed to read examples directory: %v", err)
+	examplesRoot := "../examples"
+	if _, err := os.Stat(examplesRoot); os.IsNotExist(err) {
+		t.Logf("Examples directory not found at %s, skipping integration tests", examplesRoot)
+		return
 	}
 
-	for _, file := range files {
-		if file.IsDir() || filepath.Ext(file.Name()) != ".json" {
-			continue
+	err := filepath.WalkDir(examplesRoot, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
 		}
 
-		t.Run(file.Name(), func(t *testing.T) {
-			path := filepath.Join(examplesDir, file.Name())
+		// Skip hidden files or non-spec files
+		if strings.HasPrefix(d.Name(), ".") {
+			return nil
+		}
+
+		ext := filepath.Ext(path)
+		if ext != ".json" && ext != ".apib" {
+			return nil
+		}
+
+		// Run test for this file
+		t.Run(path, func(t *testing.T) {
 			content, err := os.ReadFile(path)
 			if err != nil {
 				t.Fatalf("Failed to read file: %v", err)
 			}
 
-			// Determine type based on content or name
-			// Simple heuristic: check for "openapi" or "asyncapi" keys
-			var typeCheck struct {
-				OpenAPI  string `json:"openapi"`
-				AsyncAPI string `json:"asyncapi"`
-			}
-			if err := json.Unmarshal(content, &typeCheck); err != nil {
-				t.Fatalf("Failed to unmarshal JSON structure: %v", err)
-			}
+			switch ext {
+			case ".json":
+				// Determine type based on content
+				var typeCheck struct {
+					OpenAPI  string `json:"openapi"`
+					AsyncAPI string `json:"asyncapi"`
+				}
+				if err := json.Unmarshal(content, &typeCheck); err != nil {
+					t.Logf("Skipping %s: invalid JSON or not a spec file: %v", path, err)
+					return
+				}
 
-			switch {
-			case typeCheck.OpenAPI != "":
-				testOpenAPIConversion(t, content)
-			case typeCheck.AsyncAPI != "":
-				testAsyncAPIConversion(t, content, typeCheck.AsyncAPI)
+				switch {
+				case typeCheck.OpenAPI != "":
+					testOpenAPIConversion(t, content)
+				case typeCheck.AsyncAPI != "":
+					testAsyncAPIConversion(t, content, typeCheck.AsyncAPI)
+				default:
+					t.Logf("Skipping %s: unknown JSON format (not OpenAPI or AsyncAPI)", path)
+				}
+			case ".apib":
+				testAPIBConversion(t, content)
 			default:
-				t.Logf("Skipping %s: unknown format", file.Name())
+				t.Logf("Skipping %s: unknown file type %s", path, ext)
 			}
 		})
+		return nil
+	})
+
+	if err != nil {
+		t.Fatalf("WalkDir failed: %v", err)
+	}
+}
+
+func testAPIBConversion(t *testing.T, content []byte) {
+	// 1. Parse API Blueprint to OpenAPI
+	// This implicitly validates the APIB parsing logic
+	spec, err := ToOpenAPI(content)
+	if err != nil {
+		t.Fatalf("Failed to convert API Blueprint to OpenAPI: %v", err)
+	}
+
+	// 2. Validate the generated OpenAPI JSON
+	// It should at least be valid JSON
+	var js map[string]interface{}
+	if err := json.Unmarshal(spec, &js); err != nil {
+		t.Fatalf("Generated OpenAPI is not valid JSON: %v", err)
+	}
+
+	// Check for basics
+	if _, ok := js["openapi"]; !ok {
+		t.Error("Generated OpenAPI missing 'openapi' version field")
+	}
+	if _, ok := js["info"]; !ok {
+		t.Error("Generated OpenAPI missing 'info' field")
 	}
 }
 

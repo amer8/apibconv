@@ -276,4 +276,3 @@ func TestConvertCompatibility(t *testing.T) {
 		t.Error("Expected FORMAT: 1A in output")
 	}
 }
-

@@ -419,8 +419,8 @@ func validateJSONSpec(data []byte) *ValidationResult {
 	}
 
 	return &ValidationResult{
-		Valid:   false,
-		Format:  "Unknown",
-		Errors:  &ValidationErrors{Errors: []*ValidationError{{Message: "unknown specification format"}}},
+		Valid:  false,
+		Format: "Unknown",
+		Errors: &ValidationErrors{Errors: []*ValidationError{{Message: "unknown specification format"}}},
 	}
 }

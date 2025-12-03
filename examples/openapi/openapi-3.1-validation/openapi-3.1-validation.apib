@@ -1,0 +1,24 @@
+FORMAT: 1A
+
+# Validation Example API
+
+Demonstrates OpenAPI 3.1 / JSON Schema 2020-12 Validation Features
+
+## Group Validate
+
+## /validate [/validate]
+
+### Complex Validation [POST]
+
++ Request (application/json)
+
+    + Attributes
+        + paymentInfo (object, optional) - Demonstrates dependentSchemas: if creditCard is present, billingAddress is required
+            + billingAddress (string, optional)
+            + creditCard (string, optional)
+        + tupleData (array, optional) - A tuple where the first item is a string and the second is an integer (prefixItems)
+
++ Response 200
+
+    Validation successful
+

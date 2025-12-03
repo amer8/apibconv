@@ -62,13 +62,13 @@ func TestDetectInputFormat(t *testing.T) {
 			expected: "asyncapi",
 		},
 		{
-			name: "Minified OpenAPI",
-			content: `{"openapi":"3.0.0","info":{"title":"Test","version":"1.0.0"}}`,
+			name:     "Minified OpenAPI",
+			content:  `{"openapi":"3.0.0","info":{"title":"Test","version":"1.0.0"}}`,
 			expected: "openapi",
 		},
 		{
-			name: "Minified AsyncAPI",
-			content: `{"asyncapi":"2.6.0","info":{"title":"Test","version":"1.0.0"}}`,
+			name:     "Minified AsyncAPI",
+			content:  `{"asyncapi":"2.6.0","info":{"title":"Test","version":"1.0.0"}}`,
 			expected: "asyncapi",
 		},
 		{

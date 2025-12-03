@@ -1,3 +1,5 @@
+package converter
+
 // Package converter provides bidirectional conversion between OpenAPI 3.0/3.1, AsyncAPI 2.x/3.x, and API Blueprint specifications.
 //
 // # Overview
@@ -23,6 +25,7 @@
 //   - Zero-allocation buffer operations using sync.Pool
 //   - Streaming API for large files
 //   - Support for paths, operations, parameters, request bodies, and responses
+//   - MSON Data Structures support (Attributes, Groups, Named Types)
 //   - Automatic content type handling (application/json)
 //   - Handles OpenAPI 3.1 features: type arrays, webhooks, JSON Schema 2020-12
 //
@@ -96,8 +99,41 @@
 //
 // 3. Streaming (for large files):
 //
-//	err := converter.Convert(inputReader, outputWriter)
-//	err := converter.ConvertToOpenAPI(inputReader, outputWriter)
+//	// OpenAPI → API Blueprint
+//	input, err := os.Open("examples/openapi/petstore/petstore.json")
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	defer input.Close()
+//
+//	output, err := os.Create("petstore.apib")
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	defer output.Close()
+//
+//	err = converter.Convert(input, output)
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//
+//	// API Blueprint → OpenAPI
+//	input2, err := os.Open("examples/apib/mson-example/mson-example.apib")
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	defer input2.Close()
+//
+//	output2, err := os.Create("mson-example.json")
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	defer output2.Close()
+//
+//	err = converter.ConvertToOpenAPI(input2, output2)
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
 //
 // 4. Version Conversion:
 //
@@ -201,4 +237,3 @@
 //
 // All exported functions are safe for concurrent use. The internal buffer pool
 // (sync.Pool) is thread-safe and optimized for concurrent access.
-package converter

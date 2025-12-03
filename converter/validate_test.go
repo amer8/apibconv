@@ -33,6 +33,56 @@ func TestValidateOpenAPI_Valid(t *testing.T) {
 	}
 }
 
+func TestValidateOpenAPI_Warnings(t *testing.T) {
+	spec := &OpenAPI{
+		OpenAPI: "3.0.0",
+		Info: Info{
+			Title:   "Test API",
+			Version: "1.0.0",
+		},
+		Paths: map[string]PathItem{
+			"/users/{id}": {
+				Get: &Operation{
+					Parameters: []Parameter{
+						{
+							Name:     "id",
+							In:       "path",
+							Required: false, // Warning: Path param should be required
+						},
+					},
+					Responses: map[string]Response{
+						"200": {Description: ""}, // Warning: Description recommended
+					},
+				},
+			},
+		},
+	}
+
+	result := ValidateOpenAPI(spec)
+	if !result.Valid {
+		t.Error("Spec should be valid despite warnings")
+	}
+
+	foundPathWarning := false
+	foundDescWarning := false
+
+	for _, w := range result.Warnings {
+		if strings.Contains(w, "path parameters should be marked as required") {
+			foundPathWarning = true
+		}
+		if strings.Contains(w, "description is recommended") {
+			foundDescWarning = true
+		}
+	}
+
+	if !foundPathWarning {
+		t.Error("Expected warning about optional path parameter")
+	}
+	if !foundDescWarning {
+		t.Error("Expected warning about missing response description")
+	}
+}
+
 func TestValidateOpenAPI_Nil(t *testing.T) {
 	result := ValidateOpenAPI(nil)
 	if result.Valid {

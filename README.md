@@ -65,7 +65,7 @@ The tool automatically detects the input format and converts accordingly:
 
 ```sh
 # Convert OpenAPI to API Blueprint
-apibconv -f examples/petstore.json -o petstore.apib
+apibconv -f examples/openapi/petstore/petstore.json -o petstore.apib
 
 # Convert API Blueprint to OpenAPI 3.0 (default)
 apibconv -f petstore.apib -o openapi.json
@@ -354,18 +354,32 @@ All functions use zero-allocation buffer pooling internally for optimal memory e
 
 ## Included Examples
 
-The `examples/` directory contains various specification files demonstrating supported features:
+The `examples/` directory now contains paired specification files, demonstrating various conversions. Each subdirectory represents a base API or specification, with `.json` and `.apib` files showing the input and converted output.
 
-- **OpenAPI 3.1**:
-  - `openapi-webhooks.json`: Demonstrates top-level `webhooks` support.
-  - `openapi-3.1-validation.json`: Shows JSON Schema 2020-12 validation (`prefixItems`, `dependentSchemas`).
-- **OpenAPI 3.0**:
-  - `openapi-advanced-params.json`: Usage of header and cookie parameters.
-  - `petstore.json`: The classic Petstore example.
-- **AsyncAPI**:
-  - `chat-asyncapi-v2.6.json`: WebSocket chat application.
-  - `events-asyncapi-v3.0.json`: Kafka event streaming (v3.0).
-  - `iot-asyncapi-v2.6-mqtt.json`: IoT MQTT telemetry.
+- **OpenAPI Examples (`examples/openapi/`)**
+  - `petstore/`: Classic Petstore example, demonstrating OpenAPI to API Blueprint conversion.
+  - `openapi-3.1-validation/`: OpenAPI 3.1 features to API Blueprint.
+  - `openapi-advanced-params/`: Advanced OpenAPI parameter usage.
+  - `openapi-webhooks/`: OpenAPI 3.1 webhooks conversion.
+
+- **AsyncAPI Examples (`examples/asyncapi/`)**
+  - `chat-asyncapi-v2.6/`: WebSocket chat application, demonstrating AsyncAPI 2.6 to API Blueprint conversion.
+  - `events-asyncapi-v3.0/`: Kafka event streaming example, showing AsyncAPI 3.0 to API Blueprint conversion.
+  - `iot-asyncapi-v2.6-mqtt/`: IoT MQTT telemetry, AsyncAPI 2.6 to API Blueprint conversion.
+
+- **API Blueprint Examples (`examples/apib/`)**
+  - `mson-example/`: Demonstrates API Blueprint with MSON data structures, converted to OpenAPI.
+
+To view a conversion:
+
+```sh
+# Example: OpenAPI Petstore to API Blueprint
+apibconv -f examples/openapi/petstore/petstore.json -o petstore.apib
+
+# Example: API Blueprint with MSON to OpenAPI
+apibconv -f examples/apib/mson-example/mson-example.apib -o mson-example.json
+```
+
 
 ## Performance
 

@@ -28,7 +28,7 @@ func generateAsyncAPISpec(numChannels int) *AsyncAPI {
 
 	for i := 0; i < numChannels; i++ {
 		channelName := fmt.Sprintf("events/resource%d", i)
-		
+
 		spec.Channels[channelName] = Channel{
 			Description: fmt.Sprintf("Channel for resource %d", i),
 			Subscribe: &AsyncAPIOperation{
