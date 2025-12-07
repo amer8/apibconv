@@ -291,6 +291,98 @@ HOST: https://api.example.com
 	}
 }
 
+func TestConvertAPIBlueprintToAsyncAPI(t *testing.T) {
+	apibContent := `FORMAT: 1A
+# Test API
+
+A simple test API
+
+HOST: wss://api.example.com
+
+## /channel [/channel]
+
+### Send Message [POST]
+
++ Request (application/json)
+
+        {
+            "message": "Hello"
+        }
+`
+
+	tests := []struct {
+		name         string
+		protocol     string
+		wantExitCode int
+		wantOutput   bool
+	}{
+		{
+			name:         "Missing protocol",
+			protocol:     "",
+			wantExitCode: 1,
+			wantOutput:   false,
+		},
+		{
+			name:         "Valid protocol",
+			protocol:     "ws",
+			wantExitCode: 0,
+			wantOutput:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			inputFilePath := createTempFile(t, apibContent, ".apib")
+			defer func() { _ = os.Remove(inputFilePath) }()
+
+			outputTempFile, err := os.CreateTemp("", "test-output-*.json")
+			if err != nil {
+				t.Fatal(err)
+			}
+			outputFilePath := outputTempFile.Name()
+			_ = outputTempFile.Close()
+			defer func() { _ = os.Remove(outputFilePath) }()
+
+			inputFile, err := os.Open(inputFilePath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer func() { _ = inputFile.Close() }()
+
+			outputFile, err := os.Create(outputFilePath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer func() { _ = outputFile.Close() }()
+
+			// Save and restore global protocol flag
+			oldProtocol := *protocol
+			defer func() { *protocol = oldProtocol }()
+			*protocol = tt.protocol
+
+			exitCode := convertAPIBlueprintToAsyncAPI(inputFile, outputFile)
+			if exitCode != tt.wantExitCode {
+				t.Errorf("convertAPIBlueprintToAsyncAPI() exit code = %d, want %d", exitCode, tt.wantExitCode)
+			}
+
+			if tt.wantOutput {
+				_ = outputFile.Close()
+				content, err := os.ReadFile(outputFilePath)
+				if err != nil {
+					t.Fatal(err)
+				}
+				output := string(content)
+				if !strings.Contains(output, `"asyncapi":`) {
+					t.Error("Output should contain AsyncAPI version")
+				}
+				if !strings.Contains(output, `"protocol": "ws"`) {
+					t.Error("Output should contain specified protocol")
+				}
+			}
+		})
+	}
+}
+
 func TestDetectInputFormatNonExistentFile(t *testing.T) {
 	_, err := detectInputFormat("/nonexistent/file.json")
 	if err == nil {
