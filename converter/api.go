@@ -1,26 +1,27 @@
 package converter
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 )
 
-// Parse parses OpenAPI JSON data into an OpenAPI structure.
+// Parse parses OpenAPI JSON or YAML data into an OpenAPI structure.
 //
 // This function is useful when you want to inspect or manipulate the parsed structure
-// before converting to API Blueprint format. It accepts raw JSON bytes and returns
+// before converting to API Blueprint format. It accepts raw JSON or YAML bytes and returns
 // a fully populated OpenAPI struct.
 //
-// The function automatically detects the OpenAPI version (3.0 or 3.1) from the spec.
+// The function automatically detects the format (JSON/YAML) and OpenAPI version (3.0 or 3.1).
 // No conversion is performed - the spec is returned as-is.
 //
 // Parameters:
-//   - data: OpenAPI specification as JSON bytes (3.0 or 3.1)
+//   - data: OpenAPI specification as JSON or YAML bytes
 //
 // Returns:
 //   - *OpenAPI: Parsed OpenAPI structure
-//   - error: Error if JSON is malformed or invalid
+//   - error: Error if parsing fails
 //
 // Example:
 //
@@ -42,20 +43,40 @@ import (
 //	result, err := converter.Format(spec)
 func Parse(data []byte) (*OpenAPI, error) {
 	var spec OpenAPI
-	if err := json.Unmarshal(data, &spec); err != nil {
-		return nil, fmt.Errorf("failed to parse OpenAPI spec: %w", err)
+
+	// Try JSON first if it looks like JSON
+	if isJSON(data) {
+		if err := json.Unmarshal(data, &spec); err != nil {
+			return nil, fmt.Errorf("failed to parse OpenAPI JSON: %w", err)
+		}
+		return &spec, nil
 	}
+
+	// Try YAML
+	if err := UnmarshalYAML(data, &spec); err != nil {
+		return nil, fmt.Errorf("failed to parse OpenAPI YAML: %w", err)
+	}
+
 	return &spec, nil
 }
 
-// ParseWithConversion parses OpenAPI JSON and optionally converts to a target version.
+// isJSON checks if the data looks like JSON
+func isJSON(data []byte) bool {
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) == 0 {
+		return false
+	}
+	return trimmed[0] == '{' || trimmed[0] == '['
+}
+
+// ParseWithConversion parses OpenAPI JSON/YAML and optionally converts to a target version.
 //
 // This function parses the OpenAPI spec and can automatically convert it to a different
 // version if requested via the options. This is useful when you want to normalize
 // all input to a specific version.
 //
 // Parameters:
-//   - data: OpenAPI specification as JSON bytes (3.0 or 3.1)
+//   - data: OpenAPI specification as JSON or YAML bytes
 //   - opts: Conversion options (nil to keep original version)
 //
 // Returns:
@@ -87,22 +108,22 @@ func ParseWithConversion(data []byte, opts *ConversionOptions) (*OpenAPI, error)
 	return ConvertToVersion(spec, opts.OutputVersion, opts)
 }
 
-// ParseReader parses OpenAPI 3.0 JSON from an io.Reader into an OpenAPI structure.
+// ParseReader parses OpenAPI 3.0 JSON or YAML from an io.Reader into an OpenAPI structure.
 //
 // This is the streaming version of Parse, useful for reading from files, network
 // connections, or other io.Reader sources without loading the entire content into
 // memory first.
 //
 // Parameters:
-//   - r: An io.Reader containing OpenAPI 3.0 JSON data
+//   - r: An io.Reader containing OpenAPI 3.0 JSON or YAML data
 //
 // Returns:
 //   - *OpenAPI: Parsed OpenAPI structure
-//   - error: Error if reading fails or JSON is malformed
+//   - error: Error if reading fails or parsing is malformed
 //
 // Example:
 //
-//	file, err := os.Open("openapi.json")
+//	file, err := os.Open("openapi.yaml")
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
@@ -115,12 +136,11 @@ func ParseWithConversion(data []byte, opts *ConversionOptions) (*OpenAPI, error)
 //
 //	fmt.Printf("API Title: %s\n", spec.Info.Title)
 func ParseReader(r io.Reader) (*OpenAPI, error) {
-	var spec OpenAPI
-	decoder := json.NewDecoder(r)
-	if err := decoder.Decode(&spec); err != nil {
-		return nil, fmt.Errorf("failed to decode OpenAPI spec: %w", err)
+	data, err := io.ReadAll(r)
+	if err != nil {
+		return nil, err
 	}
-	return &spec, nil
+	return Parse(data)
 }
 
 // Format converts an OpenAPI structure to API Blueprint format and returns it as a string.

@@ -64,26 +64,25 @@ sudo mv apibconv /usr/local/bin/
 The tool automatically detects the input format and converts accordingly:
 
 ```sh
-# Convert OpenAPI to API Blueprint
-apibconv -f examples/openapi/petstore/petstore.json -o petstore.apib
+# Usage
+apibconv -f <input-file> -o <output-file>
 
-# Convert API Blueprint to OpenAPI 3.0 (default)
-apibconv -f petstore.apib -o openapi.json
+# Input Formats (auto-detected from file extension or content)
+apibconv -f petstore.json -o petstore.apib          # OpenAPI JSON → API Blueprint
+apibconv -f openapi.yaml -o petstore.apib           # OpenAPI YAML → API Blueprint
+apibconv -f asyncapi.json -o api.apib               # AsyncAPI → API Blueprint
+apibconv -f petstore.apib -o openapi.json           # API Blueprint → OpenAPI (default 3.0)
+apibconv -f petstore.apib -o openapi.yaml
 
-# Convert API Blueprint to OpenAPI 3.1
+# Version Control
 apibconv -f petstore.apib -o openapi.json --openapi-version 3.1
+apibconv -f api.apib -o asyncapi.json --output-format asyncapi --asyncapi-version 3.0
 
-# Convert AsyncAPI to API Blueprint (auto-detects v2.6 or v3.0)
-apibconv -f asyncapi.json -o api.apib
+# Protocol Selection (AsyncAPI only)
+apibconv -f api.apib -o asyncapi.json --output-format asyncapi --protocol ws|kafka|mqtt|http|amqp
 
-# Convert API Blueprint to AsyncAPI 2.6 (WebSocket protocol)
-apibconv -f api.apib -o asyncapi.json --output-format asyncapi --protocol ws
-
-# Convert API Blueprint to AsyncAPI 3.0 (Kafka protocol)
-apibconv -f api.apib -o asyncapi-v3.json --output-format asyncapi --asyncapi-version 3.0 --protocol kafka
-
-# Convert API Blueprint to AsyncAPI 2.6 (MQTT protocol)
-apibconv -f api.apib -o asyncapi.json --output-format asyncapi --asyncapi-version 2.6 --protocol mqtt
+# Validation Only
+apibconv -f <file> --validate
 ```
 
 ### OpenAPI Version Support

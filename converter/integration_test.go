@@ -33,7 +33,7 @@ func TestIntegration_Examples(t *testing.T) {
 		}
 
 		ext := filepath.Ext(path)
-		if ext != ".json" && ext != ".apib" {
+		if !isValidExtension(ext) {
 			return nil
 		}
 
@@ -43,32 +43,7 @@ func TestIntegration_Examples(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to read file: %v", err)
 			}
-
-			switch ext {
-			case ".json":
-				// Determine type based on content
-				var typeCheck struct {
-					OpenAPI  string `json:"openapi"`
-					AsyncAPI string `json:"asyncapi"`
-				}
-				if err := json.Unmarshal(content, &typeCheck); err != nil {
-					t.Logf("Skipping %s: invalid JSON or not a spec file: %v", path, err)
-					return
-				}
-
-				switch {
-				case typeCheck.OpenAPI != "":
-					testOpenAPIConversion(t, content)
-				case typeCheck.AsyncAPI != "":
-					testAsyncAPIConversion(t, content, typeCheck.AsyncAPI)
-				default:
-					t.Logf("Skipping %s: unknown JSON format (not OpenAPI or AsyncAPI)", path)
-				}
-			case ".apib":
-				testAPIBConversion(t, content)
-			default:
-				t.Logf("Skipping %s: unknown file type %s", path, ext)
-			}
+			processExampleFile(t, path, content, ext)
 		})
 		return nil
 	})
@@ -78,6 +53,45 @@ func TestIntegration_Examples(t *testing.T) {
 	}
 }
 
+func isValidExtension(ext string) bool {
+	return ext == ".json" || ext == ".apib" || ext == ".yaml" || ext == ".yml"
+}
+
+func processExampleFile(t *testing.T, path string, content []byte, ext string) {
+	switch ext {
+	case ".json", ".yaml", ".yml":
+		// Determine type based on content
+		var typeCheck struct {
+			OpenAPI  string `json:"openapi"`
+			AsyncAPI string `json:"asyncapi"`
+		}
+
+		var unmarshalErr error
+		if ext == ".json" {
+			unmarshalErr = json.Unmarshal(content, &typeCheck)
+		} else {
+			unmarshalErr = UnmarshalYAML(content, &typeCheck)
+		}
+
+		if unmarshalErr != nil {
+			t.Logf("Skipping %s: invalid format or not a spec file: %v", path, unmarshalErr)
+			return
+		}
+
+		switch {
+		case typeCheck.OpenAPI != "":
+			testOpenAPIConversion(t, content)
+		case typeCheck.AsyncAPI != "":
+			testAsyncAPIConversion(t, content, typeCheck.AsyncAPI)
+		default:
+			t.Logf("Skipping %s: unknown spec format (not OpenAPI or AsyncAPI)", path)
+		}
+	case ".apib":
+		testAPIBConversion(t, content)
+	default:
+		t.Logf("Skipping %s: unknown file type %s", path, ext)
+	}
+}
 func testAPIBConversion(t *testing.T, content []byte) {
 	// 1. Parse API Blueprint to OpenAPI
 	// This implicitly validates the APIB parsing logic

@@ -1,0 +1,124 @@
+info:
+  description: A simple pet store API example
+  title: Pet Store API
+  version: 1.0.0
+openapi: 3.0.0
+paths:
+  /pets:
+    get:
+      description: Returns a list of all pets in the store
+      parameters:
+        - 
+          description: Maximum number of pets to return
+          in: query
+          name: limit
+          schema:
+            example: 10
+            type: integer
+
+      responses:
+        200:
+          content:
+            application/json:
+              example:
+                pets:
+                  - 
+                    id: 1
+                    name: Fluffy
+                    species: cat
+
+                  - 
+                    id: 2
+                    name: Buddy
+                    species: dog
+
+          description: Successful response
+      summary: List all pets
+    post:
+      description: Add a new pet to the store
+      requestBody:
+        content:
+          application/json:
+            example:
+              age: 3
+              name: Max
+              species: dog
+        required: true
+      responses:
+        201:
+          content:
+            application/json:
+              example:
+                age: 3
+                id: 3
+                name: Max
+                species: dog
+          description: Pet created successfully
+      summary: Create a pet
+  /pets/{petId}:
+    delete:
+      description: Remove a pet from the store
+      parameters:
+        - 
+          in: path
+          name: petId
+          required: true
+          schema:
+            type: integer
+
+      responses:
+        204:
+          description: Pet deleted successfully
+        404:
+          description: Pet not found
+      summary: Delete a pet
+    get:
+      description: Returns details of a specific pet
+      parameters:
+        - 
+          description: ID of the pet to retrieve
+          in: path
+          name: petId
+          required: true
+          schema:
+            type: integer
+
+      responses:
+        200:
+          content:
+            application/json:
+              example:
+                age: 2
+                id: 1
+                name: Fluffy
+                species: cat
+          description: Pet found
+        404:
+          description: Pet not found
+      summary: Get pet by ID
+    put:
+      description: "Update an existing pet's information"
+      parameters:
+        - 
+          in: path
+          name: petId
+          required: true
+          schema:
+            type: integer
+
+      requestBody:
+        content:
+          application/json:
+            example:
+              age: 3
+              name: Fluffy Updated
+        required: true
+      responses:
+        200:
+          description: Pet updated successfully
+      summary: Update a pet
+servers:
+  - 
+    description: Production server
+    url: "https://api.petstore.example.com/v1"
+

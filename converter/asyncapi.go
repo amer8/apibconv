@@ -162,13 +162,13 @@ type AsyncAPIComponents struct {
 	Schemas  map[string]*Schema  `json:"schemas,omitempty"`  // Reusable schema definitions
 }
 
-// ParseAsyncAPI parses AsyncAPI JSON data into an AsyncAPI struct.
+// ParseAsyncAPI parses AsyncAPI JSON or YAML data into an AsyncAPI struct.
 //
-// This function reads AsyncAPI specification in JSON format and unmarshals it
+// This function reads AsyncAPI specification in JSON or YAML format and unmarshals it
 // into the AsyncAPI Go struct.
 //
 // Parameters:
-//   - data: JSON byte array containing AsyncAPI specification
+//   - data: JSON or YAML byte array containing AsyncAPI specification
 //
 // Returns:
 //   - *AsyncAPI: Parsed AsyncAPI structure
@@ -183,20 +183,31 @@ type AsyncAPIComponents struct {
 //	}
 func ParseAsyncAPI(data []byte) (*AsyncAPI, error) {
 	var spec AsyncAPI
-	if err := json.Unmarshal(data, &spec); err != nil {
-		return nil, fmt.Errorf("failed to parse AsyncAPI: %w", err)
+
+	// Try JSON first
+	if isJSON(data) {
+		if err := json.Unmarshal(data, &spec); err != nil {
+			return nil, fmt.Errorf("failed to parse AsyncAPI JSON: %w", err)
+		}
+		return &spec, nil
 	}
+
+	// Try YAML
+	if err := UnmarshalYAML(data, &spec); err != nil {
+		return nil, fmt.Errorf("failed to parse AsyncAPI YAML: %w", err)
+	}
+
 	return &spec, nil
 }
 
-// ParseAsyncAPIReader parses AsyncAPI JSON from an io.Reader.
+// ParseAsyncAPIReader parses AsyncAPI JSON or YAML from an io.Reader.
 //
 // This is a streaming version of ParseAsyncAPI that reads from an io.Reader
 // instead of a byte slice.
 //
 // Example:
 //
-//	file, err := os.Open("asyncapi.json")
+//	file, err := os.Open("asyncapi.yaml")
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
@@ -207,12 +218,11 @@ func ParseAsyncAPI(data []byte) (*AsyncAPI, error) {
 //	    log.Fatal(err)
 //	}
 func ParseAsyncAPIReader(r io.Reader) (*AsyncAPI, error) {
-	var spec AsyncAPI
-	decoder := json.NewDecoder(r)
-	if err := decoder.Decode(&spec); err != nil {
-		return nil, fmt.Errorf("failed to parse AsyncAPI: %w", err)
+	data, err := io.ReadAll(r)
+	if err != nil {
+		return nil, err
 	}
-	return &spec, nil
+	return ParseAsyncAPI(data)
 }
 
 // AsyncAPIToAPIBlueprint converts an AsyncAPI specification to API Blueprint format.
@@ -698,7 +708,7 @@ func DetectAsyncAPIVersion(asyncapiVersion string) int {
 	return 0
 }
 
-// ParseAsyncAPIV3 parses AsyncAPI 3.0 JSON data into an AsyncAPIV3 struct.
+// ParseAsyncAPIV3 parses AsyncAPI 3.0 JSON or YAML data into an AsyncAPIV3 struct.
 //
 // Example:
 //
@@ -709,17 +719,28 @@ func DetectAsyncAPIVersion(asyncapiVersion string) int {
 //	}
 func ParseAsyncAPIV3(data []byte) (*AsyncAPIV3, error) {
 	var spec AsyncAPIV3
-	if err := json.Unmarshal(data, &spec); err != nil {
-		return nil, fmt.Errorf("failed to parse AsyncAPI v3: %w", err)
+
+	// Try JSON first
+	if isJSON(data) {
+		if err := json.Unmarshal(data, &spec); err != nil {
+			return nil, fmt.Errorf("failed to parse AsyncAPI v3 JSON: %w", err)
+		}
+		return &spec, nil
 	}
+
+	// Try YAML
+	if err := UnmarshalYAML(data, &spec); err != nil {
+		return nil, fmt.Errorf("failed to parse AsyncAPI v3 YAML: %w", err)
+	}
+
 	return &spec, nil
 }
 
-// ParseAsyncAPIV3Reader parses AsyncAPI 3.0 JSON from an io.Reader.
+// ParseAsyncAPIV3Reader parses AsyncAPI 3.0 JSON or YAML from an io.Reader.
 //
 // Example:
 //
-//	file, err := os.Open("asyncapi-v3.json")
+//	file, err := os.Open("asyncapi-v3.yaml")
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
@@ -730,12 +751,11 @@ func ParseAsyncAPIV3(data []byte) (*AsyncAPIV3, error) {
 //	    log.Fatal(err)
 //	}
 func ParseAsyncAPIV3Reader(r io.Reader) (*AsyncAPIV3, error) {
-	var spec AsyncAPIV3
-	decoder := json.NewDecoder(r)
-	if err := decoder.Decode(&spec); err != nil {
-		return nil, fmt.Errorf("failed to parse AsyncAPI v3: %w", err)
+	data, err := io.ReadAll(r)
+	if err != nil {
+		return nil, err
 	}
-	return &spec, nil
+	return ParseAsyncAPIV3(data)
 }
 
 // AsyncAPIV3ToAPIBlueprint converts an AsyncAPI 3.0 specification to API Blueprint format.
@@ -1168,7 +1188,7 @@ func ConvertAPIBlueprintToAsyncAPIV3(r io.Reader, w io.Writer, protocol string) 
 	return nil
 }
 
-// ParseAsyncAPIAny parses AsyncAPI JSON (any version) and returns the appropriate struct.
+// ParseAsyncAPIAny parses AsyncAPI JSON or YAML (any version) and returns the appropriate struct.
 //
 // Returns:
 //   - *AsyncAPI (v2) if version is 2.x
@@ -1193,8 +1213,14 @@ func ParseAsyncAPIAny(data []byte) (spec interface{}, version int, err error) {
 	var versionCheck struct {
 		AsyncAPI string `json:"asyncapi"`
 	}
+
+	// Try JSON first
 	if err = json.Unmarshal(data, &versionCheck); err != nil {
-		return nil, 0, fmt.Errorf("failed to detect AsyncAPI version: %w", err)
+		// If JSON fails, try YAML
+		if yamlErr := UnmarshalYAML(data, &versionCheck); yamlErr != nil {
+			// If both fail, return an error
+			return nil, 0, fmt.Errorf("failed to detect AsyncAPI version from JSON or YAML: %w", err)
+		}
 	}
 
 	version = DetectAsyncAPIVersion(versionCheck.AsyncAPI)

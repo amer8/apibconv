@@ -1,0 +1,120 @@
+asyncapi: 2.6.0
+channels:
+  devices/{deviceId}/commands:
+    description: Commands sent to devices
+    subscribe:
+      message: {}
+      summary: Device receives commands
+  devices/{deviceId}/status:
+    description: Device status and health information
+    publish:
+      message: {}
+      summary: Device publishes status updates
+  devices/{deviceId}/telemetry:
+    description: Device telemetry data stream
+    publish:
+      message: {}
+      summary: Device publishes telemetry data
+components:
+  messages:
+    deviceCommand:
+      contentType: application/json
+      name: DeviceCommand
+      payload:
+        properties:
+          action:
+            description: Action to perform
+            type: string
+          commandId:
+            description: Unique command identifier
+            type: string
+          parameters:
+            description: Command-specific parameters
+            type: object
+          timestamp:
+            type: string
+        required:
+          - commandId
+          - action
+        type: object
+      summary: Command sent to control an IoT device
+      title: Device Command
+    deviceStatus:
+      contentType: application/json
+      name: DeviceStatus
+      payload:
+        properties:
+          deviceId:
+            type: string
+          firmwareVersion:
+            description: Current firmware version
+            type: string
+          lastError:
+            description: Last error message if status is error
+            type: string
+          status:
+            description: Current device status
+            type: string
+          timestamp:
+            type: string
+          uptime:
+            description: Device uptime in seconds
+            type: integer
+        required:
+          - deviceId
+          - status
+          - timestamp
+        type: object
+      summary: Health and connectivity status of the device
+      title: Device Status
+    telemetryData:
+      contentType: application/json
+      name: TelemetryData
+      payload:
+        properties:
+          deviceId:
+            description: Device identifier
+            type: string
+          location:
+            properties:
+              latitude:
+                type: number
+              longitude:
+                type: number
+            type: object
+          measurements:
+            properties:
+              batteryLevel:
+                description: Battery level percentage
+                type: integer
+              humidity:
+                description: Relative humidity percentage
+                type: number
+              pressure:
+                description: Atmospheric pressure in hPa
+                type: number
+              temperature:
+                description: Temperature in Celsius
+                type: number
+            type: object
+          timestamp:
+            description: When the measurement was taken
+            type: string
+        required:
+          - deviceId
+          - timestamp
+          - measurements
+        type: object
+      summary: Sensor readings and metrics from IoT device
+      title: Device Telemetry
+info:
+  description: MQTT-based API for IoT device telemetry and control
+  license:
+    name: MIT
+  title: IoT Device Telemetry API
+  version: 1.0.0
+servers:
+  production:
+    description: Production MQTT broker
+    protocol: mqtt
+    url: "mqtt://iot.example.com:1883"
