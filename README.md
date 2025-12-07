@@ -127,7 +127,7 @@ The tool supports AsyncAPI 2.6 and 3.0 for event-driven APIs:
 
 - `--output-format asyncapi` - Specify AsyncAPI as output format
 - `--asyncapi-version <version>` - AsyncAPI version for output (2.6 or 3.0, default: 2.6)
-- `--protocol <protocol>` - Set the protocol for AsyncAPI servers (default: `ws`)
+- `--protocol <protocol>` - Set the protocol for AsyncAPI servers
 
 ### OpenAPI → API Blueprint
 
