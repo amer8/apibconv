@@ -150,7 +150,7 @@ func TestMSONParsing_InlineAttributes(t *testing.T) {
 	if schema == nil {
 		t.Fatal("Expected schema in request body")
 	}
-	
+
 	countProp := schema.Properties["count"]
 	if countProp == nil {
 		t.Fatal("Expected count property")

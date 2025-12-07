@@ -85,7 +85,7 @@ var (
 	asyncapiVersion = flag.String("asyncapi-version", "2.6", "AsyncAPI version for output (2.6 or 3.0) when converting from API Blueprint")
 	outputFormat    = flag.String("output-format", "", "Output format: openapi, asyncapi, or apib (auto-detected if not specified)")
 	encodingFormat  = flag.String("format", "json", "Encoding format: json or yaml")
-	protocol        = flag.String("protocol", "ws", "Protocol for AsyncAPI output (ws, mqtt, kafka, amqp, http)")
+	protocol        = flag.String("protocol", "", "Protocol for AsyncAPI output (ws, mqtt, kafka, amqp, http)")
 	validateOnly    = flag.Bool("validate", false, "Validate the input specification without conversion")
 	showVersion     = flag.Bool("version", false, "Print version information")
 )
@@ -379,6 +379,12 @@ func convertAPIBlueprintToOpenAPI(input, output *os.File) int {
 
 // convertAPIBlueprintToAsyncAPI converts API Blueprint to AsyncAPI
 func convertAPIBlueprintToAsyncAPI(input, output *os.File) int {
+	// Protocol is required for AsyncAPI
+	if *protocol == "" {
+		fmt.Fprintln(os.Stderr, "Error: protocol is required for AsyncAPI conversion (use --protocol)")
+		return 1
+	}
+
 	// Determine target AsyncAPI version
 	var targetVersion string
 	switch *asyncapiVersion {

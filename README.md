@@ -76,7 +76,7 @@ apibconv -f petstore.apib -o openapi.json --openapi-version 3.1
 # Convert AsyncAPI to API Blueprint (auto-detects v2.6 or v3.0)
 apibconv -f asyncapi.json -o api.apib
 
-# Convert API Blueprint to AsyncAPI 2.6 (default, WebSocket protocol)
+# Convert API Blueprint to AsyncAPI 2.6 (WebSocket protocol)
 apibconv -f api.apib -o asyncapi.json --output-format asyncapi --protocol ws
 
 # Convert API Blueprint to AsyncAPI 3.0 (Kafka protocol)
