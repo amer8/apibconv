@@ -5,8 +5,8 @@ package converter
 // # Overview
 //
 // This package enables high-performance, zero-allocation conversion between three popular API specification formats:
-//   - OpenAPI 3.0/3.1 (JSON format)
-//   - AsyncAPI 2.x/3.x (JSON format)
+//   - OpenAPI 3.0/3.1 (JSON/YAML)
+//   - AsyncAPI 2.x/3.x (JSON/YAML)
 //   - API Blueprint (Markdown-based format)
 //
 // The converter supports multiple directions:
@@ -20,6 +20,7 @@ package converter
 //
 //   - Bidirectional conversion (OpenAPI ↔ API Blueprint)
 //   - Bidirectional conversion (AsyncAPI ↔ API Blueprint)
+//   - **JSON** and **YAML** input/output support
 //   - OpenAPI version support (3.0 and 3.1) with automatic conversion
 //   - AsyncAPI version support (2.0-2.6 and 3.0)
 //   - Zero-allocation buffer operations using sync.Pool

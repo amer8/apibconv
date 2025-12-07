@@ -287,7 +287,7 @@ func detectInputFormat(filename string) (string, error) {
 		return "apib", nil
 	}
 
-	// Check file content for JSON-based formats
+	// Check file content for JSON/YAML-based formats
 	// #nosec G304 - filename is provided by user via CLI flag, this is expected behavior for a file conversion tool
 	file, err := os.Open(filename)
 	if err != nil {
@@ -322,12 +322,12 @@ func detectInputFormat(filename string) (string, error) {
 		}
 	}
 
-	// Check for AsyncAPI
-	if strings.Contains(content, "\"asyncapi\"") {
+	// Check for AsyncAPI (JSON or YAML)
+	if strings.Contains(content, "\"asyncapi\"") || strings.Contains(content, "asyncapi:") {
 		return "asyncapi", nil
 	}
-	// Check for OpenAPI
-	if strings.Contains(content, "\"openapi\"") {
+	// Check for OpenAPI (JSON or YAML)
+	if strings.Contains(content, "\"openapi\"") || strings.Contains(content, "openapi:") {
 		return "openapi", nil
 	}
 
@@ -428,36 +428,23 @@ func convertAsyncAPIToAPIBlueprint(input, output *os.File) int {
 		return 1
 	}
 
-	// Detect AsyncAPI version
-	var versionCheck struct {
-		AsyncAPI string `json:"asyncapi"`
-	}
-	if err := json.Unmarshal(data, &versionCheck); err != nil {
-		fmt.Fprintf(os.Stderr, "Error detecting AsyncAPI version: %v\n", err)
+	// Use ParseAsyncAPIAny which handles JSON and YAML detection and versioning
+	spec, version, err := converter.ParseAsyncAPIAny(data)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error parsing AsyncAPI: %v\n", err)
 		return 1
 	}
 
-	asyncVer := converter.DetectAsyncAPIVersion(versionCheck.AsyncAPI)
-
 	// Convert based on detected version
 	var blueprint string
-	switch asyncVer {
+	switch version {
 	case 2:
-		spec, err := converter.ParseAsyncAPI(data)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error parsing AsyncAPI 2.x: %v\n", err)
-			return 1
-		}
-		blueprint = converter.AsyncAPIToAPIBlueprint(spec)
+		blueprint = converter.AsyncAPIToAPIBlueprint(spec.(*converter.AsyncAPI))
 	case 3:
-		spec, err := converter.ParseAsyncAPIV3(data)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error parsing AsyncAPI 3.x: %v\n", err)
-			return 1
-		}
-		blueprint = converter.AsyncAPIV3ToAPIBlueprint(spec)
+		blueprint = converter.AsyncAPIV3ToAPIBlueprint(spec.(*converter.AsyncAPIV3))
 	default:
-		fmt.Fprintf(os.Stderr, "Error: unsupported AsyncAPI version: %s\n", versionCheck.AsyncAPI)
+		// Should be caught by ParseAsyncAPIAny, but safety first
+		fmt.Fprintf(os.Stderr, "Error: unsupported AsyncAPI version\n")
 		return 1
 	}
 
@@ -467,7 +454,13 @@ func convertAsyncAPIToAPIBlueprint(input, output *os.File) int {
 		return 1
 	}
 
-	fmt.Printf("Successfully converted AsyncAPI %s %s to API Blueprint %s\n", versionCheck.AsyncAPI, *inputFile, *outputFile)
+	// Get AsyncAPI version string for logging
+	asyncVerStr := "2.6.0"
+	if version == 3 {
+		asyncVerStr = "3.0.0"
+	}
+
+	fmt.Printf("Successfully converted AsyncAPI %s %s to API Blueprint %s\n", asyncVerStr, *inputFile, *outputFile)
 	return 0
 }
 
