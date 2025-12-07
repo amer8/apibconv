@@ -428,7 +428,7 @@ func ConvertAsyncAPIToAPIBlueprint(r io.Reader, w io.Writer) error {
 //
 // Parameters:
 //   - spec: OpenAPI specification (parsed from API Blueprint)
-//   - protocol: Protocol to use for AsyncAPI servers (e.g., "ws", "mqtt", "kafka")
+//   - protocol: Protocol to use for AsyncAPI servers (e.g., "http", "ws", "mqtt", "kafka")
 //
 // Returns:
 //   - *AsyncAPI: Converted AsyncAPI specification
@@ -438,10 +438,6 @@ func ConvertAsyncAPIToAPIBlueprint(r io.Reader, w io.Writer) error {
 //	openAPISpec := converter.ParseAPIBlueprint(data)
 //	asyncSpec := converter.APIBlueprintToAsyncAPI(openAPISpec, "ws")
 func APIBlueprintToAsyncAPI(spec *OpenAPI, protocol string) *AsyncAPI {
-	if protocol == "" {
-		protocol = "ws" // Default to WebSocket
-	}
-
 	asyncSpec := &AsyncAPI{
 		AsyncAPI: "2.6.0",
 		Info:     spec.Info,
@@ -837,7 +833,8 @@ func extractChannelID(ref string) string {
 func writeAsyncAPIV3Channel(buf *bytes.Buffer, channelID string, channel ChannelV3, ops []struct {
 	opID string
 	op   OperationV3
-}) {
+},
+) {
 	// Use channel address for the path
 	path := "/" + channel.Address
 	if channel.Address == "" {
@@ -947,10 +944,6 @@ func ConvertAsyncAPIV3ToAPIBlueprint(r io.Reader, w io.Writer) error {
 //	openAPISpec := converter.ParseAPIBlueprint(data)
 //	asyncSpec := converter.APIBlueprintToAsyncAPIV3(openAPISpec, "ws")
 func APIBlueprintToAsyncAPIV3(spec *OpenAPI, protocol string) *AsyncAPIV3 {
-	if protocol == "" {
-		protocol = "ws" // Default to WebSocket
-	}
-
 	asyncSpec := &AsyncAPIV3{
 		AsyncAPI:   "3.0.0",
 		Info:       spec.Info,
