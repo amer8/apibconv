@@ -1051,3 +1051,110 @@ func TestAsyncAPIV3WithMultipleChannelsAndOperations(t *testing.T) {
 		t.Error("Expected 'Payment completed events' operation")
 	}
 }
+
+func TestParseAsyncAPIReader(t *testing.T) {
+	jsonContent := `{
+		"asyncapi": "2.6.0",
+		"info": {"title": "Reader Test", "version": "1.0.0"},
+		"channels": {}
+	}`
+	reader := strings.NewReader(jsonContent)
+	spec, err := ParseAsyncAPIReader(reader)
+	if err != nil {
+		t.Fatalf("ParseAsyncAPIReader failed: %v", err)
+	}
+	if spec.Info.Title != "Reader Test" {
+		t.Errorf("Expected title 'Reader Test', got '%s'", spec.Info.Title)
+	}
+}
+
+func TestParseAsyncAPIV3Reader(t *testing.T) {
+	jsonContent := `{
+		"asyncapi": "3.0.0",
+		"info": {"title": "Reader Test V3", "version": "1.0.0"},
+		"channels": {},
+		"operations": {}
+	}`
+	reader := strings.NewReader(jsonContent)
+	spec, err := ParseAsyncAPIV3Reader(reader)
+	if err != nil {
+		t.Fatalf("ParseAsyncAPIV3Reader failed: %v", err)
+	}
+	if spec.Info.Title != "Reader Test V3" {
+		t.Errorf("Expected title 'Reader Test V3', got '%s'", spec.Info.Title)
+	}
+}
+
+func TestParseAsyncAPI_Errors(t *testing.T) {
+	// Invalid JSON - Malformed
+	_, err := ParseAsyncAPI([]byte(`{invalid`))
+	if err == nil {
+		t.Error("Expected error for invalid JSON")
+	}
+
+	// Invalid YAML - Type mismatch (asyncapi field should be string)
+	// The simplified parser is permissive, so we use a type mismatch to trigger unmarshal error
+	_, err = ParseAsyncAPI([]byte(`asyncapi: ["2.6.0"]`))
+	if err == nil {
+		t.Error("Expected error for invalid YAML type mismatch")
+	}
+}
+
+func TestParseAsyncAPIV3_Errors(t *testing.T) {
+	// Invalid JSON
+	_, err := ParseAsyncAPIV3([]byte(`{invalid`))
+	if err == nil {
+		t.Error("Expected error for invalid JSON")
+	}
+
+	// Invalid YAML - Type mismatch
+	_, err = ParseAsyncAPIV3([]byte(`asyncapi: ["3.0.0"]`))
+	if err == nil {
+		t.Error("Expected error for invalid YAML type mismatch")
+	}
+}
+
+func TestSanitizeIDs(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"/users/{id}", "users_id"},
+		{"/my-channel", "my-channel"},
+		{"/a/b/c", "a_b_c"},
+		{"///", "channel"}, // Default case
+		{"User ID", "UserID"},
+	}
+
+	for _, tt := range tests {
+		got := sanitizeChannelID(tt.input)
+		if got != tt.expected {
+			t.Errorf("sanitizeChannelID(%q) = %q, want %q", tt.input, got, tt.expected)
+		}
+	}
+	
+	// Test sanitizeOperationID capitalizes first letter
+	opID := sanitizeOperationID("/users")
+	if opID != "Users" {
+		t.Errorf("sanitizeOperationID(/users) = %s, want Users", opID)
+	}
+}
+
+func TestExtractMessageFromOperation_EdgeCases(t *testing.T) {
+	// Test nil operation/message
+	msg := extractMessageFromOperation(&Operation{}, false)
+	if msg == nil || msg.Payload != nil {
+		t.Error("Expected empty message for empty operation")
+	}
+	
+	// Test subscribe with no 200 response
+	op := &Operation{
+		Responses: map[string]Response{
+			"400": {Description: "Error"},
+		},
+	}
+	msg = extractMessageFromOperation(op, false)
+	if msg == nil || msg.Payload != nil {
+		t.Error("Expected empty message for op without 200 response")
+	}
+}

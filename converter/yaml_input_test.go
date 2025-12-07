@@ -1,6 +1,7 @@
 package converter
 
 import (
+	"bytes"
 	"testing"
 )
 
@@ -162,5 +163,155 @@ operations:
 	
 	if v3Spec.Info.Title != "Async V3 YAML" {
 		t.Errorf("Title mismatch")
+	}
+}
+
+func TestUnmarshalYAMLReader(t *testing.T) {
+	yaml := []byte(`name: Test`)
+	reader := bytes.NewReader(yaml)
+	
+	var result map[string]interface{}
+	if err := UnmarshalYAMLReader(reader, &result); err != nil {
+		t.Fatalf("UnmarshalYAMLReader error: %v", err)
+	}
+	
+	if result["name"] != "Test" {
+		t.Errorf("Expected 'Test', got %v", result["name"])
+	}
+}
+
+func TestParseYAML_ComplexStructures(t *testing.T) {
+	yaml := []byte(`
+array_root:
+  - item1
+  - item2: value2
+    item3: value3
+  - 
+    nested: value
+compact_map:
+  - key: value
+    key2: value2
+scalars:
+  quoted: "value with \"quotes\""
+  single_quoted: 'value with ''quotes'''
+  boolean: true
+  number: 123
+  float: 12.34
+  null_val: null
+  plain: just a string
+blocks:
+  literal: |
+    Line 1
+    Line 2
+  folded: >
+    Line 1
+    Line 2
+`)
+
+	var result map[string]interface{}
+	if err := UnmarshalYAML(yaml, &result); err != nil {
+		t.Fatalf("Complex YAML parse failed: %v", err)
+	}
+
+	// Verify array
+	arr := result["array_root"].([]interface{})
+	if len(arr) != 3 {
+		t.Errorf("Expected 3 items in array, got %d", len(arr))
+	}
+	if arr[0] != "item1" {
+		t.Errorf("Item 1 mismatch")
+	}
+	item2 := arr[1].(map[string]interface{})
+	if item2["item2"] != "value2" {
+		t.Errorf("Item 2 mismatch")
+	}
+	
+	// Verify compact map
+	compact := result["compact_map"].([]interface{})
+	cMap := compact[0].(map[string]interface{})
+	if cMap["key"] != "value" || cMap["key2"] != "value2" {
+		t.Errorf("Compact map mismatch: %v", cMap)
+	}
+	
+	// Verify scalars
+	sc := result["scalars"].(map[string]interface{})
+	if sc["quoted"] != `value with "quotes"` {
+		t.Errorf("Quoted string mismatch: %s", sc["quoted"])
+	}
+	if sc["boolean"] != true {
+		t.Errorf("Boolean mismatch")
+	}
+	if sc["number"] != 123.0 { // JSON numbers are float64
+		t.Errorf("Number mismatch")
+	}
+	if sc["null_val"] != nil {
+		t.Errorf("Null mismatch")
+	}
+
+	// Verify blocks
+	bl := result["blocks"].(map[string]interface{})
+	if bl["literal"] != "Line 1\nLine 2" {
+		t.Errorf("Literal block mismatch: %q", bl["literal"])
+	}
+	if bl["folded"] != "Line 1 Line 2" {
+		t.Errorf("Folded block mismatch: %q", bl["folded"])
+	}
+}
+
+func TestParseYAML_RootArray(t *testing.T) {
+	yaml := []byte(`
+- item1
+- item2
+`)
+	var result []interface{}
+	if err := UnmarshalYAML(yaml, &result); err != nil {
+		t.Fatalf("Root array parse failed: %v", err)
+	}
+	if len(result) != 2 {
+		t.Errorf("Expected 2 items, got %d", len(result))
+	}
+}
+
+func TestParseYAML_InlineJSON(t *testing.T) {
+	yaml := []byte(`
+key: {"nested": "value", "arr": [1, 2]}
+`)
+	var result map[string]interface{}
+	if err := UnmarshalYAML(yaml, &result); err != nil {
+		t.Fatalf("Inline JSON parse failed: %v", err)
+	}
+	
+	val := result["key"].(map[string]interface{})
+	if val["nested"] != "value" {
+		t.Errorf("Nested value mismatch")
+	}
+	arr := val["arr"].([]interface{})
+	if len(arr) != 2 {
+		t.Errorf("Array length mismatch")
+	}
+}
+
+func TestParseYAML_EdgeCases(t *testing.T) {
+	// Empty
+	var res map[string]interface{}
+	if err := UnmarshalYAML([]byte(""), &res); err != nil {
+		t.Fatal(err)
+	}
+	
+	// Comments only
+	if err := UnmarshalYAML([]byte("# Comment only"), &res); err != nil {
+		t.Fatal(err)
+	}
+	
+	// Quoted keys
+	yaml := []byte(`
+"quoted key": value
+'single quoted': value
+`)
+	if err := UnmarshalYAML(yaml, &res); err != nil {
+		t.Fatal(err)
+	}
+	if res["quoted key"] != "value" {
+		t.Error("Quoted key failed")
 	}
 }

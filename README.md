@@ -25,7 +25,7 @@ Convert between API Blueprint (*.apib), OpenAPI 3.0/3.1, and AsyncAPI 2.6/3.0 sp
 go install github.com/amer8/apibconv@latest
 
 # Specific version
-go install github.com/amer8/apibconv@v1.0.0
+go install github.com/amer8/apibconv@v0.1.4
 ```
 
 ### Using Docker
@@ -45,21 +45,10 @@ alias apibconv='docker run --rm -v $(pwd):/data -w /data ghcr.io/amer8/apibconv:
 
 Download pre-built binaries from [GitHub Releases](https://github.com/amer8/apibconv/releases):
 
-```sh
-# Linux (amd64)
-wget https://github.com/amer8/apibconv/releases/download/v1.0.0/apibconv_1.0.0_Linux_x86_64.tar.gz
-tar -xzf apibconv_1.0.0_Linux_x86_64.tar.gz
-sudo mv apibconv /usr/local/bin/
-
-# macOS (Apple Silicon)
-wget https://github.com/amer8/apibconv/releases/download/v1.0.0/apibconv_1.0.0_Darwin_arm64.tar.gz
-tar -xzf apibconv_1.0.0_Darwin_arm64.tar.gz
-sudo mv apibconv /usr/local/bin/
-```
 
 ## Usage
 
-### Basic Usage
+### CLI Usage
 
 The tool automatically detects the input format and converts accordingly:
 
@@ -93,7 +82,7 @@ The tool supports both OpenAPI 3.0 and 3.1:
 - **OpenAPI 3.1**: Use `--openapi-version 3.1` flag for 3.1.0 output
 - **Input**: Automatically detects and handles both 3.0 and 3.1 input specs
 
-#### Key Differences
+**Key Differences**
 
 When converting to OpenAPI 3.1:
 - Nullable types use type arrays: `["string", "null"]` instead of `nullable: true`
@@ -122,7 +111,7 @@ The tool supports AsyncAPI 2.6 and 3.0 for event-driven APIs:
   - Subscribe/Receive operations → GET operations (receiving messages)
   - Publish/Send operations → POST operations (sending messages)
 
-#### AsyncAPI CLI Flags
+**CLI Flags**
 
 - `--output-format asyncapi` - Specify AsyncAPI as output format
 - `--asyncapi-version <version>` - AsyncAPI version for output (2.6 or 3.0, default: 2.6)
@@ -294,63 +283,6 @@ defer output2.Close()
 err = converter.ConvertToOpenAPI(input2, output2)
 ```
 
-### API Functions
-
-#### Version Conversion Functions
-- `ConvertToVersion(spec *OpenAPI, targetVersion Version, opts *ConversionOptions) (*OpenAPI, error)` - Convert between 3.0 and 3.1
-- `DetectVersion(openapiField string) Version` - Detect OpenAPI version from spec
-- `GetSchemaType(schema *Schema) string` - Get primary type from schema (handles both 3.0 and 3.1)
-- `IsNullable(schema *Schema) bool` - Check if schema allows null values
-
-#### Parsing Functions
-- `Parse(data []byte) (*OpenAPI, error)` - Parse OpenAPI JSON bytes (3.0 or 3.1)
-- `ParseWithConversion(data []byte, opts *ConversionOptions) (*OpenAPI, error)` - Parse and convert to target version
-- `ParseReader(r io.Reader) (*OpenAPI, error)` - Parse OpenAPI from reader
-- `ParseAPIBlueprint(data []byte) (*OpenAPI, error)` - Parse API Blueprint to OpenAPI 3.0
-- `ParseAPIBlueprintWithOptions(data []byte, opts *ConversionOptions) (*OpenAPI, error)` - Parse with version options
-- `ParseAPIBlueprintReader(r io.Reader) (*OpenAPI, error)` - Parse API Blueprint from reader
-
-#### Formatting Functions
-- `Format(spec *OpenAPI) (string, error)` - Format OpenAPI to API Blueprint string
-- `FormatTo(spec *OpenAPI, w io.Writer) error` - Format OpenAPI to API Blueprint writer
-- `MustFormat(spec *OpenAPI) string` - Format or panic
-
-#### Conversion Functions (OpenAPI → API Blueprint)
-- `FromJSON(data []byte) (string, error)` - JSON bytes to API Blueprint
-- `FromJSONString(jsonStr string) (string, error)` - JSON string to API Blueprint
-- `ToBytes(data []byte) ([]byte, error)` - JSON bytes to API Blueprint bytes
-- `ConvertString(openapiJSON string) (string, error)` - Alias for FromJSONString
-
-#### Conversion Functions (API Blueprint → OpenAPI)
-- `ToOpenAPI(data []byte) ([]byte, error)` - API Blueprint bytes to OpenAPI JSON bytes
-- `ToOpenAPIString(apibStr string) (string, error)` - API Blueprint string to OpenAPI JSON string
-
-#### I/O Functions
-- `Convert(r io.Reader, w io.Writer) error` - Stream OpenAPI → API Blueprint conversion
-- `ConvertToOpenAPI(r io.Reader, w io.Writer) error` - Stream API Blueprint → OpenAPI conversion
-
-#### AsyncAPI Functions
-- `DetectAsyncAPIVersion(asyncapiVersion string) int` - Detect AsyncAPI version (2 or 3)
-- `ParseAsyncAPIAny(data []byte) (interface{}, int, error)` - Parse any AsyncAPI version
-
-**AsyncAPI 2.6 Functions:**
-- `ParseAsyncAPI(data []byte) (*AsyncAPI, error)` - Parse AsyncAPI 2.x JSON
-- `ParseAsyncAPIReader(r io.Reader) (*AsyncAPI, error)` - Parse AsyncAPI 2.x from reader
-- `AsyncAPIToAPIBlueprint(spec *AsyncAPI) string` - Convert AsyncAPI 2.x to API Blueprint
-- `APIBlueprintToAsyncAPI(spec *OpenAPI, protocol string) *AsyncAPI` - Convert to AsyncAPI 2.6
-- `ConvertAsyncAPIToAPIBlueprint(r io.Reader, w io.Writer) error` - Stream AsyncAPI 2.x → API Blueprint
-- `ConvertAPIBlueprintToAsyncAPI(r io.Reader, w io.Writer, protocol string) error` - Stream to AsyncAPI 2.6
-
-**AsyncAPI 3.0 Functions:**
-- `ParseAsyncAPIV3(data []byte) (*AsyncAPIV3, error)` - Parse AsyncAPI 3.x JSON
-- `ParseAsyncAPIV3Reader(r io.Reader) (*AsyncAPIV3, error)` - Parse AsyncAPI 3.x from reader
-- `AsyncAPIV3ToAPIBlueprint(spec *AsyncAPIV3) string` - Convert AsyncAPI 3.x to API Blueprint
-- `APIBlueprintToAsyncAPIV3(spec *OpenAPI, protocol string) *AsyncAPIV3` - Convert to AsyncAPI 3.0
-- `ConvertAsyncAPIV3ToAPIBlueprint(r io.Reader, w io.Writer) error` - Stream AsyncAPI 3.x → API Blueprint
-- `ConvertAPIBlueprintToAsyncAPIV3(r io.Reader, w io.Writer, protocol string) error` - Stream to AsyncAPI 3.0
-
-All functions use zero-allocation buffer pooling internally for optimal memory efficiency.
-
 ## Included Examples
 
 The `examples/` directory now contains paired specification files, demonstrating various conversions. Each subdirectory represents a base API or specification, with `.json` and `.apib` files showing the input and converted output.
@@ -378,27 +310,6 @@ apibconv -f examples/openapi/petstore/petstore.json -o petstore.apib
 # Example: API Blueprint with MSON to OpenAPI
 apibconv -f examples/apib/mson-example/mson-example.apib -o mson-example.json
 ```
-
-
-## Performance
-
-This package is optimized for high performance and low memory usage, utilizing `sync.Pool` for buffer reuse to achieve **zero allocations** for buffer operations.
-
-### Core Benchmarks
-
-```
-BenchmarkWriteAPIBlueprint-14     37.3M      32.19 ns/op      0 B/op    0 allocs/op
-BenchmarkBufferPool-14            1B+         0.98 ns/op      0 B/op    0 allocs/op
-```
-
-### Conversion Throughput
-
-| Conversion | Throughput (avg) |
-|------------|------------------|
-| OpenAPI 3.0 → API Blueprint | ~115 MB/s |
-| API Blueprint → OpenAPI 3.0 | ~42 MB/s |
-| API Blueprint → AsyncAPI 2.6 | ~60 MB/s |
-| API Blueprint → AsyncAPI 3.0 | ~50 MB/s |
 
 ## GitHub Actions Integration
 
@@ -430,8 +341,7 @@ Contributions are welcome! Please ensure:
 
 1. All tests pass: `go test ./...`
 2. Linter passes: `golangci-lint run`
-3. Benchmarks maintain zero allocations
-4. Code coverage remains high
+3. Code coverage remains high
 
 ## License
 
