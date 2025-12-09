@@ -98,7 +98,10 @@ Examples:
 
 The tool supports both OpenAPI 3.0 and 3.1:
 
-- **Default**: Outputs OpenAPI 3.0.0 for backward compatibility
+- **Versions Supported**:
+  - OpenAPI 3.0 (default output)
+  - OpenAPI 3.1
+  - Note: OpenAPI/Swagger 2.x is not supported
 - **OpenAPI 3.1**: Use `--openapi-version 3.1` flag for 3.1.0 output
 - **Input**: Automatically detects and handles both 3.0 and 3.1 input specs
 
@@ -109,9 +112,6 @@ When converting to OpenAPI 3.1:
 - Supports new fields: `webhooks`, `jsonSchemaDialect`, `license.identifier`
 - Full JSON Schema 2020-12 compatibility
 
-When converting from 3.1 to 3.0:
-- Type arrays are converted back to `nullable: true`
-- 3.1-only features (webhooks, etc.) are dropped
 
 ### AsyncAPI Support
 
@@ -128,6 +128,7 @@ The tool supports AsyncAPI 2.6 and 3.0 for event-driven APIs:
   - AsyncAPI channels → API Blueprint paths
   - Subscribe/Receive operations → GET operations (receiving messages)
   - Publish/Send operations → POST operations (sending messages)
+
 
 ### Examples
 
