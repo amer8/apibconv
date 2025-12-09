@@ -3,6 +3,8 @@ package main
 
 import (
 	"os"
+	"runtime/debug"
+	"strings"
 
 	"github.com/amer8/apibconv/internal/cli"
 )
@@ -11,5 +13,12 @@ import (
 var version = "dev"
 
 func main() {
+	if version == "dev" {
+		if info, ok := debug.ReadBuildInfo(); ok {
+			if info.Main.Version != "" && info.Main.Version != "(devel)" {
+				version = strings.TrimPrefix(info.Main.Version, "v")
+			}
+		}
+	}
 	os.Exit(cli.Run(version))
 }
