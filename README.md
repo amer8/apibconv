@@ -20,18 +20,19 @@ Convert between API Blueprint (*.apib), OpenAPI 3.0/3.1, and AsyncAPI 2.6/3.0 sp
 
 ### Using Go
 
-```sh
-# Latest version
+```sh 
 go install github.com/amer8/apibconv@latest
 ```
 
 ### Using Docker
 
-```sh
-# Pull the image
+**Pull the image**
+```sh 
 docker pull ghcr.io/amer8/apibconv:latest
+```
 
-# Run directly
+**Run directly**
+```sh
 docker run --rm -v $(pwd):/data -w /data ghcr.io/amer8/apibconv api.apib -o openapi.json
 ```
 
