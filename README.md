@@ -50,11 +50,12 @@ Download pre-built binaries from [GitHub Releases](https://github.com/amer8/apib
 
 ### CLI Usage
 
-The tool automatically detects the input format and converts accordingly:
+The tool automatically detects the input format and converts accordingly. It supports both file arguments and stdin.
 
 ```sh
 # Usage
 apibconv -f <input-file> -o <output-file>
+apibconv <input-file> -o <output-file>
 
 # Input Formats (auto-detected from file extension or content)
 apibconv -f petstore.json -o petstore.apib          # OpenAPI JSON → API Blueprint
@@ -65,16 +66,22 @@ apibconv -f petstore.apib -o openapi.yaml
 
 # Version Control
 apibconv -f petstore.apib -o openapi.json --openapi-version 3.1
-apibconv -f api.apib -o asyncapi.json --output-format asyncapi --asyncapi-version 3.0
+apibconv -f api.apib -o asyncapi.json --to asyncapi --asyncapi-version 3.0
 
 # Protocol Selection (AsyncAPI only)
-apibconv -f api.apib -o asyncapi.json --output-format asyncapi --protocol ws|kafka|mqtt|http|amqp
+apibconv -f api.apib -o asyncapi.json --to asyncapi --protocol ws|kafka|mqtt|http|amqp
+
+# Explicit Output Encoding
+apibconv -f api.apib -o openapi.yaml -e yaml
 
 # Validation Only
 apibconv -f <file> --validate
+
+# Pipe Support (Stdin)
+cat openapi.json | apibconv -o api.apib
 ```
 
-### OpenAPI Version Support
+### OpenAPI Support
 
 The tool supports both OpenAPI 3.0 and 3.1:
 
@@ -113,7 +120,7 @@ The tool supports AsyncAPI 2.6 and 3.0 for event-driven APIs:
 
 **CLI Flags**
 
-- `--output-format asyncapi` - Specify AsyncAPI as output format
+- `--to asyncapi` - Specify AsyncAPI as output format
 - `--asyncapi-version <version>` - AsyncAPI version for output (2.6 or 3.0, default: 2.6)
 - `--protocol <protocol>` - Set the protocol for AsyncAPI servers
 
@@ -287,20 +294,6 @@ err = converter.ConvertToOpenAPI(input2, output2)
 
 The `examples/` directory now contains paired specification files, demonstrating various conversions. Each subdirectory represents a base API or specification, with `.json` and `.apib` files showing the input and converted output.
 
-- **OpenAPI Examples (`examples/openapi/`)**
-  - `petstore/`: Classic Petstore example, demonstrating OpenAPI to API Blueprint conversion.
-  - `openapi-3.1-validation/`: OpenAPI 3.1 features to API Blueprint.
-  - `openapi-advanced-params/`: Advanced OpenAPI parameter usage.
-  - `openapi-webhooks/`: OpenAPI 3.1 webhooks conversion.
-
-- **AsyncAPI Examples (`examples/asyncapi/`)**
-  - `chat-asyncapi-v2.6/`: WebSocket chat application, demonstrating AsyncAPI 2.6 to API Blueprint conversion.
-  - `events-asyncapi-v3.0/`: Kafka event streaming example, showing AsyncAPI 3.0 to API Blueprint conversion.
-  - `iot-asyncapi-v2.6-mqtt/`: IoT MQTT telemetry, AsyncAPI 2.6 to API Blueprint conversion.
-
-- **API Blueprint Examples (`examples/apib/`)**
-  - `mson-example/`: Demonstrates API Blueprint with MSON data structures, converted to OpenAPI.
-
 To view a conversion:
 
 ```sh
@@ -313,9 +306,7 @@ apibconv -f examples/apib/mson-example/mson-example.apib -o mson-example.json
 
 ## GitHub Actions Integration
 
-This tool is designed to integrate seamlessly into GitHub Actions workflows. See [ACTIONS.md](ACTIONS.md) for detailed examples.
-
-### Quick Example
+This tool is designed to integrate seamlessly into GitHub Actions workflows
 
 ```yaml
 - name: Convert OpenAPI to API Blueprint
@@ -324,16 +315,6 @@ This tool is designed to integrate seamlessly into GitHub Actions workflows. See
     apibconv -f openapi.json -o api-blueprint.apib
 ```
 
-### Reusable Workflow
-
-```yaml
-jobs:
-  convert:
-    uses: amer8/apibconv/.github/workflows/reusable-apibconv.yml@main
-    with:
-      openapi-file: 'openapi.json'
-      output-file: 'docs/api-blueprint.apib'
-```
 
 ## Contributing
 

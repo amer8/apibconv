@@ -59,7 +59,7 @@ lint-fix:
 
 # Building
 build:
-	go build -o apibconv .
+	go build -o apibconv ./cmd/apibconv
 
 build-cmd:
 	go build -o apibconv ./cmd/apibconv
