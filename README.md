@@ -23,9 +23,6 @@ Convert between API Blueprint (*.apib), OpenAPI 3.0/3.1, and AsyncAPI 2.6/3.0 sp
 ```sh
 # Latest version
 go install github.com/amer8/apibconv@latest
-
-# Specific version
-go install github.com/amer8/apibconv@v0.1.4
 ```
 
 ### Using Docker
@@ -53,32 +50,48 @@ Download pre-built binaries from [GitHub Releases](https://github.com/amer8/apib
 The tool automatically detects the input format and converts accordingly. It supports both file arguments and stdin.
 
 ```sh
-# Usage
-apibconv -f <input-file> -o <output-file>
-apibconv <input-file> -o <output-file>
+Usage: apibconv [INPUT_FILE] [OPTIONS]
 
-# Input Formats (auto-detected from file extension or content)
-apibconv -f petstore.json -o petstore.apib          # OpenAPI JSON → API Blueprint
-apibconv -f openapi.yaml -o petstore.apib           # OpenAPI YAML → API Blueprint
-apibconv -f asyncapi.json -o api.apib               # AsyncAPI → API Blueprint
-apibconv -f petstore.apib -o openapi.json           # API Blueprint → OpenAPI (default 3.0)
-apibconv -f petstore.apib -o openapi.yaml
+Arguments:
+  INPUT_FILE
+      Input specification file (OpenAPI, AsyncAPI, or API Blueprint)
 
-# Version Control
-apibconv -f petstore.apib -o openapi.json --openapi-version 3.1
-apibconv -f api.apib -o asyncapi.json --to asyncapi --asyncapi-version 3.0
+Options:
+  -o, --output FILE
+      Output file path (required for conversion)
+  
+  --to FORMAT
+      Target format: openapi, asyncapi, apib
+      Auto-detected from --output extension if not specified
+  
+  -e, --encoding FORMAT
+      Encoding: json, yaml (default: auto-detect from output extension)
+  
+  --validate
+      Validate input without converting
+  
+  -v, --version
+      Print version information
+  
+  -h, --help
+      Show this help message
 
-# Protocol Selection (AsyncAPI only)
-apibconv -f api.apib -o asyncapi.json --to asyncapi --protocol ws|kafka|mqtt|http|amqp
+AsyncAPI Options:
+  --protocol PROTO
+      Protocol: ws, mqtt, kafka, amqp, http (required)
+  
+  --asyncapi-version VERSION
+      Version: 2.6, 3.0 (default: "2.6")
 
-# Explicit Output Encoding
-apibconv -f api.apib -o openapi.yaml -e yaml
+OpenAPI Options:
+  --openapi-version VERSION
+      Version: 3.0, 3.1 (default: "3.0")
 
-# Validation Only
-apibconv -f <file> --validate
-
-# Pipe Support (Stdin)
-cat openapi.json | apibconv -o api.apib
+Examples:
+  apibconv api.apib -o openapi.json
+  apibconv api.apib -o asyncapi.yaml --protocol ws
+  apibconv -o openapi.json --to openapi --openapi-version 3.1 < api.apib
+  apibconv openapi.json --validate
 ```
 
 ### OpenAPI Support
@@ -109,8 +122,6 @@ The tool supports AsyncAPI 2.6 and 3.0 for event-driven APIs:
   - AsyncAPI 3.0
   - Note: AsyncAPI 1.x is not supported
 - **Protocols**: WebSocket (`ws`), MQTT (`mqtt`), Kafka (`kafka`), AMQP (`amqp`), HTTP (`http`)
-- **Default Protocol**: WebSocket when not specified
-- **Format Detection**: Automatically detects AsyncAPI version and format
 - **Conversion Mappings**:
   - **AsyncAPI 2.6**: Channels contain publish/subscribe operations
   - **AsyncAPI 3.0**: Operations at root level with send/receive actions
@@ -118,30 +129,12 @@ The tool supports AsyncAPI 2.6 and 3.0 for event-driven APIs:
   - Subscribe/Receive operations → GET operations (receiving messages)
   - Publish/Send operations → POST operations (sending messages)
 
-**CLI Flags**
+### Examples
 
-- `--to asyncapi` - Specify AsyncAPI as output format
-- `--asyncapi-version <version>` - AsyncAPI version for output (2.6 or 3.0, default: 2.6)
-- `--protocol <protocol>` - Set the protocol for AsyncAPI servers
+The `examples/` directory contains paired specification files, demonstrating various conversions. Each subdirectory represents a base API or specification, with `.json`, `.yml` and `.apib` files showing the input and converted output.
 
-### OpenAPI → API Blueprint
-
-Convert OpenAPI 3.0 JSON to API Blueprint format:
-
-```go
-import "github.com/amer8/apibconv/converter"
-
-openapiJSON := `{"openapi": "3.0.0", ...}`
-apiBlueprint, err := converter.FromJSONString(openapiJSON)
-if err != nil {
-    log.Fatal(err)
-}
-fmt.Println(apiBlueprint)
-```
-
-### API Blueprint → OpenAPI
-
-Convert API Blueprint to OpenAPI JSON:
+<details>
+<summary>API Blueprint → OpenAPI</summary>
 
 ```go
 import "github.com/amer8/apibconv/converter"
@@ -167,43 +160,10 @@ if err != nil {
 }
 // spec.OpenAPI is now "3.1.0"
 ```
+</details>
 
-### AsyncAPI → API Blueprint
-
-Convert AsyncAPI to API Blueprint format:
-
-```go
-import "github.com/amer8/apibconv/converter"
-
-asyncapiJSON := `{
-  "asyncapi": "2.6.0",
-  "info": {
-    "title": "Chat API",
-    "version": "1.0.0"
-  },
-  "channels": {
-    "chat": {
-      "subscribe": {
-        "message": {
-          "payload": {"type": "object"}
-        }
-      }
-    }
-  }
-}`
-
-spec, err := converter.ParseAsyncAPI([]byte(asyncapiJSON))
-if err != nil {
-    log.Fatal(err)
-}
-
-apiBlueprint := converter.AsyncAPIToAPIBlueprint(spec)
-fmt.Println(apiBlueprint)
-```
-
-### API Blueprint → AsyncAPI
-
-Convert API Blueprint to AsyncAPI format (v2.6 or v3.0):
+<details>
+<summary>API Blueprint → AsyncAPI</summary>
 
 ```go
 import "github.com/amer8/apibconv/converter"
@@ -242,67 +202,57 @@ if err != nil {
 }
 fmt.Println(string(dataV3))
 ```
+</details>
 
-### Parse and Format
+<details>
+<summary>OpenAPI → API Blueprint</summary>
 
 ```go
 import "github.com/amer8/apibconv/converter"
 
-// Parse OpenAPI
-data := []byte(`{"openapi": "3.0.0", ...}`)
-spec, err := converter.Parse(data)
+openapiJSON := `{"openapi": "3.0.0", ...}`
+apiBlueprint, err := converter.FromJSONString(openapiJSON)
 if err != nil {
     log.Fatal(err)
 }
-
-// Modify the spec programmatically
-spec.Info.Title = "My Custom API"
-
-// Format to API Blueprint
-apiBlueprint, err := converter.Format(spec)
-if err != nil {
-    log.Fatal(err)
-}
+fmt.Println(apiBlueprint)
 ```
+</details>
 
-### Use the streaming API for large files
+
+<details>
+<summary>AsyncAPI → API Blueprint</summary>
 
 ```go
-import (
-    "os"
-    "github.com/amer8/apibconv/converter"
-)
+import "github.com/amer8/apibconv/converter"
 
-// OpenAPI → API Blueprint
-input, _ := os.Open("openapi.json")
-output, _ := os.Create("output.apib")
-defer input.Close()
-defer output.Close()
+asyncapiJSON := `{
+  "asyncapi": "2.6.0",
+  "info": {
+    "title": "Chat API",
+    "version": "1.0.0"
+  },
+  "channels": {
+    "chat": {
+      "subscribe": {
+        "message": {
+          "payload": {"type": "object"}
+        }
+      }
+    }
+  }
+}`
 
-err := converter.Convert(input, output)
+spec, err := converter.ParseAsyncAPI([]byte(asyncapiJSON))
+if err != nil {
+    log.Fatal(err)
+}
 
-// API Blueprint → OpenAPI
-input2, _ := os.Open("input.apib")
-output2, _ := os.Create("output.json")
-defer input2.Close()
-defer output2.Close()
-
-err = converter.ConvertToOpenAPI(input2, output2)
+apiBlueprint := converter.AsyncAPIToAPIBlueprint(spec)
+fmt.Println(apiBlueprint)
 ```
+</details>
 
-## Included Examples
-
-The `examples/` directory now contains paired specification files, demonstrating various conversions. Each subdirectory represents a base API or specification, with `.json` and `.apib` files showing the input and converted output.
-
-To view a conversion:
-
-```sh
-# Example: OpenAPI Petstore to API Blueprint
-apibconv -f examples/openapi/petstore/petstore.json -o petstore.apib
-
-# Example: API Blueprint with MSON to OpenAPI
-apibconv -f examples/apib/mson-example/mson-example.apib -o mson-example.json
-```
 
 ## GitHub Actions Integration
 
