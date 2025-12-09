@@ -79,6 +79,12 @@ jobs:
             type=semver,pattern={{major}}
             type=raw,value=latest,enable={{is_default_branch}}
 
+      - name: Prepare version
+        id: prep
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          echo "clean_version=${VERSION}" >> $GITHUB_OUTPUT
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
@@ -87,5 +93,7 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ steps.prep.outputs.clean_version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
