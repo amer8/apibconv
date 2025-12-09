@@ -26,6 +26,7 @@ builds:
     ldflags:
       - -s -w
       - -X main.version={{.Version}}
+    main: ./cmd/apibconv
     binary: apibconv
 
 archives:

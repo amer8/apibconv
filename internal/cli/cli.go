@@ -1,7 +1,4 @@
-// Package main provides a command-line interface for converting between OpenAPI 3.0/3.1, AsyncAPI 2.6/3.0, and API Blueprint specifications.
-//
-// This is the root main package that redirects to cmd/apibconv for the actual CLI implementation.
-// For the full CLI implementation, see cmd/apibconv/main.go.
+// Package cli provides the command-line interface logic for converting between OpenAPI 3.0/3.1, AsyncAPI 2.6/3.0, and API Blueprint specifications.
 //
 // # Usage
 //
@@ -18,7 +15,7 @@
 //	apibconv -f api.apib -o openapi.json --openapi-version 3.1
 //
 //	# Output as YAML instead of JSON
-//	apibconv -f api.apib -o openapi.yaml --format yaml
+//	apibconv -f api.apib -o openapi.yaml -e yaml
 //
 //	# Validate a specification without conversion
 //	apibconv --validate -f openapi.json
@@ -27,13 +24,13 @@
 //	apibconv -f asyncapi.json -o api.apib
 //
 //	# Convert API Blueprint to AsyncAPI 2.6 (default)
-//	apibconv -f api.apib -o asyncapi.json --output-format asyncapi --protocol ws
+//	apibconv -f api.apib -o asyncapi.json --to asyncapi --protocol ws
 //
 //	# Convert API Blueprint to AsyncAPI 3.0
-//	apibconv -f api.apib -o asyncapi-v3.json --output-format asyncapi --asyncapi-version 3.0 --protocol kafka
+//	apibconv -f api.apib -o asyncapi-v3.json --to asyncapi --asyncapi-version 3.0 --protocol kafka
 //
 //	# Show version
-//	apibconv -version
+//	apibconv -v
 //
 // # Format Detection
 //
@@ -46,32 +43,34 @@
 //
 // For JSON-based specifications (OpenAPI, AsyncAPI), output can be:
 //   - JSON (default): Pretty-printed with 2-space indentation
-//   - YAML: Human-readable YAML format (use --format yaml)
+//   - YAML: Human-readable YAML format (use -e yaml)
 //
 // # Flags
 //
-//	-f string
-//	     Input specification file (OpenAPI JSON, AsyncAPI JSON, or API Blueprint)
-//	-o string
-//	     Output file (API Blueprint, OpenAPI JSON/YAML, or AsyncAPI JSON/YAML)
+//	-f, --file string
+//	     Input specification file
+//	-o, --output string
+//	     Output file path
+//	-e, --encoding string
+//	     Output encoding: json, yaml (default "json")
+//	--to string
+//	     Target specification format: openapi, asyncapi, apib
+//	     (auto-detected from output file extension if not specified)
 //	--openapi-version string
-//	     OpenAPI version for output (3.0 or 3.1) when converting from API Blueprint (default "3.0")
+//	     OpenAPI target version: 3.0, 3.1 (default "3.0")
 //	--asyncapi-version string
-//	     AsyncAPI version for output (2.6 or 3.0) when converting from API Blueprint (default "2.6")
-//	--output-format string
-//	     Output format: openapi, asyncapi, or apib (auto-detected if not specified)
-//	--format string
-//	     Encoding format: json or yaml (default "json")
+//	     AsyncAPI target version: 2.6, 3.0 (default "2.6")
 //	--protocol string
-//	     Protocol for AsyncAPI output (ws, mqtt, kafka, amqp, http) (default "ws")
+//	     Protocol for AsyncAPI: ws, mqtt, kafka, amqp, http (default "ws")
 //	--validate
-//	     Validate the input specification without conversion
-//	-version
+//	     Validate input without converting
+//	-v, --version
 //	     Print version information
-package main
+//	-h, --help
+//	     Show this help message
+package cli
 
 import (
-	"bufio"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -83,34 +82,67 @@ import (
 )
 
 var (
-	inputFile       = flag.String("f", "", "Input specification file (OpenAPI JSON, AsyncAPI JSON, or API Blueprint)")
-	outputFile      = flag.String("o", "", "Output file (API Blueprint, OpenAPI JSON/YAML, or AsyncAPI JSON/YAML)")
-	openapiVersion  = flag.String("openapi-version", "3.0", "OpenAPI version for output (3.0 or 3.1) when converting from API Blueprint")
-	asyncapiVersion = flag.String("asyncapi-version", "2.6", "AsyncAPI version for output (2.6 or 3.0) when converting from API Blueprint")
-	outputFormat    = flag.String("output-format", "", "Output format: openapi, asyncapi, or apib (auto-detected if not specified)")
-	encodingFormat  = flag.String("format", "json", "Encoding format: json or yaml")
-	protocol        = flag.String("protocol", "ws", "Protocol for AsyncAPI output (ws, mqtt, kafka, amqp, http)")
-	validateOnly    = flag.Bool("validate", false, "Validate the input specification without conversion")
-	showVersion     = flag.Bool("version", false, "Print version information")
+	inputFile       string
+	outputFile      string
+	openapiVersion  = "3.0"
+	asyncapiVersion = "2.6"
+	outputFormat    string
+	encodingFormat  string
+	protocol        string
+	validateOnly    bool
+	showVersion     bool
+	showHelp        bool
 )
 
-// version is set by GoReleaser at build time via -ldflags
-var version = "dev"
-
-func main() {
-	os.Exit(run())
-}
-
-func run() int {
+// Run is the entry point for the CLI logic.
+// It accepts the version string (usually set by linker flags in main package).
+func Run(version string) int {
+	configureFlags()
 	flag.Parse()
 
-	if *showVersion {
+	if showHelp {
+		flag.Usage()
+		return 0
+	}
+
+	if showVersion {
 		fmt.Printf("apibconv version %s\n", version)
 		return 0
 	}
 
+	// Handle positional arguments
+	args := flag.Args()
+	if len(args) > 0 {
+		inputFile = args[0]
+	}
+
+	// Handle stdin if no input file specified
+	if inputFile == "" {
+		// If stdin has data, read it to a temp file
+		// Check if we are reading from pipe
+		stat, _ := os.Stdin.Stat()
+		if (stat.Mode() & os.ModeCharDevice) == 0 {
+			// Read from stdin to temp file
+			tmpFile, err := os.CreateTemp("", "apibconv-stdin-*")
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error creating temp file for stdin: %v\n", err)
+				return 1
+			}
+			defer func() {
+				_ = tmpFile.Close()
+				_ = os.Remove(tmpFile.Name())
+			}()
+
+			if _, err := io.Copy(tmpFile, os.Stdin); err != nil {
+				fmt.Fprintf(os.Stderr, "Error reading stdin: %v\n", err)
+				return 1
+			}
+			inputFile = tmpFile.Name()
+		}
+	}
+
 	// Validation mode
-	if *validateOnly {
+	if validateOnly {
 		return runValidation()
 	}
 
@@ -118,6 +150,15 @@ func run() int {
 		fmt.Fprintln(os.Stderr, err)
 		flag.Usage()
 		return 1
+	}
+
+	// Auto-detect encoding if not specified
+	if encodingFormat == "" {
+		if strings.HasSuffix(strings.ToLower(outputFile), ".yaml") || strings.HasSuffix(strings.ToLower(outputFile), ".yml") {
+			encodingFormat = "yaml"
+		} else {
+			encodingFormat = "json"
+		}
 	}
 
 	inputFormatType, outputFormatType, err := determineFormats()
@@ -139,16 +180,105 @@ func run() int {
 	return performConversion(input, output, inputFormatType, outputFormatType)
 }
 
+func configureFlags() {
+	// Reset flag.CommandLine to avoid double registration in tests or if Run is called multiple times
+	// although for this refactoring it's not strictly necessary, it's safer.
+	// However, we can't easily reset flag.CommandLine without assigning a NewFlagSet.
+	// But standard flag usage relies on init() or main() running once.
+	// We'll assume Run is called once.
+	
+	// We need to check if flags are already defined to avoid panic "flag redefined"
+	if flag.Lookup("f") != nil {
+		return
+	}
+
+	flag.StringVar(&inputFile, "f", "", "Input specification file")
+	flag.StringVar(&inputFile, "file", "", "Input specification file")
+
+	flag.StringVar(&outputFile, "o", "", "Output file path")
+	flag.StringVar(&outputFile, "output", "", "Output file path")
+
+	flag.StringVar(&encodingFormat, "e", "", "Output encoding: json, yaml")
+	flag.StringVar(&encodingFormat, "encoding", "", "Output encoding: json, yaml")
+
+	flag.StringVar(&outputFormat, "to", "", "Target specification format: openapi, asyncapi, apib")
+
+	flag.StringVar(&openapiVersion, "openapi-version", "3.0", "OpenAPI target version: 3.0, 3.1")
+
+	flag.StringVar(&asyncapiVersion, "asyncapi-version", "2.6", "AsyncAPI target version: 2.6, 3.0")
+
+	flag.StringVar(&protocol, "protocol", "", "Protocol for AsyncAPI: ws, mqtt, kafka, amqp, http")
+
+	flag.BoolVar(&validateOnly, "validate", false, "Validate input without converting")
+
+	flag.BoolVar(&showVersion, "v", false, "Print version information")
+	flag.BoolVar(&showVersion, "version", false, "Print version information")
+
+	flag.BoolVar(&showHelp, "h", false, "Show this help message")
+	flag.BoolVar(&showHelp, "help", false, "Show this help message")
+
+	flag.Usage = func() {
+		w := os.Stderr
+
+		p := func(s string) {
+			_, _ = fmt.Fprintln(w, s)
+		}
+
+		p("Usage: apibconv [INPUT_FILE] [OPTIONS]")
+		p("")
+		p("Arguments:")
+		p("  INPUT_FILE")
+		p("      Input specification file (OpenAPI, AsyncAPI, or API Blueprint)")
+		p("")
+		p("Options:")
+		p("  -o, --output FILE")
+		p("      Output file path (required for conversion)")
+		p("  ")
+		p("  --to FORMAT")
+		p("      Target format: openapi, asyncapi, apib")
+		p("      Auto-detected from --output extension if not specified")
+		p("  ")
+		p("  -e, --encoding FORMAT")
+		p("      Encoding: json, yaml (default: auto-detect from output extension)")
+		p("  ")
+		p("  --validate")
+		p("      Validate input without converting")
+		p("  ")
+		p("  -v, --version")
+		p("      Print version information")
+		p("  ")
+		p("  -h, --help")
+		p("      Show this help message")
+		p("")
+		p("AsyncAPI Options:")
+		p("  --protocol PROTO")
+		p("      Protocol: ws, mqtt, kafka, amqp, http (required)")
+		p("  ")
+		p("  --asyncapi-version VERSION")
+		p("      Version: 2.6, 3.0 (default: \"2.6\")")
+		p("")
+		p("OpenAPI Options:")
+		p("  --openapi-version VERSION")
+		p("      Version: 3.0, 3.1 (default: \"3.0\")")
+		p("")
+		p("Examples:")
+		p("  apibconv api.apib -o openapi.json")
+		p("  apibconv api.apib -o asyncapi.yaml --protocol ws")
+		p("  apibconv -o openapi.json --to openapi --openapi-version 3.1 < api.apib")
+		p("  apibconv openapi.json --validate")
+	}
+}
+
 // runValidation validates the input specification without conversion
 func runValidation() int {
-	if *inputFile == "" {
-		fmt.Fprintln(os.Stderr, "Error: input file (-f) is required for validation")
+	if inputFile == "" {
+		fmt.Fprintln(os.Stderr, "Error: input file is required for validation (provide as argument or pipe via stdin)")
 		flag.Usage()
 		return 1
 	}
 
 	// #nosec G304 - filename is provided by user via CLI flag
-	data, err := os.ReadFile(*inputFile)
+	data, err := os.ReadFile(inputFile)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error reading file: %v\n", err)
 		return 1
@@ -157,7 +287,7 @@ func runValidation() int {
 	result := converter.ValidateBytes(data)
 
 	// Print validation result
-	fmt.Printf("File: %s\n", *inputFile)
+	fmt.Printf("File: %s\n", inputFile)
 	fmt.Printf("Format: %s\n", result.Format)
 	if result.Version != "" {
 		fmt.Printf("Version: %s\n", result.Version)
@@ -198,16 +328,16 @@ func runValidation() int {
 
 // validateFlags validates required command-line flags
 func validateFlags() error {
-	if *inputFile == "" {
-		return fmt.Errorf("input file (-f) is required")
+	if inputFile == "" {
+		return fmt.Errorf("input file is required (provide as argument or pipe via stdin)")
 	}
-	if *outputFile == "" {
+	if outputFile == "" {
 		return fmt.Errorf("output file (-o) is required")
 	}
 
-	// Validate encoding format
-	if *encodingFormat != "json" && *encodingFormat != "yaml" {
-		return fmt.Errorf("invalid encoding format '%s' (must be json or yaml)", *encodingFormat)
+	// Validate encoding format if specified
+	if encodingFormat != "" && encodingFormat != "json" && encodingFormat != "yaml" {
+		return fmt.Errorf("invalid encoding format '%s' (must be json or yaml)", encodingFormat)
 	}
 
 	return nil
@@ -215,12 +345,12 @@ func validateFlags() error {
 
 // determineFormats detects input format and determines output format
 func determineFormats() (inputFmt, outputFmt string, err error) {
-	inputFmt, err = detectInputFormat(*inputFile)
+	inputFmt, err = detectInputFormat(inputFile)
 	if err != nil {
 		return "", "", fmt.Errorf("detecting input format: %w", err)
 	}
 
-	outputFmt = *outputFormat
+	outputFmt = outputFormat
 	if outputFmt == "" {
 		outputFmt = autoDetectOutputFormat(inputFmt)
 	}
@@ -235,7 +365,7 @@ func determineFormats() (inputFmt, outputFmt string, err error) {
 // autoDetectOutputFormat determines output format based on file extension and input format
 func autoDetectOutputFormat(inputFormat string) string {
 	switch {
-	case strings.HasSuffix(strings.ToLower(*outputFile), ".apib"):
+	case strings.HasSuffix(strings.ToLower(outputFile), ".apib"):
 		return "apib"
 	case inputFormat == "apib":
 		return "openapi"
@@ -246,12 +376,12 @@ func autoDetectOutputFormat(inputFormat string) string {
 
 // openFiles opens input and output files
 func openFiles() (input, output *os.File, err error) {
-	input, err = os.Open(*inputFile)
+	input, err = os.Open(inputFile)
 	if err != nil {
 		return nil, nil, fmt.Errorf("opening input file: %w", err)
 	}
 
-	output, err = os.Create(*outputFile)
+	output, err = os.Create(outputFile)
 	if err != nil {
 		_ = input.Close()
 		return nil, nil, fmt.Errorf("creating output file: %w", err)
@@ -291,7 +421,7 @@ func detectInputFormat(filename string) (string, error) {
 		return "apib", nil
 	}
 
-	// Check file content for JSON-based formats
+	// Check file content for JSON/YAML-based formats
 	// #nosec G304 - filename is provided by user via CLI flag, this is expected behavior for a file conversion tool
 	file, err := os.Open(filename)
 	if err != nil {
@@ -299,40 +429,40 @@ func detectInputFormat(filename string) (string, error) {
 	}
 	defer func() { _ = file.Close() }()
 
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
+	// Read first 1KB to detect format
+	// This is more robust than bufio.Scanner for minified files which might be one huge line
+	buf := make([]byte, 1024)
+	n, err := file.Read(buf)
+	if err != nil && err != io.EOF {
+		return "", err
+	}
+
+	content := string(buf[:n])
+
+	// Check for API Blueprint signatures
+	// We check line-based signatures within the buffer
+	lines := strings.Split(strings.ReplaceAll(content, "\r\n", "\n"), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
 		}
-		// Check for API Blueprint format header
 		if strings.HasPrefix(line, "FORMAT:") || strings.HasPrefix(line, "# ") {
 			return "apib", nil
 		}
-		// Check for AsyncAPI
-		if strings.Contains(line, "\"asyncapi\"") {
-			return "asyncapi", nil
-		}
-		// Check for OpenAPI
-		if strings.Contains(line, "\"openapi\"") {
-			return "openapi", nil
-		}
-		// If we see JSON start, try to parse first few fields
+		// If we see a JSON start object, stop checking for APIB line headers to avoid false positives in JSON strings
 		if strings.HasPrefix(line, "{") {
-			// Read a bit more to detect format
-			content := line
-			for i := 0; i < 10 && scanner.Scan(); i++ {
-				content += scanner.Text()
-			}
-			if strings.Contains(content, "\"asyncapi\"") {
-				return "asyncapi", nil
-			}
-			if strings.Contains(content, "\"openapi\"") {
-				return "openapi", nil
-			}
-			// Default to OpenAPI if uncertain
-			return "openapi", nil
+			break
 		}
+	}
+
+	// Check for AsyncAPI (JSON or YAML)
+	if strings.Contains(content, "\"asyncapi\"") || strings.Contains(content, "asyncapi:") {
+		return "asyncapi", nil
+	}
+	// Check for OpenAPI (JSON or YAML)
+	if strings.Contains(content, "\"openapi\"") || strings.Contains(content, "openapi:") {
+		return "openapi", nil
 	}
 
 	return "openapi", nil // Default
@@ -342,13 +472,13 @@ func detectInputFormat(filename string) (string, error) {
 func convertAPIBlueprintToOpenAPI(input, output *os.File) int {
 	// Parse and validate the OpenAPI version
 	var targetVersion converter.Version
-	switch *openapiVersion {
+	switch openapiVersion {
 	case "3.0":
 		targetVersion = converter.Version30
 	case "3.1":
 		targetVersion = converter.Version31
 	default:
-		fmt.Fprintf(os.Stderr, "Error: invalid OpenAPI version '%s' (must be 3.0 or 3.1)\n", *openapiVersion)
+		fmt.Fprintf(os.Stderr, "Error: invalid OpenAPI version '%s' (must be 3.0 or 3.1)\n", openapiVersion)
 		return 1
 	}
 
@@ -377,33 +507,39 @@ func convertAPIBlueprintToOpenAPI(input, output *os.File) int {
 		return 1
 	}
 
-	fmt.Printf("Successfully converted API Blueprint %s to OpenAPI %s %s\n", *inputFile, targetVersion.ToFullVersion(), *outputFile)
+	fmt.Printf("Successfully converted API Blueprint %s to OpenAPI %s %s\n", inputFile, targetVersion.ToFullVersion(), outputFile)
 	return 0
 }
 
 // convertAPIBlueprintToAsyncAPI converts API Blueprint to AsyncAPI
 func convertAPIBlueprintToAsyncAPI(input, output *os.File) int {
+	// Protocol is required for AsyncAPI
+	if protocol == "" {
+		fmt.Fprintln(os.Stderr, "Error: protocol is required for AsyncAPI conversion (use --protocol)")
+		return 1
+	}
+
 	// Determine target AsyncAPI version
 	var targetVersion string
-	switch *asyncapiVersion {
+	switch asyncapiVersion {
 	case "2", "2.6", "2.6.0":
 		targetVersion = "2.6"
-		if err := converter.ConvertAPIBlueprintToAsyncAPI(input, output, *protocol); err != nil {
+		if err := converter.ConvertAPIBlueprintToAsyncAPI(input, output, protocol); err != nil {
 			fmt.Fprintf(os.Stderr, "Error converting API Blueprint to AsyncAPI 2.6: %v\n", err)
 			return 1
 		}
 	case "3", "3.0", "3.0.0":
 		targetVersion = "3.0"
-		if err := converter.ConvertAPIBlueprintToAsyncAPIV3(input, output, *protocol); err != nil {
+		if err := converter.ConvertAPIBlueprintToAsyncAPIV3(input, output, protocol); err != nil {
 			fmt.Fprintf(os.Stderr, "Error converting API Blueprint to AsyncAPI 3.0: %v\n", err)
 			return 1
 		}
 	default:
-		fmt.Fprintf(os.Stderr, "Error: invalid AsyncAPI version '%s' (must be 2.6 or 3.0)\n", *asyncapiVersion)
+		fmt.Fprintf(os.Stderr, "Error: invalid AsyncAPI version '%s' (must be 2.6 or 3.0)\n", asyncapiVersion)
 		return 1
 	}
 
-	fmt.Printf("Successfully converted API Blueprint %s to AsyncAPI %s %s (protocol: %s)\n", *inputFile, targetVersion, *outputFile, *protocol)
+	fmt.Printf("Successfully converted API Blueprint %s to AsyncAPI %s %s (protocol: %s)\n", inputFile, targetVersion, outputFile, protocol)
 	return 0
 }
 
@@ -413,7 +549,7 @@ func convertOpenAPIToAPIBlueprint(input, output *os.File) int {
 		fmt.Fprintf(os.Stderr, "Error converting OpenAPI to API Blueprint: %v\n", err)
 		return 1
 	}
-	fmt.Printf("Successfully converted OpenAPI %s to API Blueprint %s\n", *inputFile, *outputFile)
+	fmt.Printf("Successfully converted OpenAPI %s to API Blueprint %s\n", inputFile, outputFile)
 	return 0
 }
 
@@ -426,36 +562,23 @@ func convertAsyncAPIToAPIBlueprint(input, output *os.File) int {
 		return 1
 	}
 
-	// Detect AsyncAPI version
-	var versionCheck struct {
-		AsyncAPI string `json:"asyncapi"`
-	}
-	if err := json.Unmarshal(data, &versionCheck); err != nil {
-		fmt.Fprintf(os.Stderr, "Error detecting AsyncAPI version: %v\n", err)
+	// Use ParseAsyncAPIAny which handles JSON and YAML detection and versioning
+	spec, ver, err := converter.ParseAsyncAPIAny(data)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error parsing AsyncAPI: %v\n", err)
 		return 1
 	}
 
-	asyncVer := converter.DetectAsyncAPIVersion(versionCheck.AsyncAPI)
-
 	// Convert based on detected version
 	var blueprint string
-	switch asyncVer {
+	switch ver {
 	case 2:
-		spec, err := converter.ParseAsyncAPI(data)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error parsing AsyncAPI 2.x: %v\n", err)
-			return 1
-		}
-		blueprint = converter.AsyncAPIToAPIBlueprint(spec)
+		blueprint = converter.AsyncAPIToAPIBlueprint(spec.(*converter.AsyncAPI))
 	case 3:
-		spec, err := converter.ParseAsyncAPIV3(data)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error parsing AsyncAPI 3.x: %v\n", err)
-			return 1
-		}
-		blueprint = converter.AsyncAPIV3ToAPIBlueprint(spec)
+		blueprint = converter.AsyncAPIV3ToAPIBlueprint(spec.(*converter.AsyncAPIV3))
 	default:
-		fmt.Fprintf(os.Stderr, "Error: unsupported AsyncAPI version: %s\n", versionCheck.AsyncAPI)
+		// Should be caught by ParseAsyncAPIAny, but safety first
+		fmt.Fprintf(os.Stderr, "Error: unsupported AsyncAPI version\n")
 		return 1
 	}
 
@@ -465,13 +588,19 @@ func convertAsyncAPIToAPIBlueprint(input, output *os.File) int {
 		return 1
 	}
 
-	fmt.Printf("Successfully converted AsyncAPI %s %s to API Blueprint %s\n", versionCheck.AsyncAPI, *inputFile, *outputFile)
+	// Get AsyncAPI version string for logging
+	asyncVerStr := "2.6.0"
+	if ver == 3 {
+		asyncVerStr = "3.0.0"
+	}
+
+	fmt.Printf("Successfully converted AsyncAPI %s %s to API Blueprint %s\n", asyncVerStr, inputFile, outputFile)
 	return 0
 }
 
 // writeSpec writes a specification to the output in the configured format (JSON or YAML)
 func writeSpec(output *os.File, spec interface{}) error {
-	if *encodingFormat == "yaml" {
+	if encodingFormat == "yaml" {
 		yamlBytes, err := converter.MarshalYAML(spec)
 		if err != nil {
 			return err

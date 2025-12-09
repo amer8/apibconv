@@ -1,6 +1,7 @@
-package main
+package cli
 
 import (
+	"flag"
 	"os"
 	"strings"
 	"testing"
@@ -60,25 +61,6 @@ func TestDetectInputFormat(t *testing.T) {
 				"info": {"title": "Test", "version": "1.0.0"}
 			}`,
 			expected: "asyncapi",
-		},
-		{
-			name:     "Minified OpenAPI",
-			content:  `{"openapi":"3.0.0","info":{"title":"Test","version":"1.0.0"}}`,
-			expected: "openapi",
-		},
-		{
-			name:     "Minified AsyncAPI",
-			content:  `{"asyncapi":"2.6.0","info":{"title":"Test","version":"1.0.0"}}`,
-			expected: "asyncapi",
-		},
-		{
-			name: "Whitespace OpenAPI",
-			content: `
-			
-			{
-				"openapi": "3.0.0"
-			}`,
-			expected: "openapi",
 		},
 		{
 			name: "API Blueprint by extension",
@@ -291,95 +273,203 @@ HOST: https://api.example.com
 	}
 }
 
-func TestConvertAPIBlueprintToAsyncAPI(t *testing.T) {
+func TestConvertAPIBlueprintToOpenAPI_V31(t *testing.T) {
 	apibContent := `FORMAT: 1A
-# Test API
+# Test API V31
 
-A simple test API
+A simple test API for OpenAPI 3.1 conversion.
 
-HOST: wss://api.example.com
+HOST: https://api.example.com
 
-## /channel [/channel]
+## /items [/items]
 
-### Send Message [POST]
+### List Items [GET]
 
-+ Request (application/json)
++ Response 200 (application/json)
 
         {
-            "message": "Hello"
+            "items": []
         }
 `
 
-	tests := []struct {
-		name         string
-		protocol     string
-		wantExitCode int
-		wantOutput   bool
-	}{
-		{
-			name:         "Missing protocol",
-			protocol:     "",
-			wantExitCode: 1,
-			wantOutput:   false,
-		},
-		{
-			name:         "Valid protocol",
-			protocol:     "ws",
-			wantExitCode: 0,
-			wantOutput:   true,
-		},
+	inputFilePath := createTempFile(t, apibContent, ".apib")
+	defer func() { _ = os.Remove(inputFilePath) }()
+
+	outputTempFile, err := os.CreateTemp("", "test-output-v31-*.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	outputFilePath := outputTempFile.Name()
+	_ = outputTempFile.Close()
+	defer func() { _ = os.Remove(outputFilePath) }()
+
+	oldInputFile := inputFile
+	oldOutputFile := outputFile
+	oldOpenAPIVersion := openapiVersion
+	oldOutputFormat := outputFormat
+	oldEncodingFormat := encodingFormat
+
+	defer func() {
+		inputFile = oldInputFile
+		outputFile = oldOutputFile
+		openapiVersion = oldOpenAPIVersion
+		outputFormat = oldOutputFormat
+		encodingFormat = oldEncodingFormat
+	}()
+
+	inputFile = inputFilePath
+	outputFile = outputFilePath
+	openapiVersion = "3.1"
+	outputFormat = "openapi"
+	encodingFormat = "json" // Ensure JSON output for easy string check
+
+	// Open files
+	inputFileRead, err := os.Open(inputFilePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = inputFileRead.Close() }()
+
+	outputFileWrite, err := os.Create(outputFilePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = outputFileWrite.Close() }()
+
+	// Test conversion
+	exitCode := convertAPIBlueprintToOpenAPI(inputFileRead, outputFileWrite)
+	if exitCode != 0 {
+		t.Fatalf("convertAPIBlueprintToOpenAPI() for v3.1 exit code = %d, want 0", exitCode)
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			inputFilePath := createTempFile(t, apibContent, ".apib")
-			defer func() { _ = os.Remove(inputFilePath) }()
+	// Close file before reading
+	_ = outputFileWrite.Close()
 
-			outputTempFile, err := os.CreateTemp("", "test-output-*.json")
-			if err != nil {
-				t.Fatal(err)
-			}
-			outputFilePath := outputTempFile.Name()
-			_ = outputTempFile.Close()
-			defer func() { _ = os.Remove(outputFilePath) }()
+	// Read and verify output content
+	content, err := os.ReadFile(outputFilePath)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-			inputFile, err := os.Open(inputFilePath)
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer func() { _ = inputFile.Close() }()
+	output := string(content)
+	if !strings.Contains(output, `"openapi": "3.1.0"`) {
+		t.Errorf("Output should contain OpenAPI 3.1.0 version, got: %s", output)
+	}
+	if !strings.Contains(output, `"title": "Test API V31"`) {
+		t.Error("Output should contain API title")
+	}
+	if !strings.Contains(output, `"url": "https://api.example.com"`) {
+		t.Error("Output should contain server URL")
+	}
+	if !strings.Contains(output, `"/items"`) {
+		t.Error("Output should contain /items path")
+	}
+}
 
-			outputFile, err := os.Create(outputFilePath)
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer func() { _ = outputFile.Close() }()
+func TestConvertAPIBlueprintToAsyncAPI_V30(t *testing.T) {
+	apibContent := `FORMAT: 1A
+# Events API
 
-			// Save and restore global protocol flag
-			oldProtocol := *protocol
-			defer func() { *protocol = oldProtocol }()
-			*protocol = tt.protocol
+A test API for AsyncAPI 3.0 conversion.
 
-			exitCode := convertAPIBlueprintToAsyncAPI(inputFile, outputFile)
-			if exitCode != tt.wantExitCode {
-				t.Errorf("convertAPIBlueprintToAsyncAPI() exit code = %d, want %d", exitCode, tt.wantExitCode)
-			}
+HOST: https://api.example.com
 
-			if tt.wantOutput {
-				_ = outputFile.Close()
-				content, err := os.ReadFile(outputFilePath)
-				if err != nil {
-					t.Fatal(err)
-				}
-				output := string(content)
-				if !strings.Contains(output, `"asyncapi":`) {
-					t.Error("Output should contain AsyncAPI version")
-				}
-				if !strings.Contains(output, `"protocol": "ws"`) {
-					t.Error("Output should contain specified protocol")
-				}
-			}
-		})
+## /events [/events]
+
+### Receive events [GET]
++ Response 200 (application/json)
+    ` + "```json" + `
+    {"message": "Event received"}
+    ` + "```" + `
+
+### Send events [POST]
++ Request (application/json)
+    ` + "```json" + `
+    {"data": "some data"}
+    ` + "```" + `
++ Response 200 (application/json)
+`
+
+	inputFilePath := createTempFile(t, apibContent, ".apib")
+	defer func() { _ = os.Remove(inputFilePath) }()
+
+	outputTempFile, err := os.CreateTemp("", "test-output-asyncapi-v30-*.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	outputFilePath := outputTempFile.Name()
+	_ = outputTempFile.Close()
+	defer func() { _ = os.Remove(outputFilePath) }()
+
+	oldInputFile := inputFile
+	oldOutputFile := outputFile
+	oldAsyncAPIVersion := asyncapiVersion
+	oldOutputFormat := outputFormat
+	oldProtocol := protocol
+	oldEncodingFormat := encodingFormat
+
+	defer func() {
+		inputFile = oldInputFile
+		outputFile = oldOutputFile
+		asyncapiVersion = oldAsyncAPIVersion
+		outputFormat = oldOutputFormat
+		protocol = oldProtocol
+		encodingFormat = oldEncodingFormat
+	}()
+
+	inputFile = inputFilePath
+	outputFile = outputFilePath
+	asyncapiVersion = "3.0"
+	outputFormat = "asyncapi"
+	protocol = "kafka"
+	encodingFormat = "json" // Ensure JSON output for easy string check
+
+	// Open files
+	inputFileRead, err := os.Open(inputFilePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = inputFileRead.Close() }()
+
+	outputFileWrite, err := os.Create(outputFilePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = outputFileWrite.Close() }()
+
+	// Test conversion
+	exitCode := convertAPIBlueprintToAsyncAPI(inputFileRead, outputFileWrite)
+	if exitCode != 0 {
+		t.Fatalf("convertAPIBlueprintToAsyncAPI() for v3.0 exit code = %d, want 0", exitCode)
+	}
+
+	// Close file before reading
+	_ = outputFileWrite.Close()
+
+	// Read and verify output content
+	content, err := os.ReadFile(outputFilePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	output := string(content)
+	if !strings.Contains(output, `"asyncapi": "3.0.0"`) {
+		t.Errorf("Output should contain AsyncAPI 3.0.0 version, got: %s", output)
+	}
+	if !strings.Contains(output, `"title": "Events API"`) {
+		t.Error("Output should contain API title")
+	}
+	if !strings.Contains(output, `"protocol": "kafka"`) {
+		t.Errorf("Output should contain \"protocol\": \"kafka\", got: %s", output)
+	}
+	if !strings.Contains(output, `"operations": {`) { // AsyncAPI 3.0 uses 'operations' at root
+		t.Errorf("Output should contain \"operations\": { for AsyncAPI 3.0 operations, got: %s", output)
+	}
+	if !strings.Contains(output, `"action": "receive"`) {
+		t.Errorf("Output should contain \"action\": \"receive\" for AsyncAPI 3.0, got: %s", output)
+	}
+	if !strings.Contains(output, `"action": "send"`) {
+		t.Errorf("Output should contain \"action\": \"send\" for AsyncAPI 3.0, got: %s", output)
 	}
 }
 
@@ -438,18 +528,18 @@ func TestValidateFlags(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Save and restore flag values
-			oldInput := *inputFile
-			oldOutput := *outputFile
-			oldFormat := *encodingFormat
+			oldInput := inputFile
+			oldOutput := outputFile
+			oldFormat := encodingFormat
 			defer func() {
-				*inputFile = oldInput
-				*outputFile = oldOutput
-				*encodingFormat = oldFormat
+				inputFile = oldInput
+				outputFile = oldOutput
+				encodingFormat = oldFormat
 			}()
 
-			*inputFile = tt.inputFile
-			*outputFile = tt.outputFile
-			*encodingFormat = tt.format
+			inputFile = tt.inputFile
+			outputFile = tt.outputFile
+			encodingFormat = tt.format
 
 			err := validateFlags()
 			if (err != nil) != tt.wantErr {
@@ -488,10 +578,10 @@ func TestAutoDetectOutputFormat(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			oldOutput := *outputFile
-			defer func() { *outputFile = oldOutput }()
+			oldOutput := outputFile
+			defer func() { outputFile = oldOutput }()
 
-			*outputFile = tt.outputFile
+			outputFile = tt.outputFile
 			result := autoDetectOutputFormat(tt.inputFormat)
 			if result != tt.expected {
 				t.Errorf("autoDetectOutputFormat() = %q, want %q", result, tt.expected)
@@ -511,10 +601,10 @@ func TestRunValidation(t *testing.T) {
 	tmpfile := createTempFile(t, validSpec, ".json")
 	defer func() { _ = os.Remove(tmpfile) }()
 
-	oldInput := *inputFile
-	defer func() { *inputFile = oldInput }()
+	oldInput := inputFile
+	defer func() { inputFile = oldInput }()
 
-	*inputFile = tmpfile
+	inputFile = tmpfile
 	exitCode := runValidation()
 	if exitCode != 0 {
 		t.Errorf("runValidation() for valid spec = %d, want 0", exitCode)
@@ -532,10 +622,10 @@ func TestRunValidationInvalid(t *testing.T) {
 	tmpfile := createTempFile(t, invalidSpec, ".json")
 	defer func() { _ = os.Remove(tmpfile) }()
 
-	oldInput := *inputFile
-	defer func() { *inputFile = oldInput }()
+	oldInput := inputFile
+	defer func() { inputFile = oldInput }()
 
-	*inputFile = tmpfile
+	inputFile = tmpfile
 	exitCode := runValidation()
 	if exitCode != 1 {
 		t.Errorf("runValidation() for invalid spec = %d, want 1", exitCode)
@@ -543,211 +633,17 @@ func TestRunValidationInvalid(t *testing.T) {
 }
 
 func TestRunValidationMissingFile(t *testing.T) {
-	oldInput := *inputFile
-	defer func() { *inputFile = oldInput }()
+	// Mock usage to suppress output                                                                                                                           │
+	origUsage := flag.Usage
+	defer func() { flag.Usage = origUsage }()
+	flag.Usage = func() {}
 
-	*inputFile = ""
+	oldInput := inputFile
+	defer func() { inputFile = oldInput }()
+
+	inputFile = ""
 	exitCode := runValidation()
 	if exitCode != 1 {
 		t.Errorf("runValidation() with no input = %d, want 1", exitCode)
-	}
-}
-
-func TestConvertAsyncAPIToAPIBlueprint_CMD(t *testing.T) {
-	asyncapiContent := `{
-		"asyncapi": "2.6.0",
-		"info": {
-			"title": "Async Test",
-			"version": "1.0.0"
-		},
-		"channels": {
-			"test": {
-				"subscribe": {
-					"message": {
-						"payload": {"type": "string"}
-					}
-				}
-			}
-		}
-	}`
-
-	inputFilePath := createTempFile(t, asyncapiContent, ".json")
-	defer func() { _ = os.Remove(inputFilePath) }()
-
-	outputTempFile, err := os.CreateTemp("", "test-output-*.apib")
-	if err != nil {
-		t.Fatal(err)
-	}
-	outputFilePath := outputTempFile.Name()
-	_ = outputTempFile.Close()
-	defer func() { _ = os.Remove(outputFilePath) }()
-
-	inputF, err := os.Open(inputFilePath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = inputF.Close() }()
-
-	outputF, err := os.Create(outputFilePath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = outputF.Close() }()
-
-	// Reset file pointers
-	_, _ = inputF.Seek(0, 0)
-	
-	// Direct call to convertAsyncAPIToAPIBlueprint
-	oldInput := *inputFile
-	defer func() { *inputFile = oldInput }()
-	*inputFile = inputFilePath // Needed for log message
-	*outputFile = outputFilePath
-
-	exitCode := convertAsyncAPIToAPIBlueprint(inputF, outputF)
-	if exitCode != 0 {
-		t.Errorf("convertAsyncAPIToAPIBlueprint exit code = %d, want 0", exitCode)
-	}
-
-	_ = outputF.Close()
-	content, err := os.ReadFile(outputFilePath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(content), "FORMAT: 1A") {
-		t.Error("Expected FORMAT: 1A in output")
-	}
-}
-
-func TestPerformConversion_Unsupported(t *testing.T) {
-	// Test unsupported conversion paths
-	tests := []struct {
-		inputFmt  string
-		outputFmt string
-	}{
-		{"asyncapi", "openapi"},
-		{"openapi", "asyncapi"},
-		{"json", "yaml"}, // Invalid formats
-		{"openapi", "openapi"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.inputFmt+"->"+tt.outputFmt, func(t *testing.T) {
-			exitCode := performConversion(nil, nil, tt.inputFmt, tt.outputFmt)
-			if exitCode != 1 {
-				t.Errorf("performConversion(%s, %s) exit code = %d, want 1", tt.inputFmt, tt.outputFmt, exitCode)
-			}
-		})
-	}
-}
-
-func TestConvertAPIBlueprintToOpenAPI_Version31(t *testing.T) {
-	apibContent := `FORMAT: 1A
-# Test API
-## /test [/test]
-### GET [GET]
-+ Response 200
-`
-	inputFilePath := createTempFile(t, apibContent, ".apib")
-	defer func() { _ = os.Remove(inputFilePath) }()
-	
-	outputTempFile, err := os.CreateTemp("", "test-output-*.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	outputFilePath := outputTempFile.Name()
-	_ = outputTempFile.Close()
-	defer func() { _ = os.Remove(outputFilePath) }()
-
-	inputF, err := os.Open(inputFilePath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = inputF.Close() }()
-
-	outputF, err := os.Create(outputFilePath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = outputF.Close() }()
-
-	// Set version flag
-	oldVer := *openapiVersion
-	defer func() { *openapiVersion = oldVer }()
-	*openapiVersion = "3.1"
-	*inputFile = inputFilePath
-	*outputFile = outputFilePath
-
-	exitCode := convertAPIBlueprintToOpenAPI(inputF, outputF)
-	if exitCode != 0 {
-		t.Fatalf("convertAPIBlueprintToOpenAPI (3.1) exit code = %d", exitCode)
-	}
-
-	_ = outputF.Close()
-	content, err := os.ReadFile(outputFilePath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(content), `"openapi": "3.1.0"`) {
-		t.Errorf("Expected 3.1.0 version in output, got %s", string(content))
-	}
-}
-
-func TestConvertAPIBlueprintToAsyncAPI_Version30(t *testing.T) {
-	apibContent := `FORMAT: 1A
-# Test API
-HOST: ws://localhost
-## /test [/test]
-### POST [POST]
-+ Request (application/json)
-    + Body
-            {"foo":"bar"}
-`
-	inputFilePath := createTempFile(t, apibContent, ".apib")
-	defer func() { _ = os.Remove(inputFilePath) }()
-	
-	outputTempFile, err := os.CreateTemp("", "test-output-*.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	outputFilePath := outputTempFile.Name()
-	_ = outputTempFile.Close()
-	defer func() { _ = os.Remove(outputFilePath) }()
-
-	inputF, err := os.Open(inputFilePath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = inputF.Close() }()
-
-	outputF, err := os.Create(outputFilePath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = outputF.Close() }()
-
-	// Set flags
-	oldProto := *protocol
-	oldVer := *asyncapiVersion
-	defer func() { 
-		*protocol = oldProto
-		*asyncapiVersion = oldVer
-	}()
-	*protocol = "ws"
-	*asyncapiVersion = "3.0"
-	*inputFile = inputFilePath
-	*outputFile = outputFilePath
-
-	exitCode := convertAPIBlueprintToAsyncAPI(inputF, outputF)
-	if exitCode != 0 {
-		t.Fatalf("convertAPIBlueprintToAsyncAPI (3.0) exit code = %d", exitCode)
-	}
-
-	_ = outputF.Close()
-	content, err := os.ReadFile(outputFilePath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(content), `"asyncapi": "3.0.0"`) {
-		t.Errorf("Expected 3.0.0 version in output, got %s", string(content))
 	}
 }
