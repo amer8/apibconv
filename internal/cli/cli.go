@@ -376,11 +376,13 @@ func autoDetectOutputFormat(inputFormat string) string {
 
 // openFiles opens input and output files
 func openFiles() (input, output *os.File, err error) {
+	// #nosec G304 - filename is provided by user via CLI flag
 	input, err = os.Open(inputFile)
 	if err != nil {
 		return nil, nil, fmt.Errorf("opening input file: %w", err)
 	}
 
+	// #nosec G304 - filename is provided by user via CLI flag
 	output, err = os.Create(outputFile)
 	if err != nil {
 		_ = input.Close()
