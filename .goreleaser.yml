@@ -85,15 +85,17 @@ release:
   header: |
     ## apibconv {{ .Tag }}
 
-    Convert OpenAPI 3.0 to API Blueprint format with zero-allocation buffer operations.
+    Convert between API Blueprint (*.apib), OpenAPI 3.0/3.1, and AsyncAPI 2.6/3.0 specifications.
 
     ### Installation
 
+    **Using Go**
     ```sh
-    # Using Go
     go install github.com/amer8/apibconv@{{ .Tag }}
-
-    # Using Docker
+    ```
+    
+    **Using Docker**
+    ```sh
     docker pull ghcr.io/amer8/apibconv:{{ .Tag }}
     ```
   footer: |
