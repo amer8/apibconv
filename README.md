@@ -32,10 +32,7 @@ go install github.com/amer8/apibconv@latest
 docker pull ghcr.io/amer8/apibconv:latest
 
 # Run directly
-docker run --rm -v $(pwd):/data -w /data ghcr.io/amer8/apibconv:latest -f openapi.json -o output.apib
-
-# Or create an alias (add to ~/.bashrc or ~/.zshrc)
-alias apibconv='docker run --rm -v $(pwd):/data -w /data ghcr.io/amer8/apibconv:latest'
+docker run --rm -v $(pwd):/data -w /data ghcr.io/amer8/apibconv api.apib -o openapi.json
 ```
 
 ### Download Binary
