@@ -128,7 +128,7 @@ The tool supports AsyncAPI 2.6 and 3.0 for event-driven APIs:
   - Publish/Send operations → POST operations (sending messages)
 
 
-### Examples
+## Examples
 
 The `examples/` directory contains paired specification files, demonstrating various conversions. Each subdirectory represents a base API or specification, with `.json`, `.yml` and `.apib` files showing the input and converted output.
 
