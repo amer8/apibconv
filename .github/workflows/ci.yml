@@ -141,7 +141,7 @@ jobs:
 
       - name: Test binary
         run: |
-          ./apibconv -version
+          ./apibconv -v
           ./apibconv examples/openapi/petstore/petstore.json -o examples/openapi/petstore/petstore-gen.apib
           echo "Generated API Blueprint:"
           head -n 20 examples/openapi/petstore/petstore-gen.apib
