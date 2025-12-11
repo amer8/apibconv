@@ -122,11 +122,7 @@ func ExampleFormat() {
 		},
 	}
 
-	apiBlueprint, err := converter.Format(spec)
-	if err != nil {
-		log.Fatal(err)
-	}
-
+	apiBlueprint := spec.ToBlueprint()
 	fmt.Println(apiBlueprint)
 	// Output will contain API Blueprint format
 }
@@ -187,8 +183,8 @@ HOST: https://api.stream.com
 	// Output will be written to stdout in OpenAPI JSON format
 }
 
-// ExampleParseAPIBlueprint demonstrates parsing API Blueprint to OpenAPI structure.
-func ExampleParseAPIBlueprint() {
+// ExampleParseBlueprint demonstrates parsing API Blueprint to OpenAPI structure.
+func ExampleParseBlueprint() {
 	apibContent := []byte(`FORMAT: 1A
 
 # Parse Example API
@@ -203,7 +199,7 @@ HOST: https://api.parse.com
 
         {"result": "success"}`)
 
-	spec, err := converter.ParseAPIBlueprint(apibContent)
+	spec, err := converter.ParseBlueprint(apibContent)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -247,11 +243,7 @@ func Example() {
 	spec.Info.Description = "This API has been modified"
 
 	// Format to API Blueprint
-	apiBlueprint, err := converter.Format(spec)
-	if err != nil {
-		log.Fatal(err)
-	}
-
+	apiBlueprint := spec.ToBlueprint()
 	fmt.Println(apiBlueprint)
 	// Output will contain API Blueprint with modified title
 }

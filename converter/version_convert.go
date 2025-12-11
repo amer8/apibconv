@@ -142,7 +142,7 @@ func convertSchemaToV31(schema *Schema) {
 	if schema.Nullable && schema.Type != nil {
 		// Check if Type is a string
 		if typeStr, ok := schema.Type.(string); ok && typeStr != "" {
-			schema.Type = []interface{}{typeStr, "null"}
+			schema.Type = []interface{}{typeStr, TypeNull}
 			schema.Nullable = false
 		}
 	}
@@ -186,7 +186,7 @@ func convertSchemaToV30(schema *Schema) {
 
 			for _, t := range typeArray {
 				if tStr, ok := t.(string); ok {
-					if tStr == "null" {
+					if tStr == TypeNull {
 						hasNull = true
 					} else {
 						mainType = tStr
@@ -521,7 +521,7 @@ func GetSchemaType(schema *Schema) string {
 	// Handle array type (3.1)
 	if typeArr, ok := schema.Type.([]interface{}); ok {
 		for _, t := range typeArr {
-			if tStr, ok := t.(string); ok && tStr != "null" {
+			if tStr, ok := t.(string); ok && tStr != TypeNull {
 				return tStr
 			}
 		}
@@ -547,7 +547,7 @@ func IsNullable(schema *Schema) bool {
 	// Check 3.1 style type array
 	if typeArr, ok := schema.Type.([]interface{}); ok {
 		for _, t := range typeArr {
-			if tStr, ok := t.(string); ok && tStr == "null" {
+			if tStr, ok := t.(string); ok && tStr == TypeNull {
 				return true
 			}
 		}
@@ -577,7 +577,7 @@ func NormalizeSchemaType(schema *Schema, version Version) {
 	if version == Version31 && schema.Nullable {
 		typeStr := GetSchemaType(schema)
 		if typeStr != "" {
-			schema.Type = []interface{}{typeStr, "null"}
+			schema.Type = []interface{}{typeStr, TypeNull}
 			schema.Nullable = false
 		}
 	}

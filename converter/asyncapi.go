@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"sort"
 	"strings"
 )
@@ -162,7 +163,7 @@ type AsyncAPIComponents struct {
 	Schemas  map[string]*Schema  `json:"schemas,omitempty"`  // Reusable schema definitions
 }
 
-// ParseAsyncAPI parses AsyncAPI JSON or YAML data into an AsyncAPI struct.
+// ParseAsync parses AsyncAPI JSON or YAML data into an AsyncAPI struct.
 //
 // This function reads AsyncAPI specification in JSON or YAML format and unmarshals it
 // into the AsyncAPI Go struct.
@@ -177,11 +178,11 @@ type AsyncAPIComponents struct {
 // Example:
 //
 //	data := []byte(`{"asyncapi": "2.6.0", "info": {"title": "My API", "version": "1.0.0"}, "channels": {}}`)
-//	spec, err := converter.ParseAsyncAPI(data)
+//	spec, err := converter.ParseAsync(data)
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
-func ParseAsyncAPI(data []byte) (*AsyncAPI, error) {
+func ParseAsync(data []byte) (*AsyncAPI, error) {
 	var spec AsyncAPI
 
 	// Try JSON first
@@ -200,9 +201,14 @@ func ParseAsyncAPI(data []byte) (*AsyncAPI, error) {
 	return &spec, nil
 }
 
-// ParseAsyncAPIReader parses AsyncAPI JSON or YAML from an io.Reader.
+// ParseAsyncAPI is a deprecated alias for ParseAsync.
+func ParseAsyncAPI(data []byte) (*AsyncAPI, error) {
+	return ParseAsync(data)
+}
+
+// ParseAsyncReader parses AsyncAPI JSON or YAML from an io.Reader.
 //
-// This is a streaming version of ParseAsyncAPI that reads from an io.Reader
+// This is a streaming version of ParseAsync that reads from an io.Reader
 // instead of a byte slice.
 //
 // Example:
@@ -213,29 +219,31 @@ func ParseAsyncAPI(data []byte) (*AsyncAPI, error) {
 //	}
 //	defer file.Close()
 //
-//	spec, err := converter.ParseAsyncAPIReader(file)
+//	spec, err := converter.ParseAsyncReader(file)
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
-func ParseAsyncAPIReader(r io.Reader) (*AsyncAPI, error) {
+func ParseAsyncReader(r io.Reader) (*AsyncAPI, error) {
 	data, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}
-	return ParseAsyncAPI(data)
+	return ParseAsync(data)
 }
 
-// AsyncAPIToAPIBlueprint converts an AsyncAPI specification to API Blueprint format.
+// ParseAsyncAPIReader is a deprecated alias for ParseAsyncReader.
+func ParseAsyncAPIReader(r io.Reader) (*AsyncAPI, error) {
+	return ParseAsyncReader(r)
+}
+
+// ToBlueprint converts an AsyncAPI specification to API Blueprint format.
 //
-// This function converts AsyncAPI channels and operations into API Blueprint paths
+// This method converts AsyncAPI channels and operations into API Blueprint paths
 // and operations. The conversion maps:
 //   - AsyncAPI channels -> API Blueprint paths
 //   - Subscribe operations -> GET operations (receiving messages)
 //   - Publish operations -> POST operations (sending messages)
 //   - Message payloads -> Request/Response bodies
-//
-// Parameters:
-//   - spec: AsyncAPI specification to convert
 //
 // Returns:
 //   - string: API Blueprint formatted output
@@ -243,14 +251,14 @@ func ParseAsyncAPIReader(r io.Reader) (*AsyncAPI, error) {
 // Example:
 //
 //	asyncSpec := &AsyncAPI{...}
-//	blueprint := converter.AsyncAPIToAPIBlueprint(asyncSpec)
+//	blueprint := asyncSpec.ToBlueprint()
 //	fmt.Println(blueprint)
-func AsyncAPIToAPIBlueprint(spec *AsyncAPI) string {
+func (spec *AsyncAPI) ToBlueprint() string {
 	buf := getBuffer()
 	defer putBuffer(buf)
 
 	// Write header
-	buf.WriteString("FORMAT: 1A\n\n")
+	buf.WriteString(APIBlueprintFormat + "\n\n")
 
 	// Write title
 	if spec.Info.Title != "" {
@@ -295,6 +303,11 @@ func AsyncAPIToAPIBlueprint(spec *AsyncAPI) string {
 	return buf.String()
 }
 
+// AsyncAPIToAPIBlueprint is a deprecated alias for AsyncAPI.ToBlueprint.
+func AsyncAPIToAPIBlueprint(spec *AsyncAPI) string {
+	return spec.ToBlueprint()
+}
+
 // writeAsyncAPIChannel writes a single AsyncAPI channel as API Blueprint path
 func writeAsyncAPIChannel(buf *bytes.Buffer, channelName string, channel Channel) {
 	// Convert channel name to path format (replace / with /)
@@ -314,12 +327,12 @@ func writeAsyncAPIChannel(buf *bytes.Buffer, channelName string, channel Channel
 
 	// Write subscribe operation as GET (receiving messages)
 	if channel.Subscribe != nil {
-		writeAsyncAPIOperation(buf, "GET", channel.Subscribe, "Subscribe to receive messages")
+		writeAsyncAPIOperation(buf, http.MethodGet, channel.Subscribe, "Subscribe to receive messages")
 	}
 
 	// Write publish operation as POST (sending messages)
 	if channel.Publish != nil {
-		writeAsyncAPIOperation(buf, "POST", channel.Publish, "Publish a message")
+		writeAsyncAPIOperation(buf, http.MethodPost, channel.Publish, "Publish a message")
 	}
 }
 
@@ -343,7 +356,7 @@ func writeAsyncAPIOperation(buf *bytes.Buffer, method string, op *AsyncAPIOperat
 
 	// Write message as request (for POST) or response (for GET)
 	if op.Message != nil {
-		if method == "POST" {
+		if method == http.MethodPost {
 			writeAsyncAPIMessageAsRequest(buf, op.Message)
 		} else {
 			writeAsyncAPIMessageAsResponse(buf, op.Message)
@@ -355,7 +368,7 @@ func writeAsyncAPIOperation(buf *bytes.Buffer, method string, op *AsyncAPIOperat
 func writeAsyncAPIMessageAsRequest(buf *bytes.Buffer, msg *Message) {
 	contentType := msg.ContentType
 	if contentType == "" {
-		contentType = "application/json"
+		contentType = MediaTypeJSON
 	}
 
 	buf.WriteString("+ Request (")
@@ -377,7 +390,7 @@ func writeAsyncAPIMessageAsRequest(buf *bytes.Buffer, msg *Message) {
 func writeAsyncAPIMessageAsResponse(buf *bytes.Buffer, msg *Message) {
 	contentType := msg.ContentType
 	if contentType == "" {
-		contentType = "application/json"
+		contentType = MediaTypeJSON
 	}
 
 	buf.WriteString("+ Response 200 (")
@@ -418,17 +431,17 @@ func writeAsyncAPIMessageAsResponse(buf *bytes.Buffer, msg *Message) {
 //	    log.Fatal(err)
 //	}
 func ConvertAsyncAPIToAPIBlueprint(r io.Reader, w io.Writer) error {
-	spec, err := ParseAsyncAPIReader(r)
+	spec, err := ParseAsyncReader(r)
 	if err != nil {
 		return err
 	}
 
-	blueprint := AsyncAPIToAPIBlueprint(spec)
+	blueprint := spec.ToBlueprint()
 	_, err = w.Write([]byte(blueprint))
 	return err
 }
 
-// APIBlueprintToAsyncAPI converts an API Blueprint (OpenAPI struct) to AsyncAPI format.
+// ToAsyncAPI converts an API Blueprint (OpenAPI struct) to AsyncAPI format.
 //
 // This function converts OpenAPI/API Blueprint paths to AsyncAPI channels:
 //   - GET operations -> Subscribe operations (receiving messages)
@@ -437,7 +450,6 @@ func ConvertAsyncAPIToAPIBlueprint(r io.Reader, w io.Writer) error {
 //   - Request bodies -> Message payloads for POST
 //
 // Parameters:
-//   - spec: OpenAPI specification (parsed from API Blueprint)
 //   - protocol: Protocol to use for AsyncAPI servers (e.g., "http", "ws", "mqtt", "kafka")
 //
 // Returns:
@@ -446,10 +458,10 @@ func ConvertAsyncAPIToAPIBlueprint(r io.Reader, w io.Writer) error {
 // Example:
 //
 //	openAPISpec := converter.ParseAPIBlueprint(data)
-//	asyncSpec := converter.APIBlueprintToAsyncAPI(openAPISpec, "ws")
-func APIBlueprintToAsyncAPI(spec *OpenAPI, protocol string) *AsyncAPI {
+//	asyncSpec := openAPISpec.ToAsyncAPI("ws")
+func (spec *OpenAPI) ToAsyncAPI(protocol string) *AsyncAPI {
 	asyncSpec := &AsyncAPI{
-		AsyncAPI: "2.6.0",
+		AsyncAPI: AsyncAPIVersion26,
 		Info:     spec.Info,
 		Channels: make(map[string]Channel),
 	}
@@ -494,6 +506,11 @@ func APIBlueprintToAsyncAPI(spec *OpenAPI, protocol string) *AsyncAPI {
 	}
 
 	return asyncSpec
+}
+
+// APIBlueprintToAsyncAPI is a deprecated alias for OpenAPI.ToAsyncAPI.
+func APIBlueprintToAsyncAPI(spec *OpenAPI, protocol string) *AsyncAPI {
+	return spec.ToAsyncAPI(protocol)
 }
 
 // convertOperationToAsyncAPI converts an OpenAPI operation to AsyncAPI operation
@@ -569,7 +586,7 @@ func convertOperationToAsyncAPI(op *Operation, isPublish bool) *AsyncAPIOperatio
 //	}
 func ConvertAPIBlueprintToAsyncAPI(r io.Reader, w io.Writer, protocol string) error {
 	// First parse API Blueprint to OpenAPI structure
-	spec, err := ParseAPIBlueprintReader(r)
+	spec, err := ParseBlueprintReader(r)
 	if err != nil {
 		return fmt.Errorf("failed to parse API Blueprint: %w", err)
 	}
@@ -708,16 +725,16 @@ func DetectAsyncAPIVersion(asyncapiVersion string) int {
 	return 0
 }
 
-// ParseAsyncAPIV3 parses AsyncAPI 3.0 JSON or YAML data into an AsyncAPIV3 struct.
+// ParseAsyncV3 parses AsyncAPI 3.0 JSON or YAML data into an AsyncAPIV3 struct.
 //
 // Example:
 //
 //	data := []byte(`{"asyncapi": "3.0.0", "info": {"title": "My API", "version": "1.0.0"}, "channels": {}, "operations": {}}`)
-//	spec, err := converter.ParseAsyncAPIV3(data)
+//	spec, err := converter.ParseAsyncV3(data)
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
-func ParseAsyncAPIV3(data []byte) (*AsyncAPIV3, error) {
+func ParseAsyncV3(data []byte) (*AsyncAPIV3, error) {
 	var spec AsyncAPIV3
 
 	// Try JSON first
@@ -736,7 +753,12 @@ func ParseAsyncAPIV3(data []byte) (*AsyncAPIV3, error) {
 	return &spec, nil
 }
 
-// ParseAsyncAPIV3Reader parses AsyncAPI 3.0 JSON or YAML from an io.Reader.
+// ParseAsyncAPIV3 is a deprecated alias for ParseAsyncV3.
+func ParseAsyncAPIV3(data []byte) (*AsyncAPIV3, error) {
+	return ParseAsyncV3(data)
+}
+
+// ParseAsyncV3Reader parses AsyncAPI 3.0 JSON or YAML from an io.Reader.
 //
 // Example:
 //
@@ -746,19 +768,24 @@ func ParseAsyncAPIV3(data []byte) (*AsyncAPIV3, error) {
 //	}
 //	defer file.Close()
 //
-//	spec, err := converter.ParseAsyncAPIV3Reader(file)
+//	spec, err := converter.ParseAsyncV3Reader(file)
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
-func ParseAsyncAPIV3Reader(r io.Reader) (*AsyncAPIV3, error) {
+func ParseAsyncV3Reader(r io.Reader) (*AsyncAPIV3, error) {
 	data, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}
-	return ParseAsyncAPIV3(data)
+	return ParseAsyncV3(data)
 }
 
-// AsyncAPIV3ToAPIBlueprint converts an AsyncAPI 3.0 specification to API Blueprint format.
+// ParseAsyncAPIV3Reader is a deprecated alias for ParseAsyncV3Reader.
+func ParseAsyncAPIV3Reader(r io.Reader) (*AsyncAPIV3, error) {
+	return ParseAsyncV3Reader(r)
+}
+
+// ToBlueprint converts an AsyncAPI 3.0 specification to API Blueprint format.
 //
 // The conversion maps:
 //   - AsyncAPI channels -> API Blueprint paths (using channel address)
@@ -769,14 +796,14 @@ func ParseAsyncAPIV3Reader(r io.Reader) (*AsyncAPIV3, error) {
 // Example:
 //
 //	asyncSpec := &AsyncAPIV3{...}
-//	blueprint := converter.AsyncAPIV3ToAPIBlueprint(asyncSpec)
+//	blueprint := asyncSpec.ToBlueprint()
 //	fmt.Println(blueprint)
-func AsyncAPIV3ToAPIBlueprint(spec *AsyncAPIV3) string {
+func (spec *AsyncAPIV3) ToBlueprint() string {
 	buf := getBuffer()
 	defer putBuffer(buf)
 
 	// Write header
-	buf.WriteString("FORMAT: 1A\n\n")
+	buf.WriteString(APIBlueprintFormat + "\n\n")
 
 	// Write title
 	if spec.Info.Title != "" {
@@ -838,6 +865,11 @@ func AsyncAPIV3ToAPIBlueprint(spec *AsyncAPIV3) string {
 	return buf.String()
 }
 
+// AsyncAPIV3ToAPIBlueprint is a deprecated alias for AsyncAPIV3.ToBlueprint.
+func AsyncAPIV3ToAPIBlueprint(spec *AsyncAPIV3) string {
+	return spec.ToBlueprint()
+}
+
 // extractChannelID extracts the channel ID from a JSON reference
 // e.g., "#/channels/userSignup" -> "userSignup"
 func extractChannelID(ref string) string {
@@ -883,12 +915,12 @@ func writeAsyncAPIV3Channel(buf *bytes.Buffer, channelID string, channel Channel
 	// Write operations
 	for _, opInfo := range ops {
 		switch opInfo.op.Action {
-		case "receive":
+		case ActionReceive:
 			// Receive -> GET (receiving messages)
-			writeAsyncAPIV3Operation(buf, "GET", opInfo.op, firstMessage, "Receive messages")
-		case "send":
+			writeAsyncAPIV3Operation(buf, http.MethodGet, opInfo.op, firstMessage, "Receive messages")
+		case ActionSend:
 			// Send -> POST (sending messages)
-			writeAsyncAPIV3Operation(buf, "POST", opInfo.op, firstMessage, "Send a message")
+			writeAsyncAPIV3Operation(buf, http.MethodPost, opInfo.op, firstMessage, "Send a message")
 		}
 	}
 }
@@ -913,7 +945,7 @@ func writeAsyncAPIV3Operation(buf *bytes.Buffer, method string, op OperationV3, 
 
 	// Write message as request (for POST) or response (for GET)
 	if msg != nil {
-		if method == "POST" {
+		if method == http.MethodPost {
 			writeAsyncAPIMessageAsRequest(buf, msg)
 		} else {
 			writeAsyncAPIMessageAsResponse(buf, msg)
@@ -941,17 +973,17 @@ func writeAsyncAPIV3Operation(buf *bytes.Buffer, method string, op OperationV3, 
 //	    log.Fatal(err)
 //	}
 func ConvertAsyncAPIV3ToAPIBlueprint(r io.Reader, w io.Writer) error {
-	spec, err := ParseAsyncAPIV3Reader(r)
+	spec, err := ParseAsyncV3Reader(r)
 	if err != nil {
 		return err
 	}
 
-	blueprint := AsyncAPIV3ToAPIBlueprint(spec)
+	blueprint := spec.ToBlueprint()
 	_, err = w.Write([]byte(blueprint))
 	return err
 }
 
-// APIBlueprintToAsyncAPIV3 converts an API Blueprint (OpenAPI struct) to AsyncAPI 3.0 format.
+// ToAsyncAPIV3 converts an API Blueprint (OpenAPI struct) to AsyncAPI 3.0 format.
 //
 // This function converts OpenAPI/API Blueprint paths to AsyncAPI v3 channels and operations:
 //   - GET operations -> Receive operations (receiving messages)
@@ -962,10 +994,10 @@ func ConvertAsyncAPIV3ToAPIBlueprint(r io.Reader, w io.Writer) error {
 // Example:
 //
 //	openAPISpec := converter.ParseAPIBlueprint(data)
-//	asyncSpec := converter.APIBlueprintToAsyncAPIV3(openAPISpec, "ws")
-func APIBlueprintToAsyncAPIV3(spec *OpenAPI, protocol string) *AsyncAPIV3 {
+//	asyncSpec := openAPISpec.ToAsyncAPIV3("ws")
+func (spec *OpenAPI) ToAsyncAPIV3(protocol string) *AsyncAPIV3 {
 	asyncSpec := &AsyncAPIV3{
-		AsyncAPI:   "3.0.0",
+		AsyncAPI:   AsyncAPIVersion30,
 		Info:       spec.Info,
 		Channels:   make(map[string]ChannelV3),
 		Operations: make(map[string]OperationV3),
@@ -1015,7 +1047,7 @@ func APIBlueprintToAsyncAPIV3(spec *OpenAPI, protocol string) *AsyncAPIV3 {
 
 			// Create receive operation
 			asyncSpec.Operations[opID] = OperationV3{
-				Action:      "receive",
+				Action:      ActionReceive,
 				Summary:     pathItem.Get.Summary,
 				Description: pathItem.Get.Description,
 				Channel: &ChannelReference{
@@ -1043,7 +1075,7 @@ func APIBlueprintToAsyncAPIV3(spec *OpenAPI, protocol string) *AsyncAPIV3 {
 
 			// Create send operation
 			asyncSpec.Operations[opID] = OperationV3{
-				Action:      "send",
+				Action:      ActionSend,
 				Summary:     pathItem.Post.Summary,
 				Description: pathItem.Post.Description,
 				Channel: &ChannelReference{
@@ -1059,6 +1091,11 @@ func APIBlueprintToAsyncAPIV3(spec *OpenAPI, protocol string) *AsyncAPIV3 {
 	}
 
 	return asyncSpec
+}
+
+// APIBlueprintToAsyncAPIV3 is a deprecated alias for OpenAPI.ToAsyncAPIV3.
+func APIBlueprintToAsyncAPIV3(spec *OpenAPI, protocol string) *AsyncAPIV3 {
+	return spec.ToAsyncAPIV3(protocol)
 }
 
 // sanitizeChannelID converts a path to a valid channel ID.
@@ -1170,7 +1207,7 @@ func extractMessageFromOperation(op *Operation, isPublish bool) *Message {
 //	}
 func ConvertAPIBlueprintToAsyncAPIV3(r io.Reader, w io.Writer, protocol string) error {
 	// First parse API Blueprint to OpenAPI structure
-	spec, err := ParseAPIBlueprintReader(r)
+	spec, err := ParseBlueprintReader(r)
 	if err != nil {
 		return fmt.Errorf("failed to parse API Blueprint: %w", err)
 	}

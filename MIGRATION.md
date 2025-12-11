@@ -2,6 +2,50 @@
 
 This document outlines important changes and how to migrate your usage of `apibconv` to newer versions.
 
+## From 0.2.x to 0.3.x
+
+### API Refactoring
+
+In v0.3.0, the Go API has been refactored to be more idiomatic, using methods on struct types and cleaner function names.
+
+**Function Renaming:**
+
+| Old Function | New Function |
+|--------------|--------------|
+| `ParseAPIBlueprint` | `ParseBlueprint` |
+| `ParseAPIBlueprintReader` | `ParseBlueprintReader` |
+| `ParseAPIBlueprintWithOptions` | `ParseBlueprintWithOptions` |
+| `ParseAsyncAPI` | `ParseAsync` |
+| `ParseAsyncAPIReader` | `ParseAsyncReader` |
+| `ParseAsyncAPIV3` | `ParseAsyncV3` |
+| `ParseAsyncAPIV3Reader` | `ParseAsyncV3Reader` |
+
+**Method Conversions:**
+
+Conversion functions have been converted to methods on the respective structs:
+
+| Old Function | New Method |
+|--------------|------------|
+| `AsyncAPIToAPIBlueprint(spec)` | `spec.ToBlueprint()` |
+| `AsyncAPIV3ToAPIBlueprint(spec)` | `spec.ToBlueprint()` |
+| `APIBlueprintToAsyncAPI(spec, protocol)` | `spec.ToAsyncAPI(protocol)` |
+| `APIBlueprintToAsyncAPIV3(spec, protocol)` | `spec.ToAsyncAPIV3(protocol)` |
+| `Format(spec)` (OpenAPI) | `spec.ToBlueprint()` (returns string) or `spec.WriteBlueprint(w)` |
+
+**Example Migration:**
+
+```go
+// Old:
+spec, _ := converter.ParseAsyncAPI(data)
+bp := converter.AsyncAPIToAPIBlueprint(spec)
+
+// New:
+spec, _ := converter.ParseAsync(data)
+bp := spec.ToBlueprint()
+```
+
+The old functions are kept as deprecated aliases for backward compatibility but may be removed in future versions.
+
 ## From 0.1.x to 0.2.x
 
 ### CLI Flag Changes

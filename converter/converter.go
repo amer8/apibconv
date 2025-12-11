@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"net/http"
 	"sort"
 	"strings"
 )
@@ -354,6 +355,23 @@ type Components struct {
 	Schemas map[string]*Schema `json:"schemas,omitempty"` // Reusable schemas keyed by name
 }
 
+// ToBlueprint converts the OpenAPI specification to API Blueprint format.
+func (spec *OpenAPI) ToBlueprint() string {
+	buf := getBuffer()
+	defer putBuffer(buf)
+	writeAPIBlueprint(buf, spec)
+	return buf.String()
+}
+
+// WriteBlueprint writes the OpenAPI specification in API Blueprint format to the writer.
+func (spec *OpenAPI) WriteBlueprint(w io.Writer) error {
+	buf := getBuffer()
+	defer putBuffer(buf)
+	writeAPIBlueprint(buf, spec)
+	_, err := w.Write(buf.Bytes())
+	return err
+}
+
 // Convert converts OpenAPI JSON to API Blueprint format using streaming I/O.
 //
 // This is the primary conversion function for transforming OpenAPI specifications
@@ -394,7 +412,7 @@ func Convert(r io.Reader, w io.Writer) error {
 	if err != nil {
 		return err
 	}
-	return FormatTo(spec, w)
+	return spec.WriteBlueprint(w)
 }
 
 // writeAPIBlueprint writes the API Blueprint format to the buffer
@@ -405,7 +423,7 @@ func writeAPIBlueprint(buf *bytes.Buffer, spec *OpenAPI) {
 	buf.Grow(estimatedSize)
 
 	// Header
-	buf.WriteString("FORMAT: 1A\n\n")
+	buf.WriteString(APIBlueprintFormat + "\n\n")
 
 	// Title
 	buf.WriteString("# ")
@@ -463,19 +481,19 @@ func writePathItem(buf *bytes.Buffer, path string, item *PathItem) {
 
 	// Operations
 	if item.Get != nil {
-		writeOperation(buf, "GET", path, item.Get)
+		writeOperation(buf, http.MethodGet, path, item.Get)
 	}
 	if item.Post != nil {
-		writeOperation(buf, "POST", path, item.Post)
+		writeOperation(buf, http.MethodPost, path, item.Post)
 	}
 	if item.Put != nil {
-		writeOperation(buf, "PUT", path, item.Put)
+		writeOperation(buf, http.MethodPut, path, item.Put)
 	}
 	if item.Delete != nil {
-		writeOperation(buf, "DELETE", path, item.Delete)
+		writeOperation(buf, http.MethodDelete, path, item.Delete)
 	}
 	if item.Patch != nil {
-		writeOperation(buf, "PATCH", path, item.Patch)
+		writeOperation(buf, http.MethodPatch, path, item.Patch)
 	}
 }
 
@@ -543,10 +561,10 @@ func writeOperation(buf *bytes.Buffer, method, path string, op *Operation) {
 }
 
 func writeRequest(buf *bytes.Buffer, req *RequestBody) {
-	buf.WriteString("+ Request (application/json)\n\n")
+	buf.WriteString("+ Request (" + MediaTypeJSON + ")\n\n")
 
 	// Get JSON content type if exists
-	if content, ok := req.Content["application/json"]; ok {
+	if content, ok := req.Content[MediaTypeJSON]; ok {
 		if content.Schema != nil {
 			writeMSON(buf, content.Schema, 1)
 			buf.WriteString("\n")
@@ -575,8 +593,8 @@ func writeResponses(buf *bytes.Buffer, responses map[string]Response) {
 		buf.WriteString(code)
 
 		// Check for JSON content
-		if content, ok := resp.Content["application/json"]; ok {
-			buf.WriteString(" (application/json)\n\n")
+		if content, ok := resp.Content[MediaTypeJSON]; ok {
+			buf.WriteString(" (" + MediaTypeJSON + ")\n\n")
 
 			if content.Schema != nil {
 				writeMSON(buf, content.Schema, 1)

@@ -60,8 +60,8 @@ package converter
 //
 //	asyncapiJSON := `{"asyncapi": "2.6.0", "info": {"title": "My Event API", "version": "1.0.0"}, "channels": {}}`
 //	// Auto-detects version (2.x or 3.x)
-//	spec, err := converter.ParseAsyncAPI([]byte(asyncapiJSON))
-//	blueprint := converter.AsyncAPIToAPIBlueprint(spec)
+//	spec, err := converter.ParseAsync([]byte(asyncapiJSON))
+//	blueprint := spec.ToBlueprint()
 //	fmt.Println(blueprint)
 //
 // # Version Conversion
@@ -71,7 +71,7 @@ package converter
 //	opts := &converter.ConversionOptions{
 //	    OutputVersion: converter.Version31,
 //	}
-//	spec, err := converter.ParseAPIBlueprintWithOptions(apibData, opts)
+//	spec, err := converter.ParseBlueprintWithOptions(apibData, opts)
 //	// spec.OpenAPI is "3.1.0"
 //
 // Convert between OpenAPI versions:
@@ -96,7 +96,7 @@ package converter
 //
 //	spec, err := converter.Parse(data)
 //	spec.Info.Title = "Modified API"
-//	result, err := converter.Format(spec)
+//	result := spec.ToBlueprint()
 //
 // 3. Streaming (for large files):
 //
@@ -179,12 +179,12 @@ package converter
 //
 // AsyncAPI Conversion:
 //
-//   - ParseAsyncAPI: Parse AsyncAPI 2.x JSON
-//   - ParseAsyncAPIV3: Parse AsyncAPI 3.x JSON
-//   - AsyncAPIToAPIBlueprint: Convert AsyncAPI 2.x to API Blueprint
-//   - AsyncAPIV3ToAPIBlueprint: Convert AsyncAPI 3.x to API Blueprint
-//   - APIBlueprintToAsyncAPI: Convert API Blueprint to AsyncAPI 2.x
-//   - APIBlueprintToAsyncAPIV3: Convert API Blueprint to AsyncAPI 3.x
+//   - ParseAsync: Parse AsyncAPI 2.x JSON/YAML
+//   - ParseAsyncV3: Parse AsyncAPI 3.x JSON/YAML
+//   - AsyncAPI.ToBlueprint: Convert AsyncAPI 2.x to API Blueprint
+//   - AsyncAPIV3.ToBlueprint: Convert AsyncAPI 3.x to API Blueprint
+//   - OpenAPI.ToAsyncAPI: Convert API Blueprint (via OpenAPI struct) to AsyncAPI 2.x
+//   - OpenAPI.ToAsyncAPIV3: Convert API Blueprint (via OpenAPI struct) to AsyncAPI 3.x
 //   - ConvertAPIBlueprintToAsyncAPI: Streaming conversion to AsyncAPI 2.x
 //   - ConvertAPIBlueprintToAsyncAPIV3: Streaming conversion to AsyncAPI 3.x
 //
@@ -192,13 +192,15 @@ package converter
 //
 //   - Parse, ParseReader: Parse OpenAPI JSON (3.0 or 3.1)
 //   - ParseWithConversion: Parse and convert to target version
-//   - ParseAPIBlueprint: Parse API Blueprint to OpenAPI 3.0
-//   - ParseAPIBlueprintWithOptions: Parse with version options
-//   - ParseAPIBlueprintReader: Parse API Blueprint from reader
+//   - ParseBlueprint: Parse API Blueprint to OpenAPI 3.0
+//   - ParseBlueprintWithOptions: Parse with version options
+//   - ParseBlueprintReader: Parse API Blueprint from reader
 //
 // Formatting:
 //
-//   - Format, FormatTo: Format OpenAPI spec to API Blueprint
+//   - Format, FormatTo: Format OpenAPI spec to API Blueprint (Deprecated, use ToBlueprint)
+//   - OpenAPI.ToBlueprint: Convert OpenAPI to API Blueprint string
+//   - OpenAPI.WriteBlueprint: Write OpenAPI as API Blueprint to writer
 //   - MustFormat, MustFromJSON: Panic on error (useful for testing)
 //
 // # OpenAPI Structure

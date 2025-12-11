@@ -490,7 +490,7 @@ func convertAPIBlueprintToOpenAPI(input, output *os.File) int {
 	}
 
 	// Parse API Blueprint with options
-	spec, err := converter.ParseAPIBlueprintReader(input)
+	spec, err := converter.ParseBlueprintReader(input)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing API Blueprint: %v\n", err)
 		return 1
@@ -575,9 +575,9 @@ func convertAsyncAPIToAPIBlueprint(input, output *os.File) int {
 	var blueprint string
 	switch ver {
 	case 2:
-		blueprint = converter.AsyncAPIToAPIBlueprint(spec.(*converter.AsyncAPI))
+		blueprint = spec.(*converter.AsyncAPI).ToBlueprint()
 	case 3:
-		blueprint = converter.AsyncAPIV3ToAPIBlueprint(spec.(*converter.AsyncAPIV3))
+		blueprint = spec.(*converter.AsyncAPIV3).ToBlueprint()
 	default:
 		// Should be caught by ParseAsyncAPIAny, but safety first
 		fmt.Fprintf(os.Stderr, "Error: unsupported AsyncAPI version\n")
