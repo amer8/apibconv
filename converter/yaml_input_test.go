@@ -14,7 +14,7 @@ description: >
   multiline description
 `)
 
-	var result map[string]interface{}
+	var result map[string]any
 	if err := UnmarshalYAML(yaml, &result); err != nil {
 		t.Fatalf("UnmarshalYAML error: %v", err)
 	}
@@ -25,7 +25,7 @@ description: >
 	if result["version"] != "1.0.0" {
 		t.Errorf("Expected version '1.0.0', got '%v'", result["version"])
 	}
-	
+
 	desc := result["description"].(string)
 	if len(desc) < 10 {
 		t.Errorf("Description parsing failed, got '%v'", desc)
@@ -45,22 +45,22 @@ servers:
 `)
 
 	// Parse into generic map first to check structure
-	var result map[string]interface{}
+	var result map[string]any
 	if err := UnmarshalYAML(yaml, &result); err != nil {
 		t.Fatalf("UnmarshalYAML error: %v", err)
 	}
 
-	info := result["info"].(map[string]interface{})
+	info := result["info"].(map[string]any)
 	if info["title"] != "Nested" {
 		t.Errorf("Nested title mismatch")
 	}
 
-	servers := result["servers"].([]interface{})
+	servers := result["servers"].([]any)
 	if len(servers) != 2 {
 		t.Errorf("Expected 2 servers, got %d", len(servers))
 	}
-	
-	server1 := servers[0].(map[string]interface{})
+
+	server1 := servers[0].(map[string]any)
 	if server1["url"] != "https://api.example.com" {
 		t.Errorf("Server 1 URL mismatch")
 	}
@@ -92,7 +92,7 @@ paths:
 	if spec.Info.Title != "YAML API" {
 		t.Errorf("Expected title 'YAML API', got '%s'", spec.Info.Title)
 	}
-	
+
 	pathItem, ok := spec.Paths["/users"]
 	if !ok {
 		t.Fatal("Path /users not found")
@@ -155,12 +155,12 @@ operations:
 	if version != 3 {
 		t.Errorf("Expected version 3, got %d", version)
 	}
-	
+
 	v3Spec, ok := spec.(*AsyncAPIV3)
 	if !ok {
 		t.Fatalf("Expected *AsyncAPIV3 type, got %T", spec)
 	}
-	
+
 	if v3Spec.Info.Title != "Async V3 YAML" {
 		t.Errorf("Title mismatch")
 	}
@@ -169,12 +169,12 @@ operations:
 func TestUnmarshalYAMLReader(t *testing.T) {
 	yaml := []byte(`name: Test`)
 	reader := bytes.NewReader(yaml)
-	
-	var result map[string]interface{}
+
+	var result map[string]any
 	if err := UnmarshalYAMLReader(reader, &result); err != nil {
 		t.Fatalf("UnmarshalYAMLReader error: %v", err)
 	}
-	
+
 	if result["name"] != "Test" {
 		t.Errorf("Expected 'Test', got %v", result["name"])
 	}
@@ -208,33 +208,33 @@ blocks:
     Line 2
 `)
 
-	var result map[string]interface{}
+	var result map[string]any
 	if err := UnmarshalYAML(yaml, &result); err != nil {
 		t.Fatalf("Complex YAML parse failed: %v", err)
 	}
 
 	// Verify array
-	arr := result["array_root"].([]interface{})
+	arr := result["array_root"].([]any)
 	if len(arr) != 3 {
 		t.Errorf("Expected 3 items in array, got %d", len(arr))
 	}
 	if arr[0] != "item1" {
 		t.Errorf("Item 1 mismatch")
 	}
-	item2 := arr[1].(map[string]interface{})
+	item2 := arr[1].(map[string]any)
 	if item2["item2"] != "value2" {
 		t.Errorf("Item 2 mismatch")
 	}
-	
+
 	// Verify compact map
-	compact := result["compact_map"].([]interface{})
-	cMap := compact[0].(map[string]interface{})
+	compact := result["compact_map"].([]any)
+	cMap := compact[0].(map[string]any)
 	if cMap["key"] != "value" || cMap["key2"] != "value2" {
 		t.Errorf("Compact map mismatch: %v", cMap)
 	}
-	
+
 	// Verify scalars
-	sc := result["scalars"].(map[string]interface{})
+	sc := result["scalars"].(map[string]any)
 	if sc["quoted"] != `value with "quotes"` {
 		t.Errorf("Quoted string mismatch: %s", sc["quoted"])
 	}
@@ -249,7 +249,7 @@ blocks:
 	}
 
 	// Verify blocks
-	bl := result["blocks"].(map[string]interface{})
+	bl := result["blocks"].(map[string]any)
 	if bl["literal"] != "Line 1\nLine 2" {
 		t.Errorf("Literal block mismatch: %q", bl["literal"])
 	}
@@ -263,7 +263,7 @@ func TestParseYAML_RootArray(t *testing.T) {
 - item1
 - item2
 `)
-	var result []interface{}
+	var result []any
 	if err := UnmarshalYAML(yaml, &result); err != nil {
 		t.Fatalf("Root array parse failed: %v", err)
 	}
@@ -276,16 +276,16 @@ func TestParseYAML_InlineJSON(t *testing.T) {
 	yaml := []byte(`
 key: {"nested": "value", "arr": [1, 2]}
 `)
-	var result map[string]interface{}
+	var result map[string]any
 	if err := UnmarshalYAML(yaml, &result); err != nil {
 		t.Fatalf("Inline JSON parse failed: %v", err)
 	}
-	
-	val := result["key"].(map[string]interface{})
+
+	val := result["key"].(map[string]any)
 	if val["nested"] != "value" {
 		t.Errorf("Nested value mismatch")
 	}
-	arr := val["arr"].([]interface{})
+	arr := val["arr"].([]any)
 	if len(arr) != 2 {
 		t.Errorf("Array length mismatch")
 	}
@@ -293,16 +293,16 @@ key: {"nested": "value", "arr": [1, 2]}
 
 func TestParseYAML_EdgeCases(t *testing.T) {
 	// Empty
-	var res map[string]interface{}
+	var res map[string]any
 	if err := UnmarshalYAML([]byte(""), &res); err != nil {
 		t.Fatal(err)
 	}
-	
+
 	// Comments only
 	if err := UnmarshalYAML([]byte("# Comment only"), &res); err != nil {
 		t.Fatal(err)
 	}
-	
+
 	// Quoted keys
 	yaml := []byte(`
 "quoted key": value

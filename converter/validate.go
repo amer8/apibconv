@@ -303,7 +303,7 @@ func ValidateJSON(data []byte) *ValidationResult {
 		Errors: &ValidationErrors{},
 	}
 
-	var raw map[string]interface{}
+	var raw map[string]any
 	if err := json.Unmarshal(data, &raw); err != nil {
 		result.Valid = false
 		result.Errors.Add("", fmt.Sprintf("invalid JSON: %v", err))
@@ -373,7 +373,7 @@ func validateJSONSpec(data []byte) *ValidationResult {
 	}
 
 	// Detect and validate specific format
-	var raw map[string]interface{}
+	var raw map[string]any
 	_ = json.Unmarshal(data, &raw) // Already validated above
 
 	if _, ok := raw["openapi"]; ok {

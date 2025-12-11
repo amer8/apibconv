@@ -50,9 +50,9 @@ func TestConvertToVersion_30to31(t *testing.T) {
 		t.Error("Schema should not have Nullable set in 3.1")
 	}
 
-	typeArr, ok := schema.Type.([]interface{})
+	typeArr, ok := schema.Type.([]any)
 	if !ok {
-		t.Fatalf("Schema.Type should be []interface{}, got %T", schema.Type)
+		t.Fatalf("Schema.Type should be []any, got %T", schema.Type)
 	}
 
 	if len(typeArr) != 2 {
@@ -110,7 +110,7 @@ func TestConvertToVersion_31to30(t *testing.T) {
 							Content: map[string]MediaType{
 								"application/json": {
 									Schema: &Schema{
-										Type: []interface{}{"string", "null"},
+										Type: []any{"string", "null"},
 									},
 								},
 							},
@@ -210,7 +210,7 @@ func TestConvertToVersion_NoConversionNeeded(t *testing.T) {
 	}
 }
 
-func TestGetSchemaType(t *testing.T) {
+func TestSchemaType(t *testing.T) {
 	tests := []struct {
 		name     string
 		schema   *Schema
@@ -231,14 +231,14 @@ func TestGetSchemaType(t *testing.T) {
 		{
 			name: "Type array with string and null (3.1)",
 			schema: &Schema{
-				Type: []interface{}{"string", "null"},
+				Type: []any{"string", "null"},
 			},
 			expected: "string",
 		},
 		{
 			name: "Type array with only null",
 			schema: &Schema{
-				Type: []interface{}{"null"},
+				Type: []any{"null"},
 			},
 			expected: "",
 		},
@@ -246,9 +246,9 @@ func TestGetSchemaType(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := GetSchemaType(tt.schema)
+			result := SchemaType(tt.schema)
 			if result != tt.expected {
-				t.Errorf("GetSchemaType() = %q, want %q", result, tt.expected)
+				t.Errorf("SchemaType() = %q, want %q", result, tt.expected)
 			}
 		})
 	}
@@ -284,14 +284,14 @@ func TestIsNullable(t *testing.T) {
 		{
 			name: "3.1 type array with null",
 			schema: &Schema{
-				Type: []interface{}{"string", "null"},
+				Type: []any{"string", "null"},
 			},
 			expected: true,
 		},
 		{
 			name: "3.1 type array without null",
 			schema: &Schema{
-				Type: []interface{}{"string"},
+				Type: []any{"string"},
 			},
 			expected: false,
 		},
@@ -527,7 +527,7 @@ func TestNormalizeSchemaType(t *testing.T) {
 		name           string
 		schema         *Schema
 		version        Version
-		expectedType   interface{}
+		expectedType   any
 		expectedNull   bool
 		expectedErrMsg string
 	}{
@@ -548,7 +548,7 @@ func TestNormalizeSchemaType(t *testing.T) {
 		{
 			name: "3.0 - type array converted to string",
 			schema: &Schema{
-				Type: []interface{}{"string", "null"},
+				Type: []any{"string", "null"},
 			},
 			version:      Version30,
 			expectedType: "string",
@@ -570,16 +570,16 @@ func TestNormalizeSchemaType(t *testing.T) {
 				Nullable: true,
 			},
 			version:      Version31,
-			expectedType: []interface{}{"string", "null"},
+			expectedType: []any{"string", "null"},
 			expectedNull: false,
 		},
 		{
 			name: "3.1 - type array stays as type array",
 			schema: &Schema{
-				Type: []interface{}{"integer", "null"},
+				Type: []any{"integer", "null"},
 			},
 			version:      Version31,
-			expectedType: []interface{}{"integer", "null"},
+			expectedType: []any{"integer", "null"},
 			expectedNull: false,
 		},
 		{
@@ -656,10 +656,10 @@ func TestNormalizeSchemaType(t *testing.T) {
 					if got, ok := tt.schema.Type.(string); !ok || got != expected {
 						t.Errorf("Type = %v (%T), want %v", tt.schema.Type, tt.schema.Type, expected)
 					}
-				case []interface{}:
-					gotArr, ok := tt.schema.Type.([]interface{})
+				case []any:
+					gotArr, ok := tt.schema.Type.([]any)
 					if !ok {
-						t.Errorf("Type should be []interface{}, got %T", tt.schema.Type)
+						t.Errorf("Type should be []any, got %T", tt.schema.Type)
 					} else if len(gotArr) != len(expected) {
 						t.Errorf("Type array length = %d, want %d", len(gotArr), len(expected))
 					}
@@ -676,7 +676,7 @@ func TestNormalizeSchemaType(t *testing.T) {
 				for _, prop := range tt.schema.Properties {
 					if tt.version == Version31 {
 						// Should have converted nullable to type array
-						if typeArr, ok := prop.Type.([]interface{}); !ok || len(typeArr) != 2 {
+						if typeArr, ok := prop.Type.([]any); !ok || len(typeArr) != 2 {
 							t.Errorf("Nested property should have type array with 2 elements")
 						}
 						if prop.Nullable {
@@ -695,7 +695,7 @@ func TestNormalizeSchemaType(t *testing.T) {
 			if tt.schema.Items != nil {
 				if tt.version == Version31 {
 					// Should have converted nullable to type array
-					if typeArr, ok := tt.schema.Items.Type.([]interface{}); !ok || len(typeArr) != 2 {
+					if typeArr, ok := tt.schema.Items.Type.([]any); !ok || len(typeArr) != 2 {
 						t.Errorf("Array items should have type array with 2 elements")
 					}
 					if tt.schema.Items.Nullable {
@@ -748,7 +748,7 @@ func TestNormalizeSchemaType_ComplexNesting(t *testing.T) {
 	if avatarSchema.Nullable {
 		t.Error("Deeply nested property should not have nullable in 3.1")
 	}
-	if typeArr, ok := avatarSchema.Type.([]interface{}); !ok || len(typeArr) != 2 {
+	if typeArr, ok := avatarSchema.Type.([]any); !ok || len(typeArr) != 2 {
 		t.Errorf("Deeply nested property should have type array, got %v", avatarSchema.Type)
 	}
 
@@ -757,7 +757,7 @@ func TestNormalizeSchemaType_ComplexNesting(t *testing.T) {
 	if tagsItems.Nullable {
 		t.Error("Array items should not have nullable in 3.1")
 	}
-	if typeArr, ok := tagsItems.Type.([]interface{}); !ok || len(typeArr) != 2 {
+	if typeArr, ok := tagsItems.Type.([]any); !ok || len(typeArr) != 2 {
 		t.Errorf("Array items should have type array, got %v", tagsItems.Type)
 	}
 }

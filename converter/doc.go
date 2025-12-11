@@ -160,7 +160,7 @@ package converter
 //
 //   - ConvertToVersion: Convert between OpenAPI 3.0 and 3.1
 //   - DetectVersion: Detect OpenAPI version from spec string
-//   - GetSchemaType: Get primary type from schema (handles both 3.0 and 3.1)
+//   - SchemaType: Get primary type from schema (handles both 3.0 and 3.1)
 //   - IsNullable: Check if schema allows null values
 //
 // OpenAPI → API Blueprint Conversion:

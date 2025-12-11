@@ -2,6 +2,7 @@ package converter
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -84,10 +85,12 @@ var (
 //
 //	fmt.Printf("API Title: %s\n", spec.Info.Title)
 func ParseBlueprint(data []byte) (*OpenAPI, error) {
-	return parseAPIBlueprintReader(strings.NewReader(string(data)))
+	return parseAPIBlueprintReader(bytes.NewReader(data))
 }
 
 // ParseAPIBlueprint is a deprecated alias for ParseBlueprint.
+//
+// Deprecated: Use ParseBlueprint instead.
 func ParseAPIBlueprint(data []byte) (*OpenAPI, error) {
 	return ParseBlueprint(data)
 }
@@ -116,10 +119,12 @@ func ParseAPIBlueprint(data []byte) (*OpenAPI, error) {
 //	}
 //	fmt.Printf("OpenAPI version: %s\n", spec.OpenAPI) // "3.1.0"
 func ParseBlueprintWithOptions(data []byte, opts *ConversionOptions) (*OpenAPI, error) {
-	return parseAPIBlueprintReaderWithOptions(strings.NewReader(string(data)), opts)
+	return parseAPIBlueprintReaderWithOptions(bytes.NewReader(data), opts)
 }
 
 // ParseAPIBlueprintWithOptions is a deprecated alias for ParseBlueprintWithOptions.
+//
+// Deprecated: Use ParseBlueprintWithOptions instead.
 func ParseAPIBlueprintWithOptions(data []byte, opts *ConversionOptions) (*OpenAPI, error) {
 	return ParseBlueprintWithOptions(data, opts)
 }
@@ -156,6 +161,8 @@ func ParseBlueprintReader(r io.Reader) (*OpenAPI, error) {
 }
 
 // ParseAPIBlueprintReader is a deprecated alias for ParseBlueprintReader.
+//
+// Deprecated: Use ParseBlueprintReader instead.
 func ParseAPIBlueprintReader(r io.Reader) (*OpenAPI, error) {
 	return ParseBlueprintReader(r)
 }
@@ -525,7 +532,7 @@ func finalizeJSON(state *parserState) error {
 	}
 
 	jsonStr := strings.Join(state.jsonBuffer, "\n")
-	var jsonData interface{}
+	var jsonData any
 	if err := json.Unmarshal([]byte(jsonStr), &jsonData); err != nil {
 		// If JSON parsing fails, just skip it
 		return nil
@@ -808,7 +815,7 @@ func parseMSONProperty(state *parserState, line string) error {
 	desc := matches[5]
 
 	// Determine value
-	var example interface{}
+	var example any
 	val := strings.TrimSpace(valRaw)
 	if valBacktick != "" {
 		val = valBacktick
@@ -855,7 +862,7 @@ type parsedMSONAttributes struct {
 	required      bool
 	items         *Schema
 	ref           string
-	example       interface{}
+	example       any
 	exampleParsed bool
 }
 
