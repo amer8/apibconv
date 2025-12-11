@@ -19,7 +19,7 @@ ARG VERSION=dev
 RUN CGO_ENABLED=0 GOOS=linux go build \
     -trimpath \
     -ldflags="-s -w -X main.version=${VERSION}" \
-    -o apibconv ./cmd/apibconv
+    -o apibconv .
 
 # Runtime stage
 FROM scratch

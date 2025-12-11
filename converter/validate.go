@@ -377,7 +377,7 @@ func validateJSONSpec(data []byte) *ValidationResult {
 	_ = json.Unmarshal(data, &raw) // Already validated above
 
 	if _, ok := raw["openapi"]; ok {
-		spec, err := Parse(data)
+		s, err := Parse(data, FormatOpenAPI)
 		if err != nil {
 			return &ValidationResult{
 				Valid:  false,
@@ -387,35 +387,51 @@ func validateJSONSpec(data []byte) *ValidationResult {
 				}},
 			}
 		}
+		
+		spec, ok := s.(*OpenAPI)
+		if !ok {
+			return &ValidationResult{
+				Valid:  false,
+				Format: "OpenAPI",
+				Errors: &ValidationErrors{Errors: []*ValidationError{
+					{Message: fmt.Sprintf("expected OpenAPI spec, got %T", s)},
+				}},
+			}
+		}
+		
 		return ValidateOpenAPI(spec)
 	}
 
 	if v, ok := raw["asyncapi"].(string); ok {
-		version := DetectAsyncAPIVersion(v)
-		if version == 3 {
-			spec, err := ParseAsyncAPIV3(data)
-			if err != nil {
-				return &ValidationResult{
-					Valid:  false,
-					Format: "AsyncAPI 3.x",
-					Errors: &ValidationErrors{Errors: []*ValidationError{
-						{Message: fmt.Sprintf("failed to parse AsyncAPI 3.x spec: %v", err)},
-					}},
-				}
-			}
-			return ValidateAsyncAPIV3(spec)
-		}
-		spec, err := ParseAsyncAPI(data)
+		s, err := Parse(data, FormatAsyncAPI)
 		if err != nil {
 			return &ValidationResult{
 				Valid:  false,
-				Format: "AsyncAPI 2.x",
+				Format: "AsyncAPI",
 				Errors: &ValidationErrors{Errors: []*ValidationError{
-					{Message: fmt.Sprintf("failed to parse AsyncAPI 2.x spec: %v", err)},
+					{Message: fmt.Sprintf("failed to parse AsyncAPI spec: %v", err)},
 				}},
 			}
 		}
-		return ValidateAsyncAPI(spec)
+
+		version := DetectAsyncAPIVersion(v)
+		if version == 3 {
+			if spec, ok := s.(*AsyncAPIV3); ok {
+				return ValidateAsyncAPIV3(spec)
+			}
+		} else {
+			if spec, ok := s.(*AsyncAPI); ok {
+				return ValidateAsyncAPI(spec)
+			}
+		}
+		
+		return &ValidationResult{
+			Valid:  false,
+			Format: fmt.Sprintf("AsyncAPI %s", v),
+			Errors: &ValidationErrors{Errors: []*ValidationError{
+				{Message: fmt.Sprintf("unexpected parsed spec type %T for version %s", s, v)},
+			}},
+		}
 	}
 
 	return &ValidationResult{

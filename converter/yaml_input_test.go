@@ -81,9 +81,13 @@ paths:
           description: OK
 `)
 
-	spec, err := Parse(yaml)
+	s, err := Parse(yaml)
 	if err != nil {
 		t.Fatalf("Parse(YAML) error: %v", err)
+	}
+	spec, ok := s.(*OpenAPI)
+	if !ok {
+		t.Fatalf("Expected *OpenAPI")
 	}
 
 	if spec.OpenAPI != "3.0.0" {

@@ -84,10 +84,12 @@ func ExampleParse() {
 		"paths": {}
 	}`)
 
-	spec, err := converter.Parse(data)
+	s, err := converter.Parse(data)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	spec := s.(*converter.OpenAPI)
 
 	fmt.Printf("API Title: %s\n", spec.Info.Title)
 	fmt.Printf("API Version: %s\n", spec.Info.Version)
@@ -122,7 +124,10 @@ func ExampleFormat() {
 		},
 	}
 
-	apiBlueprint := spec.ToBlueprint()
+	apiBlueprint, err := spec.ToBlueprint()
+	if err != nil {
+		log.Fatal(err)
+	}
 	fmt.Println(apiBlueprint)
 	// Output will contain API Blueprint format
 }
@@ -233,17 +238,22 @@ func Example() {
 		}
 	}`
 
-	spec, err := converter.Parse([]byte(openapiJSON))
+	s, err := converter.Parse([]byte(openapiJSON))
 	if err != nil {
 		log.Fatal(err)
 	}
+	
+	spec := s.(*converter.OpenAPI)
 
 	// Modify the spec programmatically
 	spec.Info.Title = "Modified API"
 	spec.Info.Description = "This API has been modified"
 
 	// Format to API Blueprint
-	apiBlueprint := spec.ToBlueprint()
+	apiBlueprint, err := spec.ToBlueprint()
+	if err != nil {
+		log.Fatal(err)
+	}
 	fmt.Println(apiBlueprint)
 	// Output will contain API Blueprint with modified title
 }

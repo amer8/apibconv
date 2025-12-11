@@ -142,22 +142,21 @@ apibContent := `FORMAT: 1A
 # My API
 ...`
 
-// Convert to OpenAPI 3.0 (default)
-openapiJSON, err := converter.ToOpenAPIString(apibContent)
+// Parse API Blueprint
+spec, err := converter.Parse([]byte(apibContent))
 if err != nil {
     log.Fatal(err)
 }
-fmt.Println(openapiJSON)
 
-// Convert to OpenAPI 3.1
-opts := &converter.ConversionOptions{
-    OutputVersion: converter.Version31,
-}
-spec, err := converter.ParseBlueprintWithOptions([]byte(apibContent), opts)
+// Convert to OpenAPI 3.0 (default)
+openapiSpec, err := spec.ToOpenAPI()
 if err != nil {
     log.Fatal(err)
 }
-// spec.OpenAPI is now "3.1.0"
+
+// Serialize to JSON
+data, err := json.MarshalIndent(openapiSpec, "", "  ")
+fmt.Println(string(data))
 ```
 </details>
 
@@ -169,37 +168,23 @@ import "github.com/amer8/apibconv/converter"
 
 apibContent := `FORMAT: 1A
 # Events API
-
-## /events [/events]
-
-### Receive events [GET]
-
-+ Response 200 (application/json)
-`
+...`
 
 // Parse API Blueprint
-spec, err := converter.ParseBlueprint([]byte(apibContent))
+spec, err := converter.Parse([]byte(apibContent))
 if err != nil {
     log.Fatal(err)
 }
 
 // Convert to AsyncAPI 2.6 with Kafka protocol
-asyncSpec := spec.ToAsyncAPI("kafka")
+asyncSpec, err := spec.ToAsyncAPI(converter.ProtocolKafka)
+if err != nil {
+    log.Fatal(err)
+}
 
 // Marshal to JSON
 data, err := json.MarshalIndent(asyncSpec, "", "  ")
-if err != nil {
-    log.Fatal(err)
-}
 fmt.Println(string(data))
-
-// Or convert to AsyncAPI 3.0
-asyncSpecV3 := spec.ToAsyncAPIV3("kafka")
-dataV3, err := json.MarshalIndent(asyncSpecV3, "", "  ")
-if err != nil {
-    log.Fatal(err)
-}
-fmt.Println(string(dataV3))
 ```
 </details>
 
@@ -210,7 +195,15 @@ fmt.Println(string(dataV3))
 import "github.com/amer8/apibconv/converter"
 
 openapiJSON := `{"openapi": "3.0.0", ...}`
-apiBlueprint, err := converter.FromJSONString(openapiJSON)
+
+// Parse OpenAPI
+spec, err := converter.Parse([]byte(openapiJSON))
+if err != nil {
+    log.Fatal(err)
+}
+
+// Convert to API Blueprint
+apiBlueprint, err := spec.ToBlueprint()
 if err != nil {
     log.Fatal(err)
 }
@@ -227,27 +220,20 @@ import "github.com/amer8/apibconv/converter"
 
 asyncapiJSON := `{
   "asyncapi": "2.6.0",
-  "info": {
-    "title": "Chat API",
-    "version": "1.0.0"
-  },
-  "channels": {
-    "chat": {
-      "subscribe": {
-        "message": {
-          "payload": {"type": "object"}
-        }
-      }
-    }
-  }
+  ...
 }`
 
-spec, err := converter.ParseAsync([]byte(asyncapiJSON))
+// Parse AsyncAPI (auto-detects version)
+spec, err := converter.Parse([]byte(asyncapiJSON))
 if err != nil {
     log.Fatal(err)
 }
 
-apiBlueprint := spec.ToBlueprint()
+// Convert to API Blueprint
+apiBlueprint, err := spec.ToBlueprint()
+if err != nil {
+    log.Fatal(err)
+}
 fmt.Println(apiBlueprint)
 ```
 </details>
@@ -261,7 +247,7 @@ This tool is designed to integrate seamlessly into GitHub Actions workflows
 - name: Convert OpenAPI to API Blueprint
   run: |
     go install github.com/amer8/apibconv@latest
-    apibconv -f openapi.json -o api-blueprint.apib
+    apibconv openapi.json -o api-blueprint.apib
 ```
 
 

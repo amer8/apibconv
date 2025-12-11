@@ -6,28 +6,28 @@
 // then converts to the appropriate output format:
 //
 //	# Convert OpenAPI to API Blueprint
-//	apibconv -f openapi.json -o api.apib
+//	apibconv openapi.json -o api.apib
 //
 //	# Convert API Blueprint to OpenAPI (default: 3.0)
-//	apibconv -f api.apib -o openapi.json
+//	apibconv api.apib -o openapi.json
 //
 //	# Convert API Blueprint to OpenAPI 3.1
-//	apibconv -f api.apib -o openapi.json --openapi-version 3.1
+//	apibconv api.apib -o openapi.json --openapi-version 3.1
 //
 //	# Output as YAML instead of JSON
-//	apibconv -f api.apib -o openapi.yaml -e yaml
+//	apibconv api.apib -o openapi.yaml -e yaml
 //
 //	# Validate a specification without conversion
-//	apibconv --validate -f openapi.json
+//	apibconv openapi.json --validate
 //
 //	# Convert AsyncAPI to API Blueprint (auto-detects v2.6 or v3.0)
-//	apibconv -f asyncapi.json -o api.apib
+//	apibconv asyncapi.json -o api.apib
 //
 //	# Convert API Blueprint to AsyncAPI 2.6 (default)
-//	apibconv -f api.apib -o asyncapi.json --to asyncapi --protocol ws
+//	apibconv api.apib -o asyncapi.json --to asyncapi --protocol ws
 //
 //	# Convert API Blueprint to AsyncAPI 3.0
-//	apibconv -f api.apib -o asyncapi-v3.json --to asyncapi --asyncapi-version 3.0 --protocol kafka
+//	apibconv api.apib -o asyncapi-v3.json --to asyncapi --asyncapi-version 3.0 --protocol kafka
 //
 //	# Show version
 //	apibconv -v
@@ -46,8 +46,6 @@
 //
 // # Flags
 //
-//	-f, --file string
-//	     Input specification file (can also be provided as first argument or via stdin)
 //	-o, --output string
 //	     Output file path (required for conversion)
 //	-e, --encoding string
@@ -83,8 +81,8 @@ import (
 var (
 	inputFile       string
 	outputFile      string
-	openapiVersion  = "3.0"
-	asyncapiVersion = "2.6"
+	openapiVersion  = defaultOpenAPIVersion
+	asyncapiVersion = defaultAsyncAPIVersion
 	outputFormat    string
 	encodingFormat  string
 	protocol        string
@@ -178,7 +176,7 @@ func handleInput() (func(), error) {
 			if err != nil {
 				return func() {}, fmt.Errorf("error creating temp file for stdin: %w", err)
 			}
-			
+
 			cleanup := func() {
 				_ = tmpFile.Close()
 				_ = os.Remove(tmpFile.Name())
@@ -188,10 +186,10 @@ func handleInput() (func(), error) {
 				cleanup() // Clean up immediately on error
 				return func() {}, fmt.Errorf("error reading stdin: %w", err)
 			}
-			
+
 			// Close file after writing, so it can be opened for reading later
-			_ = tmpFile.Close() 
-			
+			_ = tmpFile.Close()
+
 			inputFile = tmpFile.Name()
 			return func() { _ = os.Remove(inputFile) }, nil
 		}
@@ -203,10 +201,10 @@ func handleInput() (func(), error) {
 func setDefaults() {
 	// Auto-detect encoding if not specified
 	if encodingFormat == "" {
-		if strings.HasSuffix(strings.ToLower(outputFile), ".yaml") || strings.HasSuffix(strings.ToLower(outputFile), ".yml") {
-			encodingFormat = "yaml"
+		if strings.HasSuffix(strings.ToLower(outputFile), "."+encodingYAML) || strings.HasSuffix(strings.ToLower(outputFile), "."+encodingYML) {
+			encodingFormat = encodingYAML
 		} else {
-			encodingFormat = "json"
+			encodingFormat = encodingJSON
 		}
 	}
 }
@@ -234,9 +232,9 @@ func configureFlags() {
 
 	flag.StringVar(&outputFormat, "to", "", "Target specification format: openapi, asyncapi, apib")
 
-	flag.StringVar(&openapiVersion, "openapi-version", "3.0", "OpenAPI target version: 3.0, 3.1")
+	flag.StringVar(&openapiVersion, "openapi-version", defaultOpenAPIVersion, "OpenAPI target version: 3.0, 3.1")
 
-	flag.StringVar(&asyncapiVersion, "asyncapi-version", "2.6", "AsyncAPI target version: 2.6, 3.0")
+	flag.StringVar(&asyncapiVersion, "asyncapi-version", defaultAsyncAPIVersion, "AsyncAPI target version: 2.6, 3.0")
 
 	flag.StringVar(&protocol, "protocol", "", "Protocol for AsyncAPI: ws, mqtt, kafka, amqp, http")
 
@@ -367,8 +365,8 @@ func validateFlags() error {
 	}
 
 	// Validate encoding format if specified
-	if encodingFormat != "" && encodingFormat != "json" && encodingFormat != "yaml" {
-		return fmt.Errorf("invalid encoding format '%s' (must be json or yaml)", encodingFormat)
+	if encodingFormat != "" && encodingFormat != encodingJSON && encodingFormat != encodingYAML {
+		return fmt.Errorf("invalid encoding format '%s' (must be %s or %s)", encodingFormat, encodingJSON, encodingYAML)
 	}
 
 	return nil
@@ -386,8 +384,8 @@ func determineFormats() (inputFmt, outputFmt string, err error) {
 		outputFmt = autoDetectOutputFormat(inputFmt)
 	}
 
-	if outputFmt != "openapi" && outputFmt != "asyncapi" && outputFmt != "apib" {
-		return "", "", fmt.Errorf("invalid output format '%s' (must be openapi, asyncapi, or apib)", outputFmt)
+	if outputFmt != formatOpenAPI && outputFmt != formatAsyncAPI && outputFmt != formatAPIB {
+		return "", "", fmt.Errorf("invalid output format '%s' (must be %s, %s, or %s)", outputFmt, formatOpenAPI, formatAsyncAPI, formatAPIB)
 	}
 
 	return inputFmt, outputFmt, nil
@@ -396,12 +394,12 @@ func determineFormats() (inputFmt, outputFmt string, err error) {
 // autoDetectOutputFormat determines output format based on file extension and input format
 func autoDetectOutputFormat(inputFormat string) string {
 	switch {
-	case strings.HasSuffix(strings.ToLower(outputFile), ".apib"):
-		return "apib"
-	case inputFormat == "apib":
-		return "openapi"
+	case strings.HasSuffix(strings.ToLower(outputFile), "."+formatAPIB):
+		return formatAPIB
+	case inputFormat == formatAPIB:
+		return formatOpenAPI
 	default:
-		return "apib"
+		return formatAPIB
 	}
 }
 
@@ -426,18 +424,18 @@ func openFiles() (input, output *os.File, err error) {
 // performConversion performs the actual conversion based on formats
 func performConversion(input, output *os.File, inputFormat, outputFormat string) int {
 	switch {
-	case inputFormat == "apib" && outputFormat == "openapi":
+	case inputFormat == formatAPIB && outputFormat == formatOpenAPI:
 		return convertAPIBlueprintToOpenAPI(input, output)
-	case inputFormat == "apib" && outputFormat == "asyncapi":
+	case inputFormat == formatAPIB && outputFormat == formatAsyncAPI:
 		return convertAPIBlueprintToAsyncAPI(input, output)
-	case inputFormat == "openapi" && outputFormat == "apib":
+	case inputFormat == formatOpenAPI && outputFormat == formatAPIB:
 		return convertOpenAPIToAPIBlueprint(input, output)
-	case inputFormat == "asyncapi" && outputFormat == "apib":
+	case inputFormat == formatAsyncAPI && outputFormat == formatAPIB:
 		return convertAsyncAPIToAPIBlueprint(input, output)
-	case inputFormat == "asyncapi" && outputFormat == "openapi":
+	case inputFormat == formatAsyncAPI && outputFormat == formatOpenAPI:
 		fmt.Fprintln(os.Stderr, "Error: AsyncAPI to OpenAPI conversion is not directly supported. Convert to API Blueprint first.")
 		return 1
-	case inputFormat == "openapi" && outputFormat == "asyncapi":
+	case inputFormat == formatOpenAPI && outputFormat == formatAsyncAPI:
 		fmt.Fprintln(os.Stderr, "Error: OpenAPI to AsyncAPI conversion is not directly supported. Convert to API Blueprint first.")
 		return 1
 	default:
@@ -450,8 +448,8 @@ func performConversion(input, output *os.File, inputFormat, outputFormat string)
 func detectInputFormat(filename string) (string, error) {
 	// Check file extension
 	lower := strings.ToLower(filename)
-	if strings.HasSuffix(lower, ".apib") {
-		return "apib", nil
+	if strings.HasSuffix(lower, "."+formatAPIB) {
+		return formatAPIB, nil
 	}
 
 	// Check file content for JSON/YAML-based formats
@@ -481,7 +479,7 @@ func detectInputFormat(filename string) (string, error) {
 			continue
 		}
 		if strings.HasPrefix(line, "FORMAT:") || strings.HasPrefix(line, "# ") {
-			return "apib", nil
+			return formatAPIB, nil
 		}
 		// If we see a JSON start object, stop checking for APIB line headers to avoid false positives in JSON strings
 		if strings.HasPrefix(line, "{") {
@@ -491,14 +489,14 @@ func detectInputFormat(filename string) (string, error) {
 
 	// Check for AsyncAPI (JSON or YAML)
 	if strings.Contains(content, "\"asyncapi\"") || strings.Contains(content, "asyncapi:") {
-		return "asyncapi", nil
+		return formatAsyncAPI, nil
 	}
 	// Check for OpenAPI (JSON or YAML)
 	if strings.Contains(content, "\"openapi\"") || strings.Contains(content, "openapi:") {
-		return "openapi", nil
+		return formatOpenAPI, nil
 	}
 
-	return "openapi", nil // Default
+	return formatOpenAPI, nil // Default
 }
 
 // convertAPIBlueprintToOpenAPI converts API Blueprint to OpenAPI
@@ -520,10 +518,24 @@ func convertAPIBlueprintToOpenAPI(input, output *os.File) int {
 		OutputVersion: targetVersion,
 	}
 
-	// Parse API Blueprint with options
-	spec, err := converter.ParseBlueprintReader(input)
+	// Read input
+	data, err := io.ReadAll(input)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error reading input file: %v\n", err)
+		return 1
+	}
+
+	// Parse API Blueprint
+	specInterface, err := converter.Parse(data, converter.FormatBlueprint)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing API Blueprint: %v\n", err)
+		return 1
+	}
+
+	// Convert to OpenAPI
+	spec, err := specInterface.ToOpenAPI()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error converting to OpenAPI: %v\n", err)
 		return 1
 	}
 
@@ -552,23 +564,49 @@ func convertAPIBlueprintToAsyncAPI(input, output *os.File) int {
 		return 1
 	}
 
+	// Read input
+	data, err := io.ReadAll(input)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error reading input file: %v\n", err)
+		return 1
+	}
+
+	// Parse API Blueprint
+	spec, err := converter.Parse(data, converter.FormatBlueprint)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error parsing API Blueprint: %v\n", err)
+		return 1
+	}
+
 	// Determine target AsyncAPI version
+	var result any
 	var targetVersion string
+
 	switch asyncapiVersion {
 	case "2", "2.6", "2.6.0":
 		targetVersion = "2.6"
-		if err := converter.ConvertAPIBlueprintToAsyncAPI(input, output, protocol); err != nil {
+		asyncSpec, err := spec.ToAsyncAPI(converter.Protocol(protocol))
+		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error converting API Blueprint to AsyncAPI 2.6: %v\n", err)
 			return 1
 		}
+		result = asyncSpec
 	case "3", "3.0", "3.0.0":
 		targetVersion = "3.0"
-		if err := converter.ConvertAPIBlueprintToAsyncAPIV3(input, output, protocol); err != nil {
+		asyncSpec, err := spec.ToAsyncAPIV3(converter.Protocol(protocol))
+		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error converting API Blueprint to AsyncAPI 3.0: %v\n", err)
 			return 1
 		}
+		result = asyncSpec
 	default:
 		fmt.Fprintf(os.Stderr, "Error: invalid AsyncAPI version '%s' (must be 2.6 or 3.0)\n", asyncapiVersion)
+		return 1
+	}
+
+	// Write output based on encoding format
+	if err := writeSpec(output, result); err != nil {
+		fmt.Fprintf(os.Stderr, "Error writing AsyncAPI spec: %v\n", err)
 		return 1
 	}
 
@@ -578,36 +616,24 @@ func convertAPIBlueprintToAsyncAPI(input, output *os.File) int {
 
 // convertOpenAPIToAPIBlueprint converts OpenAPI to API Blueprint
 func convertOpenAPIToAPIBlueprint(input, output *os.File) int {
-	if err := converter.Convert(input, output); err != nil {
-		fmt.Fprintf(os.Stderr, "Error converting OpenAPI to API Blueprint: %v\n", err)
-		return 1
-	}
-	fmt.Printf("Successfully converted OpenAPI %s to API Blueprint %s\n", inputFile, outputFile)
-	return 0
-}
-
-// convertAsyncAPIToAPIBlueprint converts AsyncAPI to API Blueprint
-func convertAsyncAPIToAPIBlueprint(input, output *os.File) int {
-	// Read the input to detect version
+	// Read input
 	data, err := io.ReadAll(input)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error reading input file: %v\n", err)
 		return 1
 	}
 
-	// Use ParseAsyncAPIAny which handles JSON and YAML detection and versioning
-	spec, ver, err := converter.ParseAsyncAPIAny(data)
+	// Parse OpenAPI
+	spec, err := converter.Parse(data, converter.FormatOpenAPI)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error parsing AsyncAPI: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error parsing OpenAPI: %v\n", err)
 		return 1
 	}
 
-	// Convert based on detected version
-	var blueprint string
-	if convertible, ok := spec.(converter.BlueprintConvertible); ok {
-		blueprint = convertible.ToBlueprint()
-	} else {
-		fmt.Fprintf(os.Stderr, "Error: parsed specification does not support conversion to API Blueprint\n")
+	// Convert to API Blueprint
+	blueprint, err := spec.ToBlueprint()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error converting to API Blueprint: %v\n", err)
 		return 1
 	}
 
@@ -617,19 +643,56 @@ func convertAsyncAPIToAPIBlueprint(input, output *os.File) int {
 		return 1
 	}
 
-	// Get AsyncAPI version string for logging
-	asyncVerStr := "2.6.0"
-	if ver == 3 {
-		asyncVerStr = "3.0.0"
+	fmt.Printf("Successfully converted OpenAPI %s to API Blueprint %s\n", inputFile, outputFile)
+	return 0
+}
+
+// convertAsyncAPIToAPIBlueprint converts AsyncAPI to API Blueprint
+func convertAsyncAPIToAPIBlueprint(input, output *os.File) int {
+	// Read input
+	data, err := io.ReadAll(input)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error reading input file: %v\n", err)
+		return 1
 	}
 
-	fmt.Printf("Successfully converted AsyncAPI %s %s to API Blueprint %s\n", asyncVerStr, inputFile, outputFile)
+	// Parse AsyncAPI (auto-detect version)
+	spec, err := converter.Parse(data, converter.FormatAsyncAPI)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error parsing AsyncAPI: %v\n", err)
+		return 1
+	}
+
+	// Convert to API Blueprint
+	blueprint, err := spec.ToBlueprint()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error converting to API Blueprint: %v\n", err)
+		return 1
+	}
+
+	// Write output
+	if _, err := output.WriteString(blueprint); err != nil {
+		fmt.Fprintf(os.Stderr, "Error writing output: %v\n", err)
+		return 1
+	}
+
+	// Try to get version string for logging, if possible
+	// This is purely informational and relies on the underlying struct
+	versionStr := "AsyncAPI"
+	switch s := spec.(type) {
+	case *converter.AsyncAPI:
+		versionStr = fmt.Sprintf("AsyncAPI %s", s.AsyncAPI)
+	case *converter.AsyncAPIV3:
+		versionStr = fmt.Sprintf("AsyncAPI %s", s.AsyncAPI)
+	}
+
+	fmt.Printf("Successfully converted %s %s to API Blueprint %s\n", versionStr, inputFile, outputFile)
 	return 0
 }
 
 // writeSpec writes a specification to the output in the configured format (JSON or YAML)
 func writeSpec(output *os.File, spec any) error {
-	if encodingFormat == "yaml" {
+	if encodingFormat == encodingYAML {
 		yamlBytes, err := converter.MarshalYAML(spec)
 		if err != nil {
 			return err

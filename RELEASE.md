@@ -8,7 +8,7 @@ Releases are fully automated via GitHub Actions when you push a git tag.
 
 ### Release Workflow
 
-When you push a tag (e.g., `v1.0.0`), the following happens automatically:
+When you push a tag (e.g., `v0.4.0`), the following happens automatically:
 
 1. **Tests Run** - All tests must pass
 2. **Zero Allocation Check** - Benchmarks verify 0 allocs/op
@@ -18,9 +18,9 @@ When you push a tag (e.g., `v1.0.0`), the following happens automatically:
    - Windows (amd64)
 4. **Docker Image** - Multi-arch image built and pushed to ghcr.io:
    - `ghcr.io/amer8/apibconv:latest`
-   - `ghcr.io/amer8/apibconv:v1.0.0`
-   - `ghcr.io/amer8/apibconv:v1.0`
-   - `ghcr.io/amer8/apibconv:v1`
+   - `ghcr.io/amer8/apibconv:v0.4.0`
+   - `ghcr.io/amer8/apibconv:v0.4`
+   - `ghcr.io/amer8/apibconv:v0`
 5. **GitHub Release** - Created with:
    - Release notes (auto-generated from commits)
    - Binary archives for all platforms
@@ -43,10 +43,10 @@ git checkout main
 git pull
 
 # Create an annotated tag
-git tag -a v1.0.0 -m "Release v1.0.0"
+git tag -a v0.4.0 -m "Release v0.4.0"
 
 # Push the tag to trigger release workflow
-git push origin v1.0.0
+git push origin v0.4.0
 ```
 
 ### 3. Monitor Release
@@ -61,16 +61,16 @@ git push origin v1.0.0
 
 ```bash
 # Test Go installation
-go install github.com/amer8/apibconv@v1.0.0
+go install github.com/amer8/apibconv@v0.4.0
 apibconv -version
 
 # Test Docker image
-docker pull ghcr.io/amer8/apibconv:v1.0.0
-docker run --rm ghcr.io/amer8/apibconv:v1.0.0 -version
+docker pull ghcr.io/amer8/apibconv:v0.4.0
+docker run --rm ghcr.io/amer8/apibconv:v0.4.0 -version
 
 # Test binary download
-wget https://github.com/amer8/apibconv/releases/download/v1.0.0/apibconv_1.0.0_Linux_x86_64.tar.gz
-tar -xzf apibconv_1.0.0_Linux_x86_64.tar.gz
+wget https://github.com/amer8/apibconv/releases/download/v0.4.0/apibconv_0.4.0_Linux_x86_64.tar.gz
+tar -xzf apibconv_0.4.0_Linux_x86_64.tar.gz
 ./apibconv -version
 ```
 
@@ -98,15 +98,15 @@ Each release includes:
 
 We follow [Semantic Versioning](https://semver.org/):
 
-- `v1.0.0` - Major.Minor.Patch
-- `v1.0.0-rc.1` - Release candidate
-- `v1.0.0-beta.1` - Beta release
+- `v0.4.0` - Major.Minor.Patch
+- `v0.4.0-rc.1` - Release candidate
+- `v0.4.0-beta.1` - Beta release
 
 ### When to Bump
 
-- **Major (v2.0.0)**: Breaking changes to CLI or API
-- **Minor (v1.1.0)**: New features, backward compatible
-- **Patch (v1.0.1)**: Bug fixes, backward compatible
+- **Major (v1.0.0)**: Breaking changes to CLI or API (Stable release)
+- **Minor (v0.5.0)**: New features, backward compatible
+- **Patch (v0.4.1)**: Bug fixes, backward compatible
 
 ## Changelog Generation
 
@@ -134,20 +134,20 @@ These are grouped in the release notes:
 ### Image Structure
 
 ```dockerfile
-FROM alpine:latest
-- Non-root user (uid 1000)
+FROM scratch
+- Non-root user (uid 65532)
 - Working directory: /data
-- Binary at: /usr/local/bin/apibconv
+- Binary at: /apibconv
 ```
 
 ### Usage
 
 ```bash
 # Basic usage
-docker run --rm -v $(pwd):/data ghcr.io/amer8/apibconv:latest -f openapi.json -o output.apib
+docker run --rm -v $(pwd):/data ghcr.io/amer8/apibconv:latest openapi.json -o output.apib
 
 # With specific version
-docker run --rm -v $(pwd):/data ghcr.io/amer8/apibconv:v1.0.0 -f openapi.json -o output.apib
+docker run --rm -v $(pwd):/data ghcr.io/amer8/apibconv:v0.4.0 openapi.json -o output.apib
 ```
 
 ### Platforms Supported
@@ -192,14 +192,14 @@ If you need to recreate a tag:
 
 ```bash
 # Delete local tag
-git tag -d v1.0.0
+git tag -d v0.4.0
 
 # Delete remote tag (careful!)
-git push --delete origin v1.0.0
+git push --delete origin v0.4.0
 
 # Recreate and push
-git tag -a v1.0.0 -m "Release v1.0.0"
-git push origin v1.0.0
+git tag -a v0.4.0 -m "Release v0.4.0"
+git push origin v0.4.0
 ```
 
 ## Manual Release (Emergency)
@@ -223,7 +223,7 @@ goreleaser release --clean
 docker buildx create --use
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
-  -t ghcr.io/amer8/apibconv:v1.0.0 \
+  -t ghcr.io/amer8/apibconv:v0.4.0 \
   --push .
 ```
 

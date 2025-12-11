@@ -33,3 +33,21 @@ const (
 	TypeArray   = "array"
 	TypeNull    = "null"
 )
+
+// Protocol represents the protocol used in AsyncAPI servers.
+type Protocol string
+
+const (
+	// ProtocolKafka indicates the Kafka protocol.
+	ProtocolKafka Protocol = "kafka"
+	// ProtocolMQTT indicates the MQTT protocol.
+	ProtocolMQTT  Protocol = "mqtt"
+	// ProtocolAMQP indicates the AMQP protocol.
+	ProtocolAMQP  Protocol = "amqp"
+	// ProtocolWS indicates the WebSocket protocol.
+	ProtocolWS    Protocol = "ws"
+	// ProtocolHTTP indicates the HTTP protocol.
+	ProtocolHTTP  Protocol = "http"
+	// ProtocolHTTPS indicates the HTTPS protocol.
+	ProtocolHTTPS Protocol = "https"
+)

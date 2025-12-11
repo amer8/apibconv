@@ -33,9 +33,14 @@ const testOpenAPIJSON = `{
 }`
 
 func TestParse(t *testing.T) {
-	spec, err := Parse([]byte(testOpenAPIJSON))
+	s, err := Parse([]byte(testOpenAPIJSON))
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
+	}
+
+	spec, ok := s.(*OpenAPI)
+	if !ok {
+		t.Fatalf("Expected *OpenAPI, got %T", s)
 	}
 
 	if spec.Info.Title != "Test API" {
@@ -56,7 +61,8 @@ func TestParse(t *testing.T) {
 }
 
 func TestParseInvalidJSON(t *testing.T) {
-	_, err := Parse([]byte(`{invalid json`))
+	// Parse with explicit format to force JSON parsing
+	_, err := Parse([]byte(`{invalid json`), FormatOpenAPI)
 	if err == nil {
 		t.Error("Expected error for invalid JSON, got nil")
 	}
@@ -111,9 +117,14 @@ func TestFormatNilSpec(t *testing.T) {
 }
 
 func TestFormatTo(t *testing.T) {
-	spec, err := Parse([]byte(testOpenAPIJSON))
+	s, err := Parse([]byte(testOpenAPIJSON))
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
+	}
+
+	spec, ok := s.(*OpenAPI)
+	if !ok {
+		t.Fatalf("Expected *OpenAPI, got %T", s)
 	}
 
 	var buf bytes.Buffer
@@ -197,10 +208,11 @@ func TestConvertString(t *testing.T) {
 }
 
 func TestMustFormat(t *testing.T) {
-	spec, err := Parse([]byte(testOpenAPIJSON))
+	s, err := Parse([]byte(testOpenAPIJSON))
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
+	spec := s.(*OpenAPI)
 
 	// Should not panic
 	result := MustFormat(spec)
@@ -242,12 +254,16 @@ func TestMustFromJSONPanic(t *testing.T) {
 // Test that Parse and Format are composable
 func TestParseFormatComposition(t *testing.T) {
 	// Parse
-	spec, err := Parse([]byte(testOpenAPIJSON))
+	s, err := Parse([]byte(testOpenAPIJSON))
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
 
 	// Modify the spec
+	spec, ok := s.(*OpenAPI)
+	if !ok {
+		t.Fatalf("Expected *OpenAPI")
+	}
 	spec.Info.Title = "Modified API"
 
 	// Format
@@ -285,9 +301,13 @@ info:
   version: 1.0.0
 paths: {}
 `)
-	spec, err := Parse(yamlData)
+	s, err := Parse(yamlData)
 	if err != nil {
 		t.Fatalf("Parse YAML failed: %v", err)
+	}
+	spec, ok := s.(*OpenAPI)
+	if !ok {
+		t.Fatalf("Expected *OpenAPI")
 	}
 
 	if spec.Info.Title != "Test API" {
@@ -305,7 +325,7 @@ info:
   title: Test API
   version: 1.0.0
 `)
-	_, err := Parse(yamlData)
+	_, err := Parse(yamlData, FormatOpenAPI)
 	if err == nil {
 		t.Error("Expected error for invalid YAML type mismatch, got nil")
 	}

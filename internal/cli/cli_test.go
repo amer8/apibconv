@@ -36,7 +36,7 @@ func TestDetectInputFormat(t *testing.T) {
 				"openapi": "3.0.0",
 				"info": {"title": "Test", "version": "1.0.0"}
 			}`,
-			expected: "openapi",
+			expected: formatOpenAPI,
 		},
 		{
 			name: "OpenAPI 3.1",
@@ -44,7 +44,7 @@ func TestDetectInputFormat(t *testing.T) {
 				"openapi": "3.1.0",
 				"info": {"title": "Test", "version": "1.0.0"}
 			}`,
-			expected: "openapi",
+			expected: formatOpenAPI,
 		},
 		{
 			name: "AsyncAPI 2.6",
@@ -52,7 +52,7 @@ func TestDetectInputFormat(t *testing.T) {
 				"asyncapi": "2.6.0",
 				"info": {"title": "Test", "version": "1.0.0"}
 			}`,
-			expected: "asyncapi",
+			expected: formatAsyncAPI,
 		},
 		{
 			name: "AsyncAPI 3.0",
@@ -60,7 +60,7 @@ func TestDetectInputFormat(t *testing.T) {
 				"asyncapi": "3.0.0",
 				"info": {"title": "Test", "version": "1.0.0"}
 			}`,
-			expected: "asyncapi",
+			expected: formatAsyncAPI,
 		},
 		{
 			name: "API Blueprint by extension",
@@ -68,7 +68,7 @@ func TestDetectInputFormat(t *testing.T) {
 # Test API
 
 ## GET /test`,
-			expected: "apib",
+			expected: formatAPIB,
 		},
 		{
 			name: "API Blueprint by content",
@@ -76,7 +76,7 @@ func TestDetectInputFormat(t *testing.T) {
 # Test API
 
 ## GET /test`,
-			expected: "apib",
+			expected: formatAPIB,
 		},
 	}
 
@@ -320,8 +320,8 @@ HOST: https://api.example.com
 	inputFile = inputFilePath
 	outputFile = outputFilePath
 	openapiVersion = "3.1"
-	outputFormat = "openapi"
-	encodingFormat = "json" // Ensure JSON output for easy string check
+	outputFormat = formatOpenAPI
+	encodingFormat = encodingJSON // Ensure JSON output for easy string check
 
 	// Open files
 	inputFileRead, err := os.Open(inputFilePath)
@@ -420,9 +420,9 @@ HOST: https://api.example.com
 	inputFile = inputFilePath
 	outputFile = outputFilePath
 	asyncapiVersion = "3.0"
-	outputFormat = "asyncapi"
+	outputFormat = formatAsyncAPI
 	protocol = "kafka"
-	encodingFormat = "json" // Ensure JSON output for easy string check
+	encodingFormat = encodingJSON // Ensure JSON output for easy string check
 
 	// Open files
 	inputFileRead, err := os.Open(inputFilePath)
@@ -492,21 +492,21 @@ func TestValidateFlags(t *testing.T) {
 			name:       "valid flags",
 			inputFile:  "input.json",
 			outputFile: "output.apib",
-			format:     "json",
+			format:     encodingJSON,
 			wantErr:    false,
 		},
 		{
 			name:       "missing input",
 			inputFile:  "",
 			outputFile: "output.apib",
-			format:     "json",
+			format:     encodingJSON,
 			wantErr:    true,
 		},
 		{
 			name:       "missing output",
 			inputFile:  "input.json",
 			outputFile: "",
-			format:     "json",
+			format:     encodingJSON,
 			wantErr:    true,
 		},
 		{
@@ -520,7 +520,7 @@ func TestValidateFlags(t *testing.T) {
 			name:       "yaml format",
 			inputFile:  "input.json",
 			outputFile: "output.yaml",
-			format:     "yaml",
+			format:     encodingYAML,
 			wantErr:    false,
 		},
 	}
@@ -559,20 +559,20 @@ func TestAutoDetectOutputFormat(t *testing.T) {
 		{
 			name:        "apib extension",
 			outputFile:  "output.apib",
-			inputFormat: "openapi",
-			expected:    "apib",
+			inputFormat: formatOpenAPI,
+			expected:    formatAPIB,
 		},
 		{
 			name:        "json from apib",
 			outputFile:  "output.json",
-			inputFormat: "apib",
-			expected:    "openapi",
+			inputFormat: formatAPIB,
+			expected:    formatOpenAPI,
 		},
 		{
 			name:        "json from openapi",
 			outputFile:  "output.json",
-			inputFormat: "openapi",
-			expected:    "apib",
+			inputFormat: formatOpenAPI,
+			expected:    formatAPIB,
 		},
 	}
 

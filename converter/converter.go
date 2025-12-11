@@ -1,3 +1,4 @@
+// Package converter provides core functionalities for converting between OpenAPI, AsyncAPI, and API Blueprint specifications.
 package converter
 
 import (
@@ -11,7 +12,7 @@ import (
 
 // BlueprintConvertible is an interface for types that can be converted to API Blueprint format.
 type BlueprintConvertible interface {
-	ToBlueprint() string
+	ToBlueprint() (string, error)
 	WriteBlueprint(w io.Writer) error
 }
 
@@ -362,11 +363,11 @@ type Components struct {
 }
 
 // ToBlueprint converts the OpenAPI specification to API Blueprint format.
-func (spec *OpenAPI) ToBlueprint() string {
+func (spec *OpenAPI) ToBlueprint() (string, error) {
 	buf := getBuffer()
 	defer putBuffer(buf)
 	writeAPIBlueprint(buf, spec)
-	return buf.String()
+	return buf.String(), nil
 }
 
 // WriteBlueprint writes the OpenAPI specification in API Blueprint format to the writer.
@@ -378,7 +379,14 @@ func (spec *OpenAPI) WriteBlueprint(w io.Writer) error {
 	return err
 }
 
+// ToOpenAPI returns the OpenAPI specification itself.
+func (spec *OpenAPI) ToOpenAPI() (*OpenAPI, error) {
+	return spec, nil
+}
+
 // Convert converts OpenAPI JSON to API Blueprint format using streaming I/O.
+//
+// Deprecated: Use Parse and Spec.WriteBlueprint instead.
 //
 // This is the primary conversion function for transforming OpenAPI specifications
 // to API Blueprint format. It reads from the provided io.Reader, parses the OpenAPI JSON,
