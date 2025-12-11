@@ -215,9 +215,11 @@ func ExampleAsyncAPI_ToBlueprint() {
 
 	// Output:
 	// FORMAT: 1A
+	//
 	// # Event API
 	//
 	// ## /events [/events]
+	//
 	// ### Receive events [GET]
 }
 
