@@ -188,7 +188,7 @@ func TestEncodeYAML(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	err := EncodeYAML(&buf, spec)
+	err := encodeYAML(&buf, spec)
 	if err != nil {
 		t.Fatalf("EncodeYAML() error = %v", err)
 	}

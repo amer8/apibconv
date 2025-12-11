@@ -3,77 +3,11 @@ package converter_test
 import (
 	"fmt"
 	"log"
-	"os"
-	"strings"
 
 	"github.com/amer8/apibconv/converter"
 )
 
-// ExampleFromJSONString demonstrates converting an OpenAPI JSON string to API Blueprint format.
-func ExampleFromJSONString() {
-	openapiJSON := `{
-		"openapi": "3.0.0",
-		"info": {
-			"title": "Pet Store API",
-			"version": "1.0.0",
-			"description": "A simple pet store API"
-		},
-		"servers": [
-			{"url": "https://api.petstore.com"}
-		],
-		"paths": {
-			"/pets": {
-				"get": {
-					"summary": "List all pets",
-					"responses": {
-						"200": {
-							"description": "Success"
-						}
-					}
-				}
-			}
-		}
-	}`
-
-	apiBlueprint, err := converter.FromJSONString(openapiJSON)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Println(apiBlueprint)
-	// Output will contain API Blueprint format with FORMAT: 1A header
-}
-
-// ExampleToOpenAPIString demonstrates converting API Blueprint to OpenAPI JSON format.
-func ExampleToOpenAPIString() {
-	apibContent := `FORMAT: 1A
-
-# My API
-
-A simple API example
-
-HOST: https://api.example.com
-
-## /users [/users]
-
-### List Users [GET]
-
-Get a list of all users
-
-+ Response 200 (application/json)
-
-        {"users": []}`
-
-	openapiJSON, err := converter.ToOpenAPIString(apibContent)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Println(openapiJSON)
-	// Output will contain OpenAPI 3.0 JSON specification
-}
-
-// ExampleParse demonstrates parsing OpenAPI JSON into a structure.
+// Example demonstrates parsing OpenAPI JSON into a structure.
 func ExampleParse() {
 	data := []byte(`{
 		"openapi": "3.0.0",
@@ -98,8 +32,8 @@ func ExampleParse() {
 	// API Version: 1.0.0
 }
 
-// ExampleFormat demonstrates formatting an OpenAPI structure to API Blueprint.
-func ExampleFormat() {
+// Example demonstrates converting an OpenAPI structure to API Blueprint.
+func ExampleOpenAPI_ToBlueprint() {
 	spec := &converter.OpenAPI{
 		OpenAPI: "3.0.0",
 		Info: converter.Info{
@@ -132,128 +66,194 @@ func ExampleFormat() {
 	// Output will contain API Blueprint format
 }
 
-// ExampleConvert demonstrates streaming conversion from OpenAPI to API Blueprint.
-func ExampleConvert() {
-	openapiJSON := `{
-		"openapi": "3.0.0",
-		"info": {
-			"title": "Streaming Example",
-			"version": "1.0.0"
+// Example demonstrates converting an OpenAPI structure to AsyncAPI 2.6.
+func ExampleOpenAPI_ToAsyncAPI() {
+	spec := &converter.OpenAPI{
+		OpenAPI: "3.0.0",
+		Info: converter.Info{
+			Title:   "My API",
+			Version: "1.0.0",
 		},
-		"paths": {
-			"/data": {
-				"get": {
-					"summary": "Get data",
-					"responses": {
-						"200": {"description": "Success"}
-					}
-				}
-			}
-		}
-	}`
-
-	reader := strings.NewReader(openapiJSON)
-	writer := os.Stdout
-
-	err := converter.Convert(reader, writer)
-	if err != nil {
-		log.Fatal(err)
+		Servers: []converter.Server{
+			{URL: "https://api.example.com"},
+		},
+		Paths: map[string]converter.PathItem{
+			"/messages": {
+				Post: &converter.Operation{
+					Summary: "Send message",
+				},
+			},
+		},
 	}
-	// Output will be written to stdout in API Blueprint format
-}
 
-// ExampleConvertToOpenAPI demonstrates streaming conversion from API Blueprint to OpenAPI.
-func ExampleConvertToOpenAPI() {
-	apibContent := `FORMAT: 1A
-
-# Streaming API
-
-HOST: https://api.stream.com
-
-## /stream [/stream]
-
-### Get Stream [GET]
-
-+ Response 200 (application/json)
-
-        {"status": "ok"}`
-
-	reader := strings.NewReader(apibContent)
-	writer := os.Stdout
-
-	err := converter.ConvertToOpenAPI(reader, writer)
-	if err != nil {
-		log.Fatal(err)
-	}
-	// Output will be written to stdout in OpenAPI JSON format
-}
-
-// ExampleParseBlueprint demonstrates parsing API Blueprint to OpenAPI structure.
-func ExampleParseBlueprint() {
-	apibContent := []byte(`FORMAT: 1A
-
-# Parse Example API
-
-HOST: https://api.parse.com
-
-## /data [/data]
-
-### Get Data [GET]
-
-+ Response 200 (application/json)
-
-        {"result": "success"}`)
-
-	spec, err := converter.ParseBlueprint(apibContent)
+	asyncSpec, err := spec.ToAsyncAPI(converter.ProtocolWS)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	fmt.Printf("API Title: %s\n", spec.Info.Title)
-	fmt.Printf("Server URL: %s\n", spec.Servers[0].URL)
+	fmt.Printf("AsyncAPI Version: %s\n", asyncSpec.AsyncAPI)
+	if server, ok := asyncSpec.Servers["server0"]; ok {
+		fmt.Printf("Protocol: %s\n", server.Protocol)
+	}
+
+	// Check if channel exists
+	if _, ok := asyncSpec.Channels["messages"]; ok {
+		fmt.Println("Channel 'messages' exists")
+	}
+
 	// Output:
-	// API Title: Parse Example API
-	// Server URL: https://api.parse.com
+	// AsyncAPI Version: 2.6.0
+	// Protocol: ws
+	// Channel 'messages' exists
 }
 
-// Example demonstrates a complete workflow: parse OpenAPI, modify it, and format to API Blueprint.
-func Example() {
-	// Parse OpenAPI JSON
-	openapiJSON := `{
-		"openapi": "3.0.0",
-		"info": {
-			"title": "Original API",
-			"version": "1.0.0"
+// Example demonstrates converting an OpenAPI structure to AsyncAPI 3.0.
+func ExampleOpenAPI_ToAsyncAPIV3() {
+	spec := &converter.OpenAPI{
+		OpenAPI: "3.0.0",
+		Info: converter.Info{
+			Title:   "My API",
+			Version: "1.0.0",
 		},
-		"servers": [{"url": "https://api.example.com"}],
-		"paths": {
-			"/users": {
-				"get": {
-					"summary": "Get users",
-					"responses": {
-						"200": {"description": "Success"}
-					}
-				}
-			}
+		Servers: []converter.Server{
+			{URL: "https://api.example.com"},
+		},
+		Paths: map[string]converter.PathItem{
+			"/messages": {
+				Post: &converter.Operation{
+					Summary: "Send message",
+				},
+			},
+		},
+	}
+
+	asyncSpec, err := spec.ToAsyncAPIV3(converter.ProtocolKafka)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("AsyncAPI Version: %s\n", asyncSpec.AsyncAPI)
+	if server, ok := asyncSpec.Servers["server0"]; ok {
+		fmt.Printf("Protocol: %s\n", server.Protocol)
+	}
+
+	// Check if channel and operation exist
+	if _, ok := asyncSpec.Channels["messages"]; ok {
+		fmt.Println("Channel 'messages' exists")
+	}
+	// Operations are at root in v3
+	for _, op := range asyncSpec.Operations {
+		if op.Action == "send" { // Post -> Send
+			fmt.Println("Send operation exists")
+			break
 		}
-	}`
+	}
 
-	s, err := converter.Parse([]byte(openapiJSON))
+	// Output:
+	// AsyncAPI Version: 3.0.0
+	// Protocol: kafka
+	// Channel 'messages' exists
+	// Send operation exists
+}
+
+// Example demonstrates converting an AsyncAPI structure to OpenAPI 3.0.
+func ExampleAsyncAPI_ToOpenAPI() {
+	spec := &converter.AsyncAPI{
+		AsyncAPI: "2.6.0",
+		Info: converter.Info{
+			Title:   "Event API",
+			Version: "1.0.0",
+		},
+		Channels: map[string]converter.Channel{
+			"events": {
+				Subscribe: &converter.AsyncAPIOperation{
+					Summary: "Receive events",
+				},
+			},
+		},
+	}
+
+	openapiSpec, err := spec.ToOpenAPI()
 	if err != nil {
 		log.Fatal(err)
 	}
-	
-	spec := s.(*converter.OpenAPI)
 
-	// Modify the spec programmatically
-	spec.Info.Title = "Modified API"
-	spec.Info.Description = "This API has been modified"
+	fmt.Printf("OpenAPI Version: %s\n", openapiSpec.OpenAPI)
+	if pathItem, ok := openapiSpec.Paths["/events"]; ok {
+		// Subscribe -> GET
+		fmt.Printf("Operation: %s\n", pathItem.Get.Summary)
+	}
 
-	// Format to API Blueprint
-	apiBlueprint, err := spec.ToBlueprint()
+	// Output:
+	// OpenAPI Version: 3.0.0
+	// Operation: Receive events
+}
+
+// Example demonstrates converting an AsyncAPI structure to API Blueprint.
+func ExampleAsyncAPI_ToBlueprint() {
+	spec := &converter.AsyncAPI{
+		AsyncAPI: "2.6.0",
+		Info: converter.Info{
+			Title:   "Event API",
+			Version: "1.0.0",
+		},
+		Channels: map[string]converter.Channel{
+			"events": {
+				Subscribe: &converter.AsyncAPIOperation{
+					Summary: "Receive events",
+				},
+			},
+		},
+	}
+
+	bp, err := spec.ToBlueprint()
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println(apiBlueprint)
-	// Output will contain API Blueprint with modified title
+
+	fmt.Println(bp)
+
+	// Output:
+	// FORMAT: 1A
+	// # Event API
+	//
+	// ## /events [/events]
+	// ### Receive events [GET]
+}
+
+// Example demonstrates converting AsyncAPI 2.6 to AsyncAPI 3.0.
+func ExampleAsyncAPI_ToAsyncAPIV3() {
+	spec := &converter.AsyncAPI{
+		AsyncAPI: "2.6.0",
+		Info: converter.Info{
+			Title:   "Event API",
+			Version: "1.0.0",
+		},
+		Channels: map[string]converter.Channel{
+			"events": {
+				Subscribe: &converter.AsyncAPIOperation{
+					Summary: "Receive events",
+				},
+			},
+		},
+	}
+
+	// Note: protocol is needed for server conversion, but we have no servers here.
+	v3Spec, err := spec.ToAsyncAPIV3(converter.ProtocolWS)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("AsyncAPI Version: %s\n", v3Spec.AsyncAPI)
+
+	// v3 has operations at root
+	for _, op := range v3Spec.Operations {
+		fmt.Printf("Action: %s\n", op.Action)
+		fmt.Printf("Summary: %s\n", op.Summary)
+	}
+
+	// Output:
+	// AsyncAPI Version: 3.0.0
+	// Action: receive
+	// Summary: Receive events
 }

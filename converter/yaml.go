@@ -103,7 +103,7 @@ func MarshalYAMLIndent(v any, indent int) ([]byte, error) {
 //	if err := EncodeYAML(file, spec); err != nil {
 //	    log.Fatal(err)
 //	}
-func EncodeYAML(w io.Writer, v any) error {
+func encodeYAML(w io.Writer, v any) error {
 	yamlBytes, err := MarshalYAML(v)
 	if err != nil {
 		return err
