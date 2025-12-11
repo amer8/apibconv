@@ -86,10 +86,10 @@ OpenAPI Options:
       Version: 3.0, 3.1 (default: "3.0")
 
 Examples:
-  apibconv api.apib -o openapi.json
-  apibconv api.apib -o asyncapi.yaml --protocol ws
-  apibconv -o openapi.json --to openapi --openapi-version 3.1 < api.apib
-  apibconv openapi.json --validate
+  apibconv spec.apib -o output.json
+  apibconv spec.apib -o output.yaml --protocol ws
+  apibconv -o output.json --to openapi --openapi-version 3.1 < spec.apib
+  apibconv spec.json --validate
 ```
 
 ### OpenAPI Support

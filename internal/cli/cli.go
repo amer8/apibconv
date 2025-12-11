@@ -300,10 +300,10 @@ func configureFlags(fs *flag.FlagSet) {
 		p("      Version: 3.0, 3.1 (default: \"3.0\")")
 		p("")
 		p("Examples:")
-		p("  apibconv api.apib -o openapi.json")
-		p("  apibconv api.apib -o asyncapi.yaml --protocol ws")
-		p("  apibconv -o openapi.json --to openapi --openapi-version 3.1 < api.apib")
-		p("  apibconv openapi.json --validate")
+		p("  apibconv spec.apib -o output.json")
+		p("  apibconv spec.apib -o output.yaml --protocol ws")
+		p("  apibconv -o output.json --to openapi --openapi-version 3.1 < spec.apib")
+		p("  apibconv spec.json --validate")
 	}
 }
 
