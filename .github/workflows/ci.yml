@@ -137,12 +137,12 @@ jobs:
           go-version: '1.25'
 
       - name: Build
-        run: go build -v -o apibconv ./cmd/apibconv
+        run: go build -v -o apibconv .
 
       - name: Test binary
         run: |
-          ./apibconv -version
-          ./apibconv -f examples/openapi/petstore/petstore.json -o examples/openapi/petstore/petstore-gen.apib
+          ./apibconv -v
+          ./apibconv examples/openapi/petstore/petstore.json -o examples/openapi/petstore/petstore-gen.apib
           echo "Generated API Blueprint:"
           head -n 20 examples/openapi/petstore/petstore-gen.apib
 

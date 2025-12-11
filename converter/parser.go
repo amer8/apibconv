@@ -588,6 +588,8 @@ func finalizeOperation(state *parserState) {
 
 // ToOpenAPI converts API Blueprint bytes to OpenAPI JSON bytes.
 //
+// Deprecated: Use Parse and Spec.ToOpenAPI instead.
+//
 // This function provides a one-step conversion from API Blueprint format to
 // OpenAPI 3.0 JSON. The output is formatted with indentation for readability.
 //
@@ -632,6 +634,8 @@ func ToOpenAPI(data []byte) ([]byte, error) {
 
 // ToOpenAPIWithOptions converts API Blueprint bytes to OpenAPI JSON with custom options.
 //
+// Deprecated: Use Parse and Spec.ToOpenAPI instead (for 3.0), or use ConvertToVersion after Parse.
+//
 // This allows you to specify the output OpenAPI version (3.0 or 3.1).
 //
 // Parameters:
@@ -661,6 +665,8 @@ func ToOpenAPIWithOptions(data []byte, opts *ConversionOptions) ([]byte, error) 
 }
 
 // ToOpenAPIString converts API Blueprint string to OpenAPI JSON string.
+//
+// Deprecated: Use Parse and Spec.ToOpenAPI instead.
 //
 // This is a convenience wrapper around ToOpenAPI for string inputs. The output
 // is formatted JSON with 2-space indentation.
@@ -697,6 +703,8 @@ func ToOpenAPIString(apibStr string) (string, error) {
 }
 
 // ConvertToOpenAPI converts API Blueprint from a reader to OpenAPI JSON written to a writer.
+//
+// Deprecated: Use Parse and Spec.ToOpenAPI instead.
 //
 // This is the streaming version for converting API Blueprint to OpenAPI, useful
 // for working with files or network streams. The output JSON is formatted with

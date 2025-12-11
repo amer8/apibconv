@@ -2,6 +2,67 @@
 
 This document outlines important changes and how to migrate your usage of `apibconv` to newer versions.
 
+## From 0.3.x to 0.4.x
+
+Introducing an unified `converter.Parse` and `converter.Spec` Interface.
+
+**Example Migration (Parsing and Conversion):**
+
+```go
+// Old: Specific parse and direct conversion functions
+// OpenAPI to API Blueprint
+// openapiJSON := `{"openapi": "3.0.0", ...}`
+// apiBlueprint, err := converter.FromJSONString(openapiJSON)
+
+// API Blueprint to OpenAPI
+// apibContent := `FORMAT: 1A\n# My API\n...`
+// openapiJSON, err := converter.ToOpenAPIString(apibContent)
+
+// AsyncAPI to API Blueprint
+// asyncapiJSON := `{"asyncapi": "2.6.0", ...}`
+// specAsync, err := converter.ParseAsync([]byte(asyncapiJSON))
+// bpAsync := specAsync.ToBlueprint()
+
+// New: Unified Parse and Spec interface methods
+// OpenAPI to API Blueprint
+spec, err := converter.Parse([]byte(openapiJSON), converter.FormatOpenAPI)
+if err != nil { ... }
+apiBlueprint, err = spec.ToBlueprint()
+
+// API Blueprint to OpenAPI
+spec, err := converter.Parse([]byte(apibContent), converter.FormatBlueprint)
+if err != nil { ... }
+openapiSpec, err := spec.ToOpenAPI()
+
+// AsyncAPI to API Blueprint
+spec, err := converter.Parse([]byte(asyncapiJSON), converter.FormatAsyncAPI) // Auto-detects 2.x or 3.x
+if err != nil { ... }
+apiBlueprint, err = spec.ToBlueprint()
+
+// To access specific fields of the underlying struct (e.g., spec.Info.Title)
+// a type assertion is required:
+if openapiSpecConcrete, ok := openapiSpec.(*converter.OpenAPI); ok {
+    fmt.Println(openapiSpecConcrete.Info.Title)
+}
+```
+
+### Strongly Typed `converter.Protocol`
+
+The `protocol` parameter in `ToAsyncAPI()` and `ToAsyncAPIV3()` methods now uses the new `converter.Protocol` type, with predefined constants for clarity and type safety.
+
+**Example Migration:**
+
+```go
+import "github.com/amer8/apibconv/converter"
+
+// Old:
+// asyncSpec, err := specAPIB.ToAsyncAPI("kafka")
+
+// New:
+asyncSpec, err := specAPIB.ToAsyncAPI(converter.ProtocolKafka)
+```
+
+
 ## From 0.2.x to 0.3.x
 
 ### API Refactoring
@@ -67,7 +128,7 @@ Starting with v0.2.0, several CLI flags have been updated to provide a more cons
     -   Old: `--format <format>`
     -   New: `-e <format>`, `--encoding <format>`
 
--   **Output Specification Format (OpenAPI/AsyncAPI/APIB):**
+-   **Output Specification Format (OpenAPI/AsyncAPI/APIB):n**
     -   Old: `--output-format <format>`
     -   New: `--to <format>`
 
@@ -88,7 +149,7 @@ apibconv -version
 
 # New:
 apibconv api.apib -o openapi.yaml -e yaml
-apibconv -f api.apib -o asyncapi.json --to asyncapi --asyncapi-version 3.0
+apibconv api.apib -o asyncapi.json --to asyncapi --asyncapi-version 3.0
 apibconv -v
 ```
 

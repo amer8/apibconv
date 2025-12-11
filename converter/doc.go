@@ -76,7 +76,8 @@ package converter
 //
 // Convert between OpenAPI versions:
 //
-//	spec30, _ := converter.Parse([]byte(`{"openapi": "3.0.0", ...}`))
+//	s, _ := converter.Parse([]byte(`{"openapi": "3.0.0", ...}`))
+//	spec30 := s.(*converter.OpenAPI)
 //	spec31, err := converter.ConvertToVersion(spec30, converter.Version31, nil)
 //	// Nullable fields become type arrays: ["string", "null"]
 //
@@ -94,9 +95,11 @@ package converter
 //
 // 2. Parse, Modify, Format (for programmatic manipulation):
 //
-//	spec, err := converter.Parse(data)
-//	spec.Info.Title = "Modified API"
-//	result := spec.ToBlueprint()
+//	s, err := converter.Parse(data)
+//	if spec, ok := s.(*converter.OpenAPI); ok {
+//	    spec.Info.Title = "Modified API"
+//	}
+//	result, err := s.ToBlueprint()
 //
 // 3. Streaming (for large files):
 //

@@ -118,9 +118,13 @@ func testAPIBConversion(t *testing.T, content []byte) {
 
 func testOpenAPIConversion(t *testing.T, content []byte) {
 	// 1. Parse
-	spec, err := Parse(content)
+	s, err := Parse(content)
 	if err != nil {
 		t.Fatalf("Failed to parse OpenAPI: %v", err)
+	}
+	spec, ok := s.(*OpenAPI)
+	if !ok {
+		t.Fatalf("Expected *OpenAPI")
 	}
 
 	// 2. Convert to API Blueprint
@@ -212,9 +216,13 @@ func TestWorkflow_AsyncAPI_To_OpenAPI(t *testing.T) {
 
 	// Step 3: Verify OpenAPI structure
 	openapiOutput := openapiBuf.Bytes()
-	spec, err := Parse(openapiOutput)
+	s, err := Parse(openapiOutput)
 	if err != nil {
 		t.Fatalf("Step 3 Failed: Parsing generated OpenAPI: %v", err)
+	}
+	spec, ok := s.(*OpenAPI)
+	if !ok {
+		t.Fatalf("Expected *OpenAPI")
 	}
 
 	// Verification
@@ -231,5 +239,72 @@ func TestWorkflow_AsyncAPI_To_OpenAPI(t *testing.T) {
 
 	if pathItem.Get == nil {
 		t.Error("Operation mapping incorrect. Expected GET operation for AsyncAPI subscribe.")
+	}
+}
+
+// TestWorkflow_APIB_To_AsyncAPI verifies the API Blueprint -> AsyncAPI conversion workflow.
+// This matches the second example in the README.
+func TestWorkflow_APIB_To_AsyncAPI(t *testing.T) {
+	apibContent := []byte(`FORMAT: 1A
+# Events API
+HOST: kafka://events.example.com
+
+## /events [/events]
+
+### Receive events [GET]
+
++ Response 200 (application/json)
+`)
+
+	// 1. Parse API Blueprint
+	s, err := Parse(apibContent)
+	if err != nil {
+		t.Fatalf("Failed to parse API Blueprint: %v", err)
+	}
+	spec, ok := s.(*OpenAPI)
+	if !ok {
+		t.Fatalf("Expected *OpenAPI, got %T", s)
+	}
+
+	// 2. Convert to AsyncAPI 2.6 with Kafka protocol
+	asyncSpec, err := spec.ToAsyncAPI(ProtocolKafka)
+	if err != nil {
+		t.Fatalf("Failed to convert to AsyncAPI: %v", err)
+	}
+
+	// 3. Verify AsyncAPI structure
+	if asyncSpec.AsyncAPI != AsyncAPIVersion26 {
+		t.Errorf("Expected AsyncAPI version %s, got %s", AsyncAPIVersion26, asyncSpec.AsyncAPI)
+	}
+
+	if len(asyncSpec.Servers) == 0 {
+		t.Error("Expected servers to be defined")
+	} else {
+		// Check protocol
+		for _, server := range asyncSpec.Servers {
+			if server.Protocol != string(ProtocolKafka) {
+				t.Errorf("Expected protocol %s, got %s", ProtocolKafka, server.Protocol)
+			}
+		}
+	}
+
+	// Check channels mapping
+	// /events should become "events" channel (or similar depending on sanitization)
+	if len(asyncSpec.Channels) == 0 {
+		t.Error("Expected channels to be defined")
+	}
+	
+	// APIB GET /events -> Subscribe (receive) on "events" channel
+	found := false
+	for name, channel := range asyncSpec.Channels {
+		if strings.Contains(name, "events") {
+			found = true
+			if channel.Subscribe == nil {
+				t.Error("Expected Subscribe operation for GET action")
+			}
+		}
+	}
+	if !found {
+		t.Error("Channel 'events' not found in AsyncAPI output")
 	}
 }

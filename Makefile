@@ -59,10 +59,7 @@ lint-fix:
 
 # Building
 build:
-	go build -o apibconv ./cmd/apibconv
-
-build-cmd:
-	go build -o apibconv ./cmd/apibconv
+	go build -o apibconv .
 
 # Validation (using the tool itself)
 validate:
@@ -84,6 +81,8 @@ doc-all:
 	@echo "\n=== Converter Package ==="
 	@go doc github.com/amer8/apibconv/converter
 	@echo "\n=== Converter Types ==="
+	@go doc github.com/amer8/apibconv/converter.Spec
+	@go doc github.com/amer8/apibconv/converter.Parse
 	@go doc github.com/amer8/apibconv/converter.OpenAPI
 	@echo "\n=== OpenAPI → API Blueprint Functions ==="
 	@go doc github.com/amer8/apibconv/converter.Convert
@@ -137,7 +136,6 @@ help:
 	@echo ""
 	@echo "Building:"
 	@echo "  build             - Build from root main.go"
-	@echo "  build-cmd         - Build from cmd/apibconv"
 	@echo ""
 	@echo "Documentation:"
 	@echo "  doc               - View main package documentation"
