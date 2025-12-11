@@ -527,25 +527,137 @@ func TestValidateFlags(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Save and restore flag values
+			// Create a new FlagSet for this test
+			fs := flag.NewFlagSet(tt.name, flag.ContinueOnError)
+			configureFlags(fs)
+
+			// Save and restore global flag variables that configureFlags sets
 			oldInput := inputFile
 			oldOutput := outputFile
 			oldFormat := encodingFormat
+			oldShowVersion := showVersion
+			oldShowHelp := showHelp
+
 			defer func() {
 				inputFile = oldInput
 				outputFile = oldOutput
 				encodingFormat = oldFormat
+				showVersion = oldShowVersion
+				showHelp = oldShowHelp
 			}()
 
 			inputFile = tt.inputFile
 			outputFile = tt.outputFile
 			encodingFormat = tt.format
+			showVersion = false // Ensure showVersion is false for these tests
+			showHelp = false    // Ensure showHelp is false for these tests
 
 			err := validateFlags()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("validateFlags() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
+	}
+}
+
+func TestRunVersionWithoutOutputFlag(t *testing.T) {
+	// Mock usage to suppress output
+	origUsage := flag.Usage
+	defer func() { flag.Usage = origUsage }()
+	flag.Usage = func() {}
+
+	// Save and restore global flag variables
+	oldShowVersion := showVersion
+	oldInputFile := inputFile
+	oldOutputFile := outputFile
+
+	defer func() {
+		showVersion = oldShowVersion
+		inputFile = oldInputFile
+		outputFile = oldOutputFile
+	}()
+
+	// Simulate command-line arguments for "apibconv -v"
+	oldArgs := os.Args
+	os.Args = []string{"apibconv", "-v"}
+	defer func() { os.Args = oldArgs }()
+
+	// Reset flags before calling Run to ensure a clean state for internal flag parsing
+	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+
+	// Call Run directly with a dummy version
+	exitCode := Run("test-version")
+
+	if exitCode != 0 {
+		t.Errorf("Run() with -v flag and no output file exit code = %d, want 0", exitCode)
+	}
+}
+
+func TestRunHelpFlag(t *testing.T) {
+	// Mock usage to suppress output
+	origUsage := flag.Usage
+	defer func() { flag.Usage = origUsage }()
+	flag.Usage = func() {}
+
+	// Save and restore global flag variables that Run modifies
+	oldShowHelp := showHelp
+	oldInputFile := inputFile
+	oldOutputFile := outputFile
+
+	defer func() {
+		showHelp = oldShowHelp
+		inputFile = oldInputFile
+		outputFile = oldOutputFile
+	}()
+
+	// Simulate command-line arguments for "apibconv --help"
+	oldArgs := os.Args
+	os.Args = []string{"apibconv", "--help"}
+	defer func() { os.Args = oldArgs }()
+
+	// Reset flags before calling Run to ensure a clean state for internal flag parsing
+	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+
+	// Call Run directly with a dummy version (version string is not relevant for help)
+	exitCode := Run("test-version")
+
+	if exitCode != 0 {
+		t.Errorf("Run() with --help flag exit code = %d, want 0", exitCode)
+	}
+}
+
+func TestRunValidateWithPositionalArg(t *testing.T) {
+	// Mock usage to suppress output
+	origUsage := flag.Usage
+	defer func() { flag.Usage = origUsage }()
+	flag.Usage = func() {}
+
+	// Create a dummy input file (valid OpenAPI spec to ensure exit code 0)
+	tmpfile := createTempFile(t, `{"openapi":"3.0.0","info":{"title":"Test","version":"1.0.0"},"paths":{}}`, ".json")
+	defer func() { _ = os.Remove(tmpfile) }()
+
+	// Save and restore global flag variables
+	oldInputFile := inputFile
+	oldValidateOnly := validateOnly
+
+	defer func() {
+		inputFile = oldInputFile
+		validateOnly = oldValidateOnly
+	}()
+
+	// Simulate command-line arguments: apibconv <file> --validate
+	oldArgs := os.Args
+	os.Args = []string{"apibconv", tmpfile, "--validate"}
+	defer func() { os.Args = oldArgs }()
+
+	// Reset flags
+	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+
+	// Call Run
+	exitCode := Run("test-version")
+
+	if exitCode != 0 {
+		t.Errorf("Run() with positional file and --validate failed, exit code = %d", exitCode)
 	}
 }
 
@@ -605,7 +717,7 @@ func TestRunValidation(t *testing.T) {
 	defer func() { inputFile = oldInput }()
 
 	inputFile = tmpfile
-	exitCode := runValidation()
+	exitCode := runValidation(func() {})
 	if exitCode != 0 {
 		t.Errorf("runValidation() for valid spec = %d, want 0", exitCode)
 	}
@@ -626,14 +738,14 @@ func TestRunValidationInvalid(t *testing.T) {
 	defer func() { inputFile = oldInput }()
 
 	inputFile = tmpfile
-	exitCode := runValidation()
+	exitCode := runValidation(func() {})
 	if exitCode != 1 {
 		t.Errorf("runValidation() for invalid spec = %d, want 1", exitCode)
 	}
 }
 
 func TestRunValidationMissingFile(t *testing.T) {
-	// Mock usage to suppress output                                                                                                                           │
+	// Mock usage to suppress output
 	origUsage := flag.Usage
 	defer func() { flag.Usage = origUsage }()
 	flag.Usage = func() {}
@@ -642,7 +754,7 @@ func TestRunValidationMissingFile(t *testing.T) {
 	defer func() { inputFile = oldInput }()
 
 	inputFile = ""
-	exitCode := runValidation()
+	exitCode := runValidation(func() {})
 	if exitCode != 1 {
 		t.Errorf("runValidation() with no input = %d, want 1", exitCode)
 	}

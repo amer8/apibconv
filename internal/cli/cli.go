@@ -94,11 +94,32 @@ var (
 // Run is the entry point for the CLI logic.
 // It accepts the version string (usually set by linker flags in main package).
 func Run(version string) int {
-	configureFlags()
-	flag.Parse()
+	cmdLine := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+	configureFlags(cmdLine)
+
+	var positionalArgs []string
+	args := os.Args[1:]
+
+	for len(args) > 0 {
+		if err := cmdLine.Parse(args); err != nil {
+			if err == flag.ErrHelp {
+				return 0 // Handled by flag.Usage in configureFlags
+			}
+			return 1
+		}
+
+		remaining := cmdLine.Args()
+		if len(remaining) > 0 {
+			// The first remaining argument is a positional argument (non-flag)
+			positionalArgs = append(positionalArgs, remaining[0])
+			args = remaining[1:]
+		} else {
+			break
+		}
+	}
 
 	if showHelp {
-		flag.Usage()
+		cmdLine.Usage()
 		return 0
 	}
 
@@ -108,7 +129,7 @@ func Run(version string) int {
 	}
 
 	// Handle positional arguments and stdin
-	cleanup, err := handleInput()
+	cleanup, err := handleInput(positionalArgs)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error handling input: %v\n", err)
 		return 1
@@ -117,12 +138,12 @@ func Run(version string) int {
 
 	// Validation mode
 	if validateOnly {
-		return runValidation()
+		return runValidation(cmdLine.Usage)
 	}
 
 	if err := validateFlags(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		flag.Usage()
+		cmdLine.Usage()
 		return 1
 	}
 
@@ -158,9 +179,8 @@ func Run(version string) int {
 }
 
 // handleInput processes positional arguments and stdin input
-func handleInput() (func(), error) {
+func handleInput(args []string) (func(), error) {
 	// Handle positional arguments
-	args := flag.Args()
 	if len(args) > 0 {
 		inputFile = args[0]
 	}
@@ -209,44 +229,33 @@ func setDefaults() {
 	}
 }
 
-func configureFlags() {
-	// Reset flag.CommandLine to avoid double registration in tests or if Run is called multiple times
-	// although for this refactoring it's not strictly necessary, it's safer.
-	// However, we can't easily reset flag.CommandLine without assigning a NewFlagSet.
-	// But standard flag usage relies on init() or main() running once.
-	// We'll assume Run is called once.
+func configureFlags(fs *flag.FlagSet) {
+	fs.StringVar(&inputFile, "f", "", "Input specification file")
+	fs.StringVar(&inputFile, "file", "", "Input specification file")
 
-	// We need to check if flags are already defined to avoid panic "flag redefined"
-	if flag.Lookup("f") != nil {
-		return
-	}
+	fs.StringVar(&outputFile, "o", "", "Output file path")
+	fs.StringVar(&outputFile, "output", "", "Output file path")
 
-	flag.StringVar(&inputFile, "f", "", "Input specification file")
-	flag.StringVar(&inputFile, "file", "", "Input specification file")
+	fs.StringVar(&encodingFormat, "e", "", "Output encoding: json, yaml")
+	fs.StringVar(&encodingFormat, "encoding", "", "Output encoding: json, yaml")
 
-	flag.StringVar(&outputFile, "o", "", "Output file path")
-	flag.StringVar(&outputFile, "output", "", "Output file path")
+	fs.StringVar(&outputFormat, "to", "", "Target specification format: openapi, asyncapi, apib")
 
-	flag.StringVar(&encodingFormat, "e", "", "Output encoding: json, yaml")
-	flag.StringVar(&encodingFormat, "encoding", "", "Output encoding: json, yaml")
+	fs.StringVar(&openapiVersion, "openapi-version", defaultOpenAPIVersion, "OpenAPI target version: 3.0, 3.1")
 
-	flag.StringVar(&outputFormat, "to", "", "Target specification format: openapi, asyncapi, apib")
+	fs.StringVar(&asyncapiVersion, "asyncapi-version", defaultAsyncAPIVersion, "AsyncAPI target version: 2.6, 3.0")
 
-	flag.StringVar(&openapiVersion, "openapi-version", defaultOpenAPIVersion, "OpenAPI target version: 3.0, 3.1")
+	fs.StringVar(&protocol, "protocol", "", "Protocol for AsyncAPI: ws, mqtt, kafka, amqp, http")
 
-	flag.StringVar(&asyncapiVersion, "asyncapi-version", defaultAsyncAPIVersion, "AsyncAPI target version: 2.6, 3.0")
+	fs.BoolVar(&validateOnly, "validate", false, "Validate input without converting")
 
-	flag.StringVar(&protocol, "protocol", "", "Protocol for AsyncAPI: ws, mqtt, kafka, amqp, http")
+	fs.BoolVar(&showVersion, "v", false, "Print version information")
+	fs.BoolVar(&showVersion, "version", false, "Print version information")
 
-	flag.BoolVar(&validateOnly, "validate", false, "Validate input without converting")
+	fs.BoolVar(&showHelp, "h", false, "Show this help message")
+	fs.BoolVar(&showHelp, "help", false, "Show this help message")
 
-	flag.BoolVar(&showVersion, "v", false, "Print version information")
-	flag.BoolVar(&showVersion, "version", false, "Print version information")
-
-	flag.BoolVar(&showHelp, "h", false, "Show this help message")
-	flag.BoolVar(&showHelp, "help", false, "Show this help message")
-
-	flag.Usage = func() {
+	fs.Usage = func() {
 		w := os.Stderr
 
 		p := func(s string) {
@@ -299,10 +308,10 @@ func configureFlags() {
 }
 
 // runValidation validates the input specification without conversion
-func runValidation() int {
+func runValidation(usageFunc func()) int {
 	if inputFile == "" {
 		fmt.Fprintln(os.Stderr, "Error: input file is required for validation (provide as argument or pipe via stdin)")
-		flag.Usage()
+		usageFunc()
 		return 1
 	}
 
@@ -360,7 +369,8 @@ func validateFlags() error {
 	if inputFile == "" {
 		return fmt.Errorf("input file is required (provide as argument or pipe via stdin)")
 	}
-	if outputFile == "" {
+	// outputFile is not required when only showing version
+	if outputFile == "" && !showVersion {
 		return fmt.Errorf("output file (-o) is required")
 	}
 
