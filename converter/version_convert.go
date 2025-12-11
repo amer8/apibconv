@@ -142,7 +142,7 @@ func convertSchemaToV31(schema *Schema) {
 	if schema.Nullable && schema.Type != nil {
 		// Check if Type is a string
 		if typeStr, ok := schema.Type.(string); ok && typeStr != "" {
-			schema.Type = []interface{}{typeStr, TypeNull}
+			schema.Type = []any{typeStr, TypeNull}
 			schema.Nullable = false
 		}
 	}
@@ -179,7 +179,7 @@ func convertSchemaToV30(schema *Schema) {
 	// Convert type array to nullable
 	if schema.Type != nil {
 		// Check if Type is an array (slice)
-		if typeArray, ok := schema.Type.([]interface{}); ok {
+		if typeArray, ok := schema.Type.([]any); ok {
 			// Look for ["type", "null"] pattern
 			var mainType string
 			hasNull := false
@@ -465,7 +465,7 @@ func deepCopySchema(schema *Schema) *Schema {
 	}
 
 	copied := &Schema{
-		Type:     schema.Type, // interface{} - will be copied by value
+		Type:     schema.Type, // any - will be copied by value
 		Nullable: schema.Nullable,
 		Example:  schema.Example,
 		Const:    schema.Const,
@@ -501,93 +501,4 @@ func deepCopySchema(schema *Schema) *Schema {
 	}
 
 	return copied
-}
-
-// GetSchemaType returns the primary type of a schema as a string.
-//
-// In OpenAPI 3.0, Type is always a string.
-// In OpenAPI 3.1, Type can be a string or []string.
-// This helper extracts the primary (non-null) type.
-func GetSchemaType(schema *Schema) string {
-	if schema == nil || schema.Type == nil {
-		return ""
-	}
-
-	// Handle string type
-	if typeStr, ok := schema.Type.(string); ok {
-		return typeStr
-	}
-
-	// Handle array type (3.1)
-	if typeArr, ok := schema.Type.([]interface{}); ok {
-		for _, t := range typeArr {
-			if tStr, ok := t.(string); ok && tStr != TypeNull {
-				return tStr
-			}
-		}
-	}
-
-	return ""
-}
-
-// IsNullable returns true if a schema allows null values.
-//
-// In OpenAPI 3.0, this is indicated by nullable: true.
-// In OpenAPI 3.1, this is indicated by type: [..., "null"].
-func IsNullable(schema *Schema) bool {
-	if schema == nil {
-		return false
-	}
-
-	// Check 3.0 style nullable
-	if schema.Nullable {
-		return true
-	}
-
-	// Check 3.1 style type array
-	if typeArr, ok := schema.Type.([]interface{}); ok {
-		for _, t := range typeArr {
-			if tStr, ok := t.(string); ok && tStr == TypeNull {
-				return true
-			}
-		}
-	}
-
-	return false
-}
-
-// NormalizeSchemaType ensures schema.Type is properly formatted for JSON marshaling.
-//
-// This is useful when you've manipulated the Type field and want to ensure
-// it's in the correct format for the target OpenAPI version.
-func NormalizeSchemaType(schema *Schema, version Version) {
-	if schema == nil || schema.Type == nil {
-		return
-	}
-
-	// For 3.0, ensure Type is a string
-	if version == Version30 {
-		typeStr := GetSchemaType(schema)
-		if typeStr != "" {
-			schema.Type = typeStr
-		}
-	}
-
-	// For 3.1, convert to array if nullable
-	if version == Version31 && schema.Nullable {
-		typeStr := GetSchemaType(schema)
-		if typeStr != "" {
-			schema.Type = []interface{}{typeStr, TypeNull}
-			schema.Nullable = false
-		}
-	}
-
-	// Recursively normalize nested schemas
-	for _, prop := range schema.Properties {
-		NormalizeSchemaType(prop, version)
-	}
-
-	if schema.Items != nil {
-		NormalizeSchemaType(schema.Items, version)
-	}
 }

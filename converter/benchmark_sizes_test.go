@@ -61,7 +61,7 @@ func generateOpenAPISpec(numPaths, operationsPerPath int) *OpenAPI {
 										"data": {Type: "object"},
 									},
 								},
-								Example: map[string]interface{}{
+								Example: map[string]any{
 									"id":   "123",
 									"name": "Example",
 									"data": map[string]string{"key": "value"},

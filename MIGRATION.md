@@ -46,6 +46,7 @@ bp := spec.ToBlueprint()
 
 The old functions are kept as deprecated aliases for backward compatibility but may be removed in future versions.
 
+
 ## From 0.1.x to 0.2.x
 
 ### CLI Flag Changes

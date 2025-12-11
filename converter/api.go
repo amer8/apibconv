@@ -149,6 +149,8 @@ func ParseReader(r io.Reader) (*OpenAPI, error) {
 // markdown format. It uses zero-allocation buffer pooling internally for efficient
 // memory usage.
 //
+// Deprecated: Use OpenAPI.ToBlueprint instead.
+//
 // Parameters:
 //   - spec: A parsed OpenAPI structure (must not be nil)
 //
@@ -194,6 +196,8 @@ func Format(spec *OpenAPI) (string, error) {
 // This is the streaming version of Format, useful when you want to write directly
 // to a file, network connection, or other io.Writer without allocating an intermediate
 // string. It's more memory-efficient for large specifications.
+//
+// Deprecated: Use OpenAPI.WriteBlueprint instead.
 //
 // Parameters:
 //   - spec: A parsed OpenAPI structure (must not be nil)

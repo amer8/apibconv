@@ -10,7 +10,7 @@ func TestRun(t *testing.T) {
 	// Save original state
 	oldArgs := os.Args
 	oldCommandLine := flag.CommandLine
-	
+
 	// Restore original state after tests
 	defer func() {
 		os.Args = oldArgs
@@ -190,26 +190,26 @@ func TestRun_Stdin(t *testing.T) {
 	// However, the Run function checks for os.ModeCharDevice on os.Stdin.Stat().
 	// This makes it hard to test stdin redirection in a unit test without mocking os.Stdin which is not easily done in Go.
 	// But we can skip the ModeCharDevice check if we were using a custom interface, but we are using os package directly.
-	
+
 	// If we pipe in the test runner, the ModeCharDevice bit is cleared.
 	// Let's try to mock stdin by creating a pipe.
-	
+
 	r, w, err := os.Pipe()
 	if err != nil {
 		t.Fatal(err)
 	}
-	
+
 	oldStdin := os.Stdin
 	defer func() { os.Stdin = oldStdin }()
-	
+
 	os.Stdin = r
-	
+
 	// Write content to pipe
 	go func() {
 		_, _ = w.WriteString(`{"openapi": "3.0.0", "info": {"title": "Test", "version": "1.0"}, "paths": {}}`)
 		_ = w.Close()
 	}()
-	
+
 	// Setup test environment
 	oldArgs := os.Args
 	oldCommandLine := flag.CommandLine
@@ -217,24 +217,24 @@ func TestRun_Stdin(t *testing.T) {
 		os.Args = oldArgs
 		flag.CommandLine = oldCommandLine
 	}()
-	
+
 	// Reset flags
 	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 	inputFile = ""
 	outputFile = ""
 	validateOnly = false
-	
+
 	// Set args to validate only (reads from stdin if no file)
 	os.Args = []string{"apibconv", "--validate"}
-	
+
 	// Capture output
 	oldStdout := os.Stdout
 	os.Stdout, _ = os.Open(os.DevNull) // discard stdout
 	defer func() { os.Stdout = oldStdout }()
-	
+
 	// Run
 	exitCode := Run("test")
-	
+
 	if exitCode != 0 {
 		t.Errorf("Run() with stdin exit code = %d, want 0", exitCode)
 	}

@@ -40,7 +40,7 @@ const (
 //	    log.Fatal(err)
 //	}
 //	fmt.Println(string(yamlBytes))
-func MarshalYAML(v interface{}) ([]byte, error) {
+func MarshalYAML(v any) ([]byte, error) {
 	// First convert to JSON to normalize the structure
 	jsonBytes, err := json.Marshal(v)
 	if err != nil {
@@ -48,7 +48,7 @@ func MarshalYAML(v interface{}) ([]byte, error) {
 	}
 
 	// Parse JSON into a generic structure
-	var data interface{}
+	var data any
 	if err := json.Unmarshal(jsonBytes, &data); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal JSON: %w", err)
 	}
@@ -71,7 +71,7 @@ func MarshalYAML(v interface{}) ([]byte, error) {
 // Example:
 //
 //	yamlBytes, err := MarshalYAMLIndent(spec, 4)
-func MarshalYAMLIndent(v interface{}, indent int) ([]byte, error) {
+func MarshalYAMLIndent(v any, indent int) ([]byte, error) {
 	if indent <= 0 {
 		indent = 2
 	}
@@ -81,7 +81,7 @@ func MarshalYAMLIndent(v interface{}, indent int) ([]byte, error) {
 		return nil, fmt.Errorf("failed to marshal to JSON: %w", err)
 	}
 
-	var data interface{}
+	var data any
 	if err := json.Unmarshal(jsonBytes, &data); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal JSON: %w", err)
 	}
@@ -103,7 +103,7 @@ func MarshalYAMLIndent(v interface{}, indent int) ([]byte, error) {
 //	if err := EncodeYAML(file, spec); err != nil {
 //	    log.Fatal(err)
 //	}
-func EncodeYAML(w io.Writer, v interface{}) error {
+func EncodeYAML(w io.Writer, v any) error {
 	yamlBytes, err := MarshalYAML(v)
 	if err != nil {
 		return err
@@ -113,12 +113,12 @@ func EncodeYAML(w io.Writer, v interface{}) error {
 }
 
 // writeYAML writes a value as YAML with the given indentation level.
-func writeYAML(buf *bytes.Buffer, v interface{}, level int) error {
+func writeYAML(buf *bytes.Buffer, v any, level int) error {
 	return writeYAMLWithIndent(buf, v, level, 2)
 }
 
 // writeYAMLWithIndent writes a value as YAML with custom indentation.
-func writeYAMLWithIndent(buf *bytes.Buffer, v interface{}, level, indent int) error {
+func writeYAMLWithIndent(buf *bytes.Buffer, v any, level, indent int) error {
 	switch val := v.(type) {
 	case nil:
 		buf.WriteString("null")
@@ -128,9 +128,9 @@ func writeYAMLWithIndent(buf *bytes.Buffer, v interface{}, level, indent int) er
 		writeYAMLNumber(buf, val)
 	case string:
 		writeYAMLString(buf, val)
-	case []interface{}:
+	case []any:
 		return writeYAMLArray(buf, val, level, indent)
-	case map[string]interface{}:
+	case map[string]any:
 		return writeYAMLMapValue(buf, val, level, indent)
 	default:
 		return writeYAMLFallback(buf, val)
@@ -157,7 +157,7 @@ func writeYAMLNumber(buf *bytes.Buffer, val float64) {
 }
 
 // writeYAMLArray writes an array value.
-func writeYAMLArray(buf *bytes.Buffer, val []interface{}, level, indent int) error {
+func writeYAMLArray(buf *bytes.Buffer, val []any, level, indent int) error {
 	if len(val) == 0 {
 		buf.WriteString("[]")
 		return nil
@@ -184,7 +184,7 @@ func writeYAMLArray(buf *bytes.Buffer, val []interface{}, level, indent int) err
 }
 
 // writeYAMLMapValue writes a map value, handling empty maps.
-func writeYAMLMapValue(buf *bytes.Buffer, val map[string]interface{}, level, indent int) error {
+func writeYAMLMapValue(buf *bytes.Buffer, val map[string]any, level, indent int) error {
 	if len(val) == 0 {
 		buf.WriteString("{}")
 		return nil
@@ -193,7 +193,7 @@ func writeYAMLMapValue(buf *bytes.Buffer, val map[string]interface{}, level, ind
 }
 
 // writeYAMLFallback handles unknown types by converting to JSON.
-func writeYAMLFallback(buf *bytes.Buffer, val interface{}) error {
+func writeYAMLFallback(buf *bytes.Buffer, val any) error {
 	jsonBytes, err := json.Marshal(val)
 	if err != nil {
 		return err
@@ -203,14 +203,14 @@ func writeYAMLFallback(buf *bytes.Buffer, val interface{}) error {
 }
 
 // writeYAMLMap writes a map as YAML.
-func writeYAMLMap(buf *bytes.Buffer, m map[string]interface{}, level, indent int) error {
+func writeYAMLMap(buf *bytes.Buffer, m map[string]any, level, indent int) error {
 	keys := sortedKeys(m)
 	return writeYAMLMapEntries(buf, m, keys, level, indent)
 }
 
 // writeYAMLMapInline writes map contents after an array item marker.
-func writeYAMLMapInline(buf *bytes.Buffer, v interface{}, level, indent int) error {
-	m, ok := v.(map[string]interface{})
+func writeYAMLMapInline(buf *bytes.Buffer, v any, level, indent int) error {
+	m, ok := v.(map[string]any)
 	if !ok {
 		return writeYAMLWithIndent(buf, v, level, indent)
 	}
@@ -219,7 +219,7 @@ func writeYAMLMapInline(buf *bytes.Buffer, v interface{}, level, indent int) err
 }
 
 // sortedKeys returns the keys of a map sorted alphabetically.
-func sortedKeys(m map[string]interface{}) []string {
+func sortedKeys(m map[string]any) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)
@@ -229,7 +229,7 @@ func sortedKeys(m map[string]interface{}) []string {
 }
 
 // writeYAMLMapEntries writes map entries with the given keys.
-func writeYAMLMapEntries(buf *bytes.Buffer, m map[string]interface{}, keys []string, level, indent int) error {
+func writeYAMLMapEntries(buf *bytes.Buffer, m map[string]any, keys []string, level, indent int) error {
 	first := true
 	for _, key := range keys {
 		val := m[key]
@@ -249,9 +249,9 @@ func writeYAMLMapEntries(buf *bytes.Buffer, m map[string]interface{}, keys []str
 }
 
 // writeYAMLMapEntry writes a single map entry value.
-func writeYAMLMapEntry(buf *bytes.Buffer, val interface{}, level, indent int) error {
+func writeYAMLMapEntry(buf *bytes.Buffer, val any, level, indent int) error {
 	switch v := val.(type) {
-	case map[string]interface{}:
+	case map[string]any:
 		if len(v) == 0 {
 			buf.WriteString(" {}\n")
 		} else {
@@ -261,7 +261,7 @@ func writeYAMLMapEntry(buf *bytes.Buffer, val interface{}, level, indent int) er
 				return err
 			}
 		}
-	case []interface{}:
+	case []any:
 		if len(v) == 0 {
 			buf.WriteString(" []\n")
 		} else {
@@ -390,11 +390,11 @@ func escapeString(s string) string {
 }
 
 // isComplexType returns true if the value is a map or non-empty slice.
-func isComplexType(v interface{}) bool {
+func isComplexType(v any) bool {
 	switch val := v.(type) {
-	case map[string]interface{}:
+	case map[string]any:
 		return len(val) > 0
-	case []interface{}:
+	case []any:
 		return false // Arrays within arrays use inline format
 	default:
 		return false

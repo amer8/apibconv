@@ -202,6 +202,8 @@ func ParseAsync(data []byte) (*AsyncAPI, error) {
 }
 
 // ParseAsyncAPI is a deprecated alias for ParseAsync.
+//
+// Deprecated: Use ParseAsync instead.
 func ParseAsyncAPI(data []byte) (*AsyncAPI, error) {
 	return ParseAsync(data)
 }
@@ -232,6 +234,8 @@ func ParseAsyncReader(r io.Reader) (*AsyncAPI, error) {
 }
 
 // ParseAsyncAPIReader is a deprecated alias for ParseAsyncReader.
+//
+// Deprecated: Use ParseAsyncReader instead.
 func ParseAsyncAPIReader(r io.Reader) (*AsyncAPI, error) {
 	return ParseAsyncReader(r)
 }
@@ -256,7 +260,21 @@ func ParseAsyncAPIReader(r io.Reader) (*AsyncAPI, error) {
 func (spec *AsyncAPI) ToBlueprint() string {
 	buf := getBuffer()
 	defer putBuffer(buf)
+	writeAsyncAPIBlueprint(buf, spec)
+	return buf.String()
+}
 
+// WriteBlueprint writes the AsyncAPI specification in API Blueprint format to the writer.
+func (spec *AsyncAPI) WriteBlueprint(w io.Writer) error {
+	buf := getBuffer()
+	defer putBuffer(buf)
+	writeAsyncAPIBlueprint(buf, spec)
+	_, err := w.Write(buf.Bytes())
+	return err
+}
+
+// writeAsyncAPIBlueprint writes the API Blueprint format to the buffer
+func writeAsyncAPIBlueprint(buf *bytes.Buffer, spec *AsyncAPI) {
 	// Write header
 	buf.WriteString(APIBlueprintFormat + "\n\n")
 
@@ -299,11 +317,11 @@ func (spec *AsyncAPI) ToBlueprint() string {
 		channel := spec.Channels[channelName]
 		writeAsyncAPIChannel(buf, channelName, channel)
 	}
-
-	return buf.String()
 }
 
 // AsyncAPIToAPIBlueprint is a deprecated alias for AsyncAPI.ToBlueprint.
+//
+// Deprecated: Use AsyncAPI.ToBlueprint instead.
 func AsyncAPIToAPIBlueprint(spec *AsyncAPI) string {
 	return spec.ToBlueprint()
 }
@@ -509,6 +527,8 @@ func (spec *OpenAPI) ToAsyncAPI(protocol string) *AsyncAPI {
 }
 
 // APIBlueprintToAsyncAPI is a deprecated alias for OpenAPI.ToAsyncAPI.
+//
+// Deprecated: Use OpenAPI.ToAsyncAPI instead.
 func APIBlueprintToAsyncAPI(spec *OpenAPI, protocol string) *AsyncAPI {
 	return spec.ToAsyncAPI(protocol)
 }
@@ -754,6 +774,8 @@ func ParseAsyncV3(data []byte) (*AsyncAPIV3, error) {
 }
 
 // ParseAsyncAPIV3 is a deprecated alias for ParseAsyncV3.
+//
+// Deprecated: Use ParseAsyncV3 instead.
 func ParseAsyncAPIV3(data []byte) (*AsyncAPIV3, error) {
 	return ParseAsyncV3(data)
 }
@@ -781,6 +803,8 @@ func ParseAsyncV3Reader(r io.Reader) (*AsyncAPIV3, error) {
 }
 
 // ParseAsyncAPIV3Reader is a deprecated alias for ParseAsyncV3Reader.
+//
+// Deprecated: Use ParseAsyncV3Reader instead.
 func ParseAsyncAPIV3Reader(r io.Reader) (*AsyncAPIV3, error) {
 	return ParseAsyncV3Reader(r)
 }
@@ -801,7 +825,21 @@ func ParseAsyncAPIV3Reader(r io.Reader) (*AsyncAPIV3, error) {
 func (spec *AsyncAPIV3) ToBlueprint() string {
 	buf := getBuffer()
 	defer putBuffer(buf)
+	writeAsyncAPIV3Blueprint(buf, spec)
+	return buf.String()
+}
 
+// WriteBlueprint writes the AsyncAPI 3.0 specification in API Blueprint format to the writer.
+func (spec *AsyncAPIV3) WriteBlueprint(w io.Writer) error {
+	buf := getBuffer()
+	defer putBuffer(buf)
+	writeAsyncAPIV3Blueprint(buf, spec)
+	_, err := w.Write(buf.Bytes())
+	return err
+}
+
+// writeAsyncAPIV3Blueprint writes the API Blueprint format to the buffer
+func writeAsyncAPIV3Blueprint(buf *bytes.Buffer, spec *AsyncAPIV3) {
 	// Write header
 	buf.WriteString(APIBlueprintFormat + "\n\n")
 
@@ -861,11 +899,11 @@ func (spec *AsyncAPIV3) ToBlueprint() string {
 		ops := channelOps[channelID]
 		writeAsyncAPIV3Channel(buf, channelID, channel, ops)
 	}
-
-	return buf.String()
 }
 
 // AsyncAPIV3ToAPIBlueprint is a deprecated alias for AsyncAPIV3.ToBlueprint.
+//
+// Deprecated: Use AsyncAPIV3.ToBlueprint instead.
 func AsyncAPIV3ToAPIBlueprint(spec *AsyncAPIV3) string {
 	return spec.ToBlueprint()
 }
@@ -1094,6 +1132,8 @@ func (spec *OpenAPI) ToAsyncAPIV3(protocol string) *AsyncAPIV3 {
 }
 
 // APIBlueprintToAsyncAPIV3 is a deprecated alias for OpenAPI.ToAsyncAPIV3.
+//
+// Deprecated: Use OpenAPI.ToAsyncAPIV3 instead.
 func APIBlueprintToAsyncAPIV3(spec *OpenAPI, protocol string) *AsyncAPIV3 {
 	return spec.ToAsyncAPIV3(protocol)
 }
@@ -1245,7 +1285,7 @@ func ConvertAPIBlueprintToAsyncAPIV3(r io.Reader, w io.Writer, protocol string) 
 //	case 3:
 //	    v3Spec := spec.(*AsyncAPIV3)
 //	}
-func ParseAsyncAPIAny(data []byte) (spec interface{}, version int, err error) {
+func ParseAsyncAPIAny(data []byte) (spec any, version int, err error) {
 	// First, detect version by parsing just the version field
 	var versionCheck struct {
 		AsyncAPI string `json:"asyncapi"`

@@ -200,8 +200,8 @@ func TestEncodeYAML(t *testing.T) {
 }
 
 func TestMarshalYAML_EmptyMap(t *testing.T) {
-	data := map[string]interface{}{
-		"empty": map[string]interface{}{},
+	data := map[string]any{
+		"empty": map[string]any{},
 	}
 
 	yamlBytes, err := MarshalYAML(data)
@@ -216,8 +216,8 @@ func TestMarshalYAML_EmptyMap(t *testing.T) {
 }
 
 func TestMarshalYAML_EmptyArray(t *testing.T) {
-	data := map[string]interface{}{
-		"empty": []interface{}{},
+	data := map[string]any{
+		"empty": []any{},
 	}
 
 	yamlBytes, err := MarshalYAML(data)
@@ -232,7 +232,7 @@ func TestMarshalYAML_EmptyArray(t *testing.T) {
 }
 
 func TestMarshalYAML_Numbers(t *testing.T) {
-	data := map[string]interface{}{
+	data := map[string]any{
 		"integer": float64(42),
 		"float":   3.14159,
 	}
@@ -252,7 +252,7 @@ func TestMarshalYAML_Numbers(t *testing.T) {
 }
 
 func TestMarshalYAML_BoolAndNull(t *testing.T) {
-	data := map[string]interface{}{
+	data := map[string]any{
 		"trueVal":  true,
 		"falseVal": false,
 		"nullVal":  nil,

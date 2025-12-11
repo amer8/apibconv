@@ -16,8 +16,8 @@ import (
 //   - Supports common YAML features used in OpenAPI/AsyncAPI.
 //   - Does not support complex keys, anchors, or tags.
 //   - Assumes consistent indentation (spaces only).
-func UnmarshalYAML(data []byte, v interface{}) error {
-	// 1. Parse YAML to generic interface{} (map/slice/scalar)
+func UnmarshalYAML(data []byte, v any) error {
+	// 1. Parse YAML to generic any (map/slice/scalar)
 	parsed, err := parseYAML(data)
 	if err != nil {
 		return err
@@ -36,7 +36,7 @@ func UnmarshalYAML(data []byte, v interface{}) error {
 }
 
 // UnmarshalYAMLReader parses YAML from an io.Reader.
-func UnmarshalYAMLReader(r io.Reader, v interface{}) error {
+func UnmarshalYAMLReader(r io.Reader, v any) error {
 	data, err := io.ReadAll(r)
 	if err != nil {
 		return err
@@ -48,7 +48,7 @@ func UnmarshalYAMLReader(r io.Reader, v interface{}) error {
 // Simplified YAML Parser
 // ============================================================================
 
-func parseYAML(data []byte) (interface{}, error) {
+func parseYAML(data []byte) (any, error) {
 	parser := newYamlParser(data)
 	return parser.parse()
 }
@@ -71,11 +71,11 @@ func newYamlParser(data []byte) *yamlParser {
 	}
 }
 
-func (p *yamlParser) parse() (interface{}, error) {
+func (p *yamlParser) parse() (any, error) {
 	// Detect if root is array or map based on first meaningful line
 	line, indent, _, ok := p.peek()
 	if !ok {
-		return make(map[string]interface{}), nil
+		return make(map[string]any), nil
 	}
 
 	// If starts with dash, it's an array
@@ -88,8 +88,8 @@ func (p *yamlParser) parse() (interface{}, error) {
 }
 
 // parseMap parses a YAML map at the given indentation level.
-func (p *yamlParser) parseMap(minIndent int) (map[string]interface{}, error) {
-	result := make(map[string]interface{})
+func (p *yamlParser) parseMap(minIndent int) (map[string]any, error) {
+	result := make(map[string]any)
 
 	for {
 		_, indent, trimmed, ok := p.peek()
@@ -127,7 +127,7 @@ func (p *yamlParser) parseMap(minIndent int) (map[string]interface{}, error) {
 }
 
 // parseMapEntry parses a single key-value pair in a map.
-func (p *yamlParser) parseMapEntry(indent int, trimmed string) (key string, val interface{}, err error) {
+func (p *yamlParser) parseMapEntry(indent int, trimmed string) (key string, val any, err error) {
 	// Expect "key: value"
 	parts := strings.SplitN(trimmed, ":", 2)
 	if len(parts) < 1 {
@@ -163,7 +163,7 @@ func (p *yamlParser) parseMapEntry(indent int, trimmed string) (key string, val 
 }
 
 // parseInlineValue parses a value found on the same line as the key.
-func (p *yamlParser) parseInlineValue(indent int, valueStr string) (interface{}, error) {
+func (p *yamlParser) parseInlineValue(indent int, valueStr string) (any, error) {
 	// Check for block scalar indicators
 	if isBlockScalar(valueStr) {
 		return p.parseBlockScalar(indent+1, valueStr) // Indent must be > key
@@ -173,7 +173,7 @@ func (p *yamlParser) parseInlineValue(indent int, valueStr string) (interface{},
 }
 
 // parseNestedValue parses a value starting on the next line (indented).
-func (p *yamlParser) parseNestedValue(parentIndent int) (interface{}, error) {
+func (p *yamlParser) parseNestedValue(parentIndent int) (any, error) {
 	_, nextIndent, nextTrimmed, nextOk := p.peek()
 	if !nextOk {
 		return nil, nil
@@ -191,8 +191,8 @@ func (p *yamlParser) parseNestedValue(parentIndent int) (interface{}, error) {
 }
 
 // parseArray parses a YAML array at the given indentation level.
-func (p *yamlParser) parseArray(minIndent int) ([]interface{}, error) {
-	result := make([]interface{}, 0)
+func (p *yamlParser) parseArray(minIndent int) ([]any, error) {
+	result := make([]any, 0)
 
 	for {
 		_, indent, trimmed, ok := p.peek()
@@ -215,7 +215,7 @@ func (p *yamlParser) parseArray(minIndent int) ([]interface{}, error) {
 }
 
 // parseArrayItem parses a single item in an array.
-func (p *yamlParser) parseArrayItem(indent int, trimmed string) (interface{}, error) {
+func (p *yamlParser) parseArrayItem(indent int, trimmed string) (any, error) {
 	content := strings.TrimSpace(strings.TrimPrefix(trimmed, "-"))
 
 	// Case 1: "- value" (Scalar or Flow) or "- key: value" (Compact Map)
@@ -236,14 +236,14 @@ func (p *yamlParser) parseArrayItem(indent int, trimmed string) (interface{}, er
 }
 
 // parseCompactMapItem parses an array item that is a compact map (starts on the same line as dash).
-func (p *yamlParser) parseCompactMapItem(indent int, content string) (map[string]interface{}, error) {
+func (p *yamlParser) parseCompactMapItem(indent int, content string) (map[string]any, error) {
 	p.advance() // Consume dash line
 
 	// Parse the first key-value pair from the dash line
 	parts := strings.SplitN(content, ":", 2)
 	key := unquoteYAMLString(strings.TrimSpace(parts[0]))
 
-	mapItem := make(map[string]interface{})
+	mapItem := make(map[string]any)
 
 	// Value of the first key
 	valStr := strings.TrimSpace(parts[1])
@@ -356,10 +356,10 @@ func isCompactMap(s string) bool {
 	return strings.Contains(s, ":") && !strings.HasPrefix(s, "{") && !strings.HasPrefix(s, "[")
 }
 
-func parseScalarOrFlow(s string) (interface{}, error) {
+func parseScalarOrFlow(s string) (any, error) {
 	// Check for flow-style map/array (JSON-like)
 	if strings.HasPrefix(s, "{") || strings.HasPrefix(s, "[") {
-		var v interface{}
+		var v any
 		// Try parsing as JSON
 		if err := json.Unmarshal([]byte(s), &v); err == nil {
 			return v, nil
@@ -369,7 +369,7 @@ func parseScalarOrFlow(s string) (interface{}, error) {
 	return parseScalar(s), nil
 }
 
-func parseScalar(s string) interface{} {
+func parseScalar(s string) any {
 	// 1. Check for quoted string
 	if (strings.HasPrefix(s, "\"") && strings.HasSuffix(s, "\"")) ||
 		(strings.HasPrefix(s, "'") && strings.HasSuffix(s, "'")) {
@@ -401,21 +401,21 @@ func parseScalar(s string) interface{} {
 }
 
 func unquoteYAMLString(s string) string {
-		if len(s) >= 2 {
-			if (s[0] == '"' && s[len(s)-1] == '"') || (s[0] == '\'' && s[len(s)-1] == '\'') {
-				// Remove quotes
-				inner := s[1 : len(s)-1]
-				// Handle escapes if double quoted
-				if s[0] == '"' {
-					// Simple unescape
-					inner = strings.ReplaceAll(inner, `\"`, `"`)
-					inner = strings.ReplaceAll(inner, `\n`, "\n")
-					inner = strings.ReplaceAll(inner, `\r`, "\r")
-					inner = strings.ReplaceAll(inner, `\t`, "\t")
-					inner = strings.ReplaceAll(inner, `\\`, `\`)
-				}
-				return inner
+	if len(s) >= 2 {
+		if (s[0] == '"' && s[len(s)-1] == '"') || (s[0] == '\'' && s[len(s)-1] == '\'') {
+			// Remove quotes
+			inner := s[1 : len(s)-1]
+			// Handle escapes if double quoted
+			if s[0] == '"' {
+				// Simple unescape
+				inner = strings.ReplaceAll(inner, `\"`, `"`)
+				inner = strings.ReplaceAll(inner, `\n`, "\n")
+				inner = strings.ReplaceAll(inner, `\r`, "\r")
+				inner = strings.ReplaceAll(inner, `\t`, "\t")
+				inner = strings.ReplaceAll(inner, `\\`, `\`)
 			}
+			return inner
 		}
-		return s
+	}
+	return s
 }

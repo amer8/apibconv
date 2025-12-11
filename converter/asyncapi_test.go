@@ -118,7 +118,7 @@ func TestAsyncAPIToAPIBlueprint(t *testing.T) {
 								"message": {Type: "string"},
 								"user":    {Type: "string"},
 							},
-							Example: map[string]interface{}{
+							Example: map[string]any{
 								"message": "Hello, world!",
 								"user":    "john",
 							},
@@ -136,7 +136,7 @@ func TestAsyncAPIToAPIBlueprint(t *testing.T) {
 								"message": {Type: "string"},
 								"user":    {Type: "string"},
 							},
-							Example: map[string]interface{}{
+							Example: map[string]any{
 								"message": "Hello!",
 								"user":    "jane",
 							},
@@ -219,7 +219,7 @@ func createTestEventOpenAPISpec(title, description string) *OpenAPI {
 											"data":  {Type: "string"},
 										},
 									},
-									Example: map[string]interface{}{
+									Example: map[string]any{
 										"event": "user.created",
 										"data":  "user123",
 									},
@@ -242,7 +242,7 @@ func createTestEventOpenAPISpec(title, description string) *OpenAPI {
 										"data":  {Type: "string"},
 									},
 								},
-								Example: map[string]interface{}{
+								Example: map[string]any{
 									"event": "user.updated",
 									"data":  "user456",
 								},
@@ -647,7 +647,7 @@ func TestAsyncAPIV3ToAPIBlueprint(t *testing.T) {
 								"message": {Type: "string"},
 								"user":    {Type: "string"},
 							},
-							Example: map[string]interface{}{
+							Example: map[string]any{
 								"message": "Hello, world!",
 								"user":    "john",
 							},
@@ -1132,7 +1132,7 @@ func TestSanitizeIDs(t *testing.T) {
 			t.Errorf("sanitizeChannelID(%q) = %q, want %q", tt.input, got, tt.expected)
 		}
 	}
-	
+
 	// Test sanitizeOperationID capitalizes first letter
 	opID := sanitizeOperationID("/users")
 	if opID != "Users" {
@@ -1146,7 +1146,7 @@ func TestExtractMessageFromOperation_EdgeCases(t *testing.T) {
 	if msg == nil || msg.Payload != nil {
 		t.Error("Expected empty message for empty operation")
 	}
-	
+
 	// Test subscribe with no 200 response
 	op := &Operation{
 		Responses: map[string]Response{

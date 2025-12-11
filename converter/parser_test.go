@@ -284,7 +284,7 @@ func TestRoundTrip(t *testing.T) {
 							Description: "Success",
 							Content: map[string]MediaType{
 								"application/json": {
-									Example: map[string]interface{}{"result": "ok"},
+									Example: map[string]any{"result": "ok"},
 								},
 							},
 						},

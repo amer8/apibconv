@@ -45,7 +45,7 @@ Download pre-built binaries from [GitHub Releases](https://github.com/amer8/apib
 
 ### CLI Usage
 
-The tool automatically detects the input format and converts accordingly. It supports both file arguments and stdin.
+The tool automatically detects the input format based on file extension and content. It supports both file arguments and stdin.
 
 ```sh
 Usage: apibconv [INPUT_FILE] [OPTIONS]
@@ -63,7 +63,7 @@ Options:
       Auto-detected from --output extension if not specified
   
   -e, --encoding FORMAT
-      Encoding: json, yaml (default: auto-detect from output extension)
+      Output encoding: json, yaml (default: auto-detected from output extension)
   
   --validate
       Validate input without converting

@@ -102,7 +102,7 @@ func testAPIBConversion(t *testing.T, content []byte) {
 
 	// 2. Validate the generated OpenAPI JSON
 	// It should at least be valid JSON
-	var js map[string]interface{}
+	var js map[string]any
 	if err := json.Unmarshal(spec, &js); err != nil {
 		t.Fatalf("Generated OpenAPI is not valid JSON: %v", err)
 	}
