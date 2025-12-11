@@ -61,9 +61,6 @@ lint-fix:
 build:
 	go build -o apibconv .
 
-build-cmd:
-	go build -o apibconv .
-
 # Validation (using the tool itself)
 validate:
 	@echo "Run validation on a spec file:"
@@ -139,7 +136,6 @@ help:
 	@echo ""
 	@echo "Building:"
 	@echo "  build             - Build from root main.go"
-	@echo "  build-cmd         - Build from cmd/apibconv"
 	@echo ""
 	@echo "Documentation:"
 	@echo "  doc               - View main package documentation"
