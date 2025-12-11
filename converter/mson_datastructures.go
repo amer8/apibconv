@@ -29,7 +29,7 @@ func writeDataStructures(buf *bytes.Buffer, schemas map[string]*Schema) {
 			buf.WriteString(typeStr)
 			buf.WriteString(")")
 		} else {
-			buf.WriteString(" (object)")
+			buf.WriteString(" (" + TypeObject + ")")
 		}
 		buf.WriteString("\n")
 

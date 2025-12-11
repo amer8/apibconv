@@ -153,7 +153,7 @@ fmt.Println(openapiJSON)
 opts := &converter.ConversionOptions{
     OutputVersion: converter.Version31,
 }
-spec, err := converter.ParseAPIBlueprintWithOptions([]byte(apibContent), opts)
+spec, err := converter.ParseBlueprintWithOptions([]byte(apibContent), opts)
 if err != nil {
     log.Fatal(err)
 }
@@ -178,13 +178,13 @@ apibContent := `FORMAT: 1A
 `
 
 // Parse API Blueprint
-spec, err := converter.ParseAPIBlueprint([]byte(apibContent))
+spec, err := converter.ParseBlueprint([]byte(apibContent))
 if err != nil {
     log.Fatal(err)
 }
 
 // Convert to AsyncAPI 2.6 with Kafka protocol
-asyncSpec := converter.APIBlueprintToAsyncAPI(spec, "kafka")
+asyncSpec := spec.ToAsyncAPI("kafka")
 
 // Marshal to JSON
 data, err := json.MarshalIndent(asyncSpec, "", "  ")
@@ -194,7 +194,7 @@ if err != nil {
 fmt.Println(string(data))
 
 // Or convert to AsyncAPI 3.0
-asyncSpecV3 := converter.APIBlueprintToAsyncAPIV3(spec, "kafka")
+asyncSpecV3 := spec.ToAsyncAPIV3("kafka")
 dataV3, err := json.MarshalIndent(asyncSpecV3, "", "  ")
 if err != nil {
     log.Fatal(err)
@@ -242,12 +242,12 @@ asyncapiJSON := `{
   }
 }`
 
-spec, err := converter.ParseAsyncAPI([]byte(asyncapiJSON))
+spec, err := converter.ParseAsync([]byte(asyncapiJSON))
 if err != nil {
     log.Fatal(err)
 }
 
-apiBlueprint := converter.AsyncAPIToAPIBlueprint(spec)
+apiBlueprint := spec.ToBlueprint()
 fmt.Println(apiBlueprint)
 ```
 </details>

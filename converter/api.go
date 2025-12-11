@@ -186,11 +186,7 @@ func Format(spec *OpenAPI) (string, error) {
 		return "", fmt.Errorf("spec cannot be nil")
 	}
 
-	buf := getBuffer()
-	defer putBuffer(buf)
-
-	writeAPIBlueprint(buf, spec)
-	return buf.String(), nil
+	return spec.ToBlueprint(), nil
 }
 
 // FormatTo converts an OpenAPI structure to API Blueprint format and writes it to w.
@@ -228,13 +224,7 @@ func FormatTo(spec *OpenAPI, w io.Writer) error {
 		return fmt.Errorf("spec cannot be nil")
 	}
 
-	buf := getBuffer()
-	defer putBuffer(buf)
-
-	writeAPIBlueprint(buf, spec)
-
-	_, err := w.Write(buf.Bytes())
-	return err
+	return spec.WriteBlueprint(w)
 }
 
 // FromJSON converts OpenAPI 3.0 JSON bytes directly to API Blueprint format string.
@@ -274,7 +264,7 @@ func FromJSON(data []byte) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return Format(spec)
+	return spec.ToBlueprint(), nil
 }
 
 // FromJSONString converts an OpenAPI 3.0 JSON string to API Blueprint format string.

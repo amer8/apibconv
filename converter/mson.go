@@ -160,12 +160,12 @@ func isPropRequired(name string, required []string) bool {
 
 // isObject checks if a schema is an object type or has properties.
 func isObject(s *Schema) bool {
-	return GetSchemaType(s) == "object" || len(s.Properties) > 0
+	return GetSchemaType(s) == TypeObject || len(s.Properties) > 0
 }
 
 // isArray checks if a schema is an array type or has items.
 func isArray(s *Schema) bool {
-	return GetSchemaType(s) == "array" || s.Items != nil
+	return GetSchemaType(s) == TypeArray || s.Items != nil
 }
 
 // getRefName extracts the simple name from a reference string (e.g. "#/components/schemas/User" -> "User").
