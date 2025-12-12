@@ -8,6 +8,20 @@ import (
 	"testing"
 )
 
+// SpecSize defines parameters for generating different sizes of API specs.
+type SpecSize struct {
+	Name            string
+	NumPaths        int // Reused as NumChannels for AsyncAPI
+	OperationsPerPath int
+}
+
+// Predefined spec sizes for benchmarking.
+var specSizes = []SpecSize{
+	{"Small", 10, 2},
+	{"Medium", 100, 3},
+	{"Large", 1000, 5},
+}
+
 // generateAsyncAPISpec generates an AsyncAPI 2.6 spec with the specified number of channels.
 func generateAsyncAPISpec(numChannels int) *AsyncAPI {
 	spec := &AsyncAPI{

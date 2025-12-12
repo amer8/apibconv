@@ -417,12 +417,7 @@ func (spec *OpenAPI) AsOpenAPI() (*OpenAPI, bool) {
 }
 
 // AsAsyncAPI returns nil and false for an OpenAPI spec.
-func (spec *OpenAPI) AsAsyncAPI() (*AsyncAPI, bool) {
-	return nil, false
-}
-
-// AsAsyncAPIV3 returns nil and false for an OpenAPI spec.
-func (spec *OpenAPI) AsAsyncAPIV3() (*AsyncAPI, bool) {
+func (spec *OpenAPI) AsAsyncAPI(version int) (*AsyncAPI, bool) {
 	return nil, false
 }
 

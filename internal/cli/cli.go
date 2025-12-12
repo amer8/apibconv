@@ -611,7 +611,7 @@ func convertAPIBlueprintToAsyncAPI(input, output *os.File) int {
 	switch asyncapiVersion {
 	case "2", "2.6", "2.6.0":
 		targetVersion = "2.6"
-		asyncSpec, err := apibSpec.ToAsyncAPI(converter.Protocol(protocol))
+		asyncSpec, err := apibSpec.ToAsyncAPI(converter.Protocol(protocol), 2)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error converting API Blueprint to AsyncAPI 2.6: %v\n", err)
 			return 1
@@ -619,7 +619,7 @@ func convertAPIBlueprintToAsyncAPI(input, output *os.File) int {
 		result = asyncSpec
 	case "3", "3.0", "3.0.0":
 		targetVersion = "3.0"
-		asyncSpec, err := apibSpec.ToAsyncAPIV3(converter.Protocol(protocol))
+		asyncSpec, err := apibSpec.ToAsyncAPI(converter.Protocol(protocol), 3)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error converting API Blueprint to AsyncAPI 3.0: %v\n", err)
 			return 1

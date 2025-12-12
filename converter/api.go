@@ -17,11 +17,10 @@ type Spec interface {
 	// The boolean indicates if the conversion was successful.
 	AsOpenAPI() (*OpenAPI, bool)
 	// AsAsyncAPI attempts to return the underlying specification as *AsyncAPI.
+	// The version parameter specifies the desired AsyncAPI major version (e.g., 2 or 3).
+	// If version is 0, it returns the specification as-is if it is AsyncAPI.
 	// The boolean indicates if the conversion was successful.
-	AsAsyncAPI() (*AsyncAPI, bool)
-	// AsAsyncAPIV3 attempts to return the underlying specification as *AsyncAPI (v3).
-	// The boolean indicates if the conversion was successful.
-	AsAsyncAPIV3() (*AsyncAPI, bool)
+	AsAsyncAPI(version int) (*AsyncAPI, bool)
 	// AsAPIBlueprint attempts to return the underlying specification as *APIBlueprint.
 	// The boolean indicates if the conversion was successful.
 	AsAPIBlueprint() (*APIBlueprint, bool)
@@ -152,24 +151,4 @@ func isJSON(data []byte) bool {
 		return false
 	}
 	return trimmed[0] == '{' || trimmed[0] == '['
-}
-
-// ParseWithConversion parses OpenAPI JSON/YAML and optionally converts to a target version.
-//
-// This function parses the OpenAPI spec and can automatically convert it to a different
-// version if requested via the options. This is useful when you want to normalize
-// all input to a specific version.
-func ParseWithConversion(data []byte, opts *ConversionOptions) (*OpenAPI, error) {
-	// Explicitly parse as OpenAPI for this specific function
-	spec, err := parseOpenAPI(data)
-	if err != nil {
-		return nil, err
-	}
-
-	if opts == nil || opts.OutputVersion == "" {
-		return spec, nil
-	}
-
-	// Convert if needed
-	return spec.ConvertTo(opts.OutputVersion, opts)
 }
