@@ -152,23 +152,3 @@ func isJSON(data []byte) bool {
 	}
 	return trimmed[0] == '{' || trimmed[0] == '['
 }
-
-// ParseWithConversion parses OpenAPI JSON/YAML and optionally converts to a target version.
-//
-// This function parses the OpenAPI spec and can automatically convert it to a different
-// version if requested via the options. This is useful when you want to normalize
-// all input to a specific version.
-func ParseWithConversion(data []byte, opts *ConversionOptions) (*OpenAPI, error) {
-	// Explicitly parse as OpenAPI for this specific function
-	spec, err := parseOpenAPI(data)
-	if err != nil {
-		return nil, err
-	}
-
-	if opts == nil || opts.OutputVersion == "" {
-		return spec, nil
-	}
-
-	// Convert if needed
-	return spec.ConvertTo(opts.OutputVersion, opts)
-}

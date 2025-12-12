@@ -38,11 +38,12 @@ func TestParse(t *testing.T) {
 	}
 
 	spec, ok := s.AsOpenAPI()
-	    if !ok {
-	        t.Fatalf("Expected *OpenAPI, got %T", s)
-	    }
-	
-	    if spec.Title() != "Test API" {		t.Errorf("Expected title 'Test API', got '%s'", spec.Title())
+	if !ok {
+		t.Fatalf("Expected *OpenAPI, got %T", s)
+	}
+
+	if spec.Title() != "Test API" {
+		t.Errorf("Expected title 'Test API', got '%s'", spec.Title())
 	}
 
 	// GetVersion returns the OpenAPI version
@@ -133,34 +134,5 @@ info:
 	_, err := Parse(yamlData, FormatOpenAPI)
 	if err == nil {
 		t.Error("Expected error for invalid YAML type mismatch, got nil")
-	}
-}
-
-func TestParseWithConversion(t *testing.T) {
-	// 1. Test without options (should pass through)
-	spec, err := ParseWithConversion([]byte(testOpenAPIJSON), nil)
-	if err != nil {
-		t.Fatalf("ParseWithConversion (nil opts) failed: %v", err)
-	}
-	if spec.OpenAPI != "3.0.0" {
-		t.Errorf("Expected version 3.0.0, got %s", spec.OpenAPI)
-	}
-
-	// 2. Test with conversion to 3.1
-	opts := &ConversionOptions{
-		OutputVersion: Version31,
-	}
-	spec31, err := ParseWithConversion([]byte(testOpenAPIJSON), opts)
-	if err != nil {
-		t.Fatalf("ParseWithConversion (to 3.1) failed: %v", err)
-	}
-	if spec31.OpenAPI != "3.1.0" {
-		t.Errorf("Expected version 3.1.0, got %s", spec31.OpenAPI)
-	}
-
-	// 3. Test with parse error
-	_, err = ParseWithConversion([]byte(`{invalid`), nil)
-	if err == nil {
-		t.Error("Expected error for invalid JSON")
 	}
 }
