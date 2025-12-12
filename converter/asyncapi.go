@@ -65,13 +65,13 @@ type AsyncAPIServer struct {
 // A channel is a communication endpoint (topic, queue, routing key, etc.).
 // In v2, key is address. In v3, key is ID and Address field is used.
 type Channel struct {
-	Description string             `json:"description,omitempty"` // Description of the channel
+	Description string `json:"description,omitempty"` // Description of the channel
 	// v2 fields
-	Subscribe   *AsyncAPIOperation `json:"subscribe,omitempty"`   // Client subscribes to receive messages
-	Publish     *AsyncAPIOperation `json:"publish,omitempty"`     // Client publishes messages to this channel
+	Subscribe *AsyncAPIOperation `json:"subscribe,omitempty"` // Client subscribes to receive messages
+	Publish   *AsyncAPIOperation `json:"publish,omitempty"`   // Client publishes messages to this channel
 	// v3 fields
-	Address     string              `json:"address,omitempty"`     // Channel address/topic/queue name
-	Messages    map[string]*Message `json:"messages,omitempty"`    // Messages that can be sent on this channel
+	Address  string              `json:"address,omitempty"`  // Channel address/topic/queue name
+	Messages map[string]*Message `json:"messages,omitempty"` // Messages that can be sent on this channel
 }
 
 // AsyncAPIOperation represents an operation in AsyncAPI specification.
@@ -79,14 +79,14 @@ type Channel struct {
 // Operations describe the action that a consumer or producer performs.
 type AsyncAPIOperation struct {
 	// Common / v2
-	OperationID string   `json:"operationId,omitempty"` // Unique operation identifier
-	Summary     string   `json:"summary,omitempty"`     // Short summary of the operation
-	Description string   `json:"description,omitempty"` // Detailed description
+	OperationID string `json:"operationId,omitempty"` // Unique operation identifier
+	Summary     string `json:"summary,omitempty"`     // Short summary of the operation
+	Description string `json:"description,omitempty"` // Detailed description
 	// v2 specific
-	Message     *Message `json:"message,omitempty"`     // Message definition for this operation
+	Message *Message `json:"message,omitempty"` // Message definition for this operation
 	// v3 specific
-	Action      string            `json:"action,omitempty"`      // Action: "send" or "receive"
-	Channel     *ChannelReference `json:"channel,omitempty"`     // Reference to a channel
+	Action  string            `json:"action,omitempty"`  // Action: "send" or "receive"
+	Channel *ChannelReference `json:"channel,omitempty"` // Reference to a channel
 }
 
 // Message represents a message in AsyncAPI specification.
@@ -577,12 +577,6 @@ func parseAsyncV3(data []byte) (*AsyncAPI, error) {
 	return &spec, nil
 }
 
-
-
-
-
-
-
 // ToAsyncAPIV3 converts an API Blueprint (OpenAPI struct) to AsyncAPI 3.0 format.
 //
 // This function converts OpenAPI/API Blueprint paths to AsyncAPI v3 channels and operations:
@@ -928,13 +922,14 @@ func writeAsyncAPIV3Channel(buf *bytes.Buffer, channelID string, channel Channel
 
 	// Write operations
 	for _, opInfo := range ops {
-		switch opInfo.op.Action {
+		op := opInfo.op
+		switch op.Action {
 		case ActionReceive:
 			// Receive -> GET (receiving messages)
-			writeAsyncAPIV3Operation(buf, http.MethodGet, &opInfo.op, firstMessage, "Receive messages")
+			writeAsyncAPIV3Operation(buf, http.MethodGet, &op, firstMessage, "Receive messages")
 		case ActionSend:
 			// Send -> POST (sending messages)
-			writeAsyncAPIV3Operation(buf, http.MethodPost, &opInfo.op, firstMessage, "Send a message")
+			writeAsyncAPIV3Operation(buf, http.MethodPost, &op, firstMessage, "Send a message")
 		}
 	}
 }
@@ -966,5 +961,3 @@ func writeAsyncAPIV3Operation(buf *bytes.Buffer, method string, op *AsyncAPIOper
 		}
 	}
 }
-
-
