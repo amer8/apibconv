@@ -148,7 +148,11 @@ func TestAsyncAPIToAPIBlueprint(t *testing.T) {
 		},
 	}
 
-	blueprint, _ := spec.ToBlueprint()
+	bp, err := spec.ToAPIBlueprint()
+	if err != nil {
+		t.Fatalf("ToAPIBlueprint failed: %v", err)
+	}
+	blueprint := bp.String()
 
 	// Check for required API Blueprint elements
 	if !strings.Contains(blueprint, "FORMAT: 1A") {
@@ -338,7 +342,7 @@ func TestConvertAsyncAPIToAPIBlueprint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parseAsync failed: %v", err)
 	}
-	err = spec.WriteBlueprint(output)
+	_, err = spec.WriteTo(output)
 	if err != nil {
 		t.Fatalf("WriteBlueprint failed: %v", err)
 	}
@@ -473,7 +477,11 @@ func TestAsyncAPIWithMultipleChannels(t *testing.T) {
 		},
 	}
 
-	blueprint, _ := spec.ToBlueprint()
+	bp, err := spec.ToAPIBlueprint()
+	if err != nil {
+		t.Fatalf("ToAPIBlueprint failed: %v", err)
+	}
+	blueprint := bp.String()
 
 	// All channels should be present
 	if !strings.Contains(blueprint, "## /users/created") {
@@ -688,7 +696,11 @@ func TestAsyncAPIV3ToAPIBlueprint(t *testing.T) {
 		},
 	}
 
-	blueprint, _ := spec.ToBlueprint()
+	bp, err := spec.ToAPIBlueprint()
+	if err != nil {
+		t.Fatalf("ToAPIBlueprint failed: %v", err)
+	}
+	blueprint := bp.String()
 
 	// Check for required API Blueprint elements
 	if !strings.Contains(blueprint, "FORMAT: 1A") {
@@ -821,7 +833,7 @@ func TestConvertAsyncAPIV3ToAPIBlueprint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parseAsyncV3 failed: %v", err)
 	}
-	err = spec.WriteBlueprint(output)
+	_, err = spec.WriteTo(output)
 	if err != nil {
 		t.Fatalf("WriteBlueprint failed: %v", err)
 	}
@@ -1038,7 +1050,11 @@ func TestAsyncAPIV3WithMultipleChannelsAndOperations(t *testing.T) {
 		},
 	}
 
-	blueprint, _ := spec.ToBlueprint()
+	bp, err := spec.ToAPIBlueprint()
+	if err != nil {
+		t.Fatalf("ToAPIBlueprint failed: %v", err)
+	}
+	blueprint := bp.String()
 
 	// All channels should be present
 	if !strings.Contains(blueprint, "## /users/created") {

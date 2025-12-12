@@ -35,7 +35,7 @@ func TestConvertToVersion_30to31(t *testing.T) {
 		},
 	}
 
-	converted, err := ConvertToVersion(spec, Version31, nil)
+	converted, err := spec.ConvertTo(Version31, nil)
 	if err != nil {
 		t.Fatalf("ConvertToVersion failed: %v", err)
 	}
@@ -121,7 +121,7 @@ func TestConvertToVersion_31to30(t *testing.T) {
 		},
 	}
 
-	converted, err := ConvertToVersion(spec, Version30, nil)
+	converted, err := spec.ConvertTo(Version30, nil)
 	if err != nil {
 		t.Fatalf("ConvertToVersion failed: %v", err)
 	}
@@ -184,7 +184,7 @@ func TestConvertToVersion_31to30_StrictMode(t *testing.T) {
 		StrictMode:    true,
 	}
 
-	_, err := ConvertToVersion(spec, Version30, opts)
+	_, err := spec.ConvertTo(Version30, opts)
 	if err == nil {
 		t.Error("ConvertToVersion with StrictMode should fail when webhooks are present")
 	}
@@ -200,7 +200,7 @@ func TestConvertToVersion_NoConversionNeeded(t *testing.T) {
 		Paths: map[string]PathItem{},
 	}
 
-	converted, err := ConvertToVersion(spec, Version30, nil)
+	converted, err := spec.ConvertTo(Version30, nil)
 	if err != nil {
 		t.Fatalf("ConvertToVersion failed: %v", err)
 	}
@@ -368,7 +368,7 @@ func TestConvertNestedSchemas(t *testing.T) {
 		},
 	}
 
-	converted, err := ConvertToVersion(spec, Version31, nil)
+	converted, err := spec.ConvertTo(Version31, nil)
 	if err != nil {
 		t.Fatalf("ConvertToVersion failed: %v", err)
 	}
@@ -436,13 +436,13 @@ func TestRoundTripConversion(t *testing.T) {
 	}
 
 	// Convert to 3.1
-	converted31, err := ConvertToVersion(original, Version31, nil)
+	converted31, err := original.ConvertTo(Version31, nil)
 	if err != nil {
 		t.Fatalf("Conversion to 3.1 failed: %v", err)
 	}
 
 	// Convert back to 3.0
-	converted30, err := ConvertToVersion(converted31, Version30, nil)
+	converted30, err := converted31.ConvertTo(Version30, nil)
 	if err != nil {
 		t.Fatalf("Conversion back to 3.0 failed: %v", err)
 	}
@@ -499,7 +499,7 @@ func TestJSONMarshaling(t *testing.T) {
 	}
 
 	// Convert to 3.1
-	converted, err := ConvertToVersion(spec, Version31, nil)
+	converted, err := spec.ConvertTo(Version31, nil)
 	if err != nil {
 		t.Fatalf("Conversion failed: %v", err)
 	}

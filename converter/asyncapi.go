@@ -176,63 +176,62 @@ func parseAsync(data []byte) (*AsyncAPI, error) {
 	return &spec, nil
 }
 
-// ToBlueprint converts an AsyncAPI specification to API Blueprint format.
-//
-// This method converts AsyncAPI channels and operations into API Blueprint paths
-// and operations. The conversion maps:
-//   - AsyncAPI channels -> API Blueprint paths
-//   - Subscribe operations -> GET operations (receiving messages)
-//   - Publish operations -> POST operations (sending messages)
-//   - Message payloads -> Request/Response bodies
-//
-// Returns:
-//   - string: API Blueprint formatted output
-//   - error: Error if conversion fails
-//
-// Example:
-//
-//	asyncSpec := &AsyncAPI{...}
-//	blueprint, err := asyncSpec.ToBlueprint()
-//	if err != nil {
-//	    log.Fatal(err)
-//	}
-//	fmt.Println(blueprint)
-func (spec *AsyncAPI) ToBlueprint() (string, error) {
+// String returns the AsyncAPI specification as a JSON string.
+// This satisfies the fmt.Stringer interface.
+func (spec *AsyncAPI) String() string {
+	s, _ := spec.JSON()
+	return s
+}
+
+// JSON returns the AsyncAPI specification as a JSON string.
+func (spec *AsyncAPI) JSON() (string, error) {
+	b, err := json.MarshalIndent(spec, "", "  ")
+	return string(b), err
+}
+
+// YAML returns the AsyncAPI specification as a YAML string.
+func (spec *AsyncAPI) YAML() (string, error) {
+	b, err := MarshalYAML(spec)
+	return string(b), err
+}
+
+// ToAPIBlueprint converts an AsyncAPI specification to API Blueprint format.
+func (spec *AsyncAPI) ToAPIBlueprint() (*APIBlueprint, error) {
 	buf := getBuffer()
 	defer putBuffer(buf)
+
 	if strings.HasPrefix(spec.AsyncAPI, "3.") {
 		writeAsyncAPIV3Blueprint(buf, spec)
 	} else {
 		writeAsyncAPIBlueprint(buf, spec)
 	}
-	return buf.String(), nil
+
+	// Re-parse the generated API Blueprint string into an APIBlueprint AST
+	return ParseBlueprint(buf.Bytes())
 }
 
-// WriteBlueprint writes the AsyncAPI specification in API Blueprint format to the writer.
-func (spec *AsyncAPI) WriteBlueprint(w io.Writer) error {
+
+
+// WriteTo writes the AsyncAPI specification in API Blueprint format to the writer.
+func (spec *AsyncAPI) WriteTo(w io.Writer) (int64, error) {
 	buf := getBuffer()
 	defer putBuffer(buf)
 	writeAsyncAPIBlueprint(buf, spec)
-	_, err := w.Write(buf.Bytes())
-	return err
+	n, err := w.Write(buf.Bytes())
+	return int64(n), err
 }
 
 // ToOpenAPI converts the AsyncAPI specification to OpenAPI format.
 func (spec *AsyncAPI) ToOpenAPI() (*OpenAPI, error) {
-	bp, err := spec.ToBlueprint()
+	bp, err := spec.ToAPIBlueprint()
 	if err != nil {
 		return nil, err
 	}
-	blueprintSpec, err := ParseBlueprint([]byte(bp))
+	blueprintSpec, err := ParseBlueprint([]byte(bp.String()))
 	if err != nil {
 		return nil, err
 	}
 	return blueprintSpec.ToOpenAPI()
-}
-
-// ToAsyncAPI returns the AsyncAPI specification itself.
-func (spec *AsyncAPI) ToAsyncAPI(protocol Protocol) (*AsyncAPI, error) {
-	return spec, nil
 }
 
 // ToAsyncAPIV3 converts the AsyncAPI specification to AsyncAPI 3.0 format.
@@ -249,16 +248,16 @@ func (spec *AsyncAPI) ToAsyncAPIV3(protocol Protocol) (*AsyncAPI, error) {
 	return openapi.ToAsyncAPIV3(protocol)
 }
 
-// GetTitle returns the title of the AsyncAPI specification.
-func (spec *AsyncAPI) GetTitle() string {
+// Title returns the title of the AsyncAPI specification.
+func (spec *AsyncAPI) Title() string {
 	if spec != nil {
 		return spec.Info.Title
 	}
 	return ""
 }
 
-// GetVersion returns the version of the AsyncAPI specification.
-func (spec *AsyncAPI) GetVersion() string {
+// Version returns the version of the AsyncAPI specification.
+func (spec *AsyncAPI) Version() string {
 	if spec != nil {
 		return spec.AsyncAPI
 	}

@@ -377,7 +377,10 @@ A test API
 + Response 200 (application/json)
 `
 
-	result := ValidateAPIBlueprint(content)
+	result, err := ValidateAPIBlueprint(content)
+	if err != nil {
+		t.Fatalf("ValidateAPIBlueprint() error = %v", err)
+	}
 	if !result.Valid {
 		t.Errorf("ValidateAPIBlueprint() should be valid, got errors: %v", result.Errors)
 	}
@@ -387,7 +390,10 @@ A test API
 }
 
 func TestValidateAPIBlueprint_Empty(t *testing.T) {
-	result := ValidateAPIBlueprint("")
+	result, err := ValidateAPIBlueprint("")
+	if err != nil {
+		t.Fatalf("ValidateAPIBlueprint() error = %v", err)
+	}
 	if result.Valid {
 		t.Error("ValidateAPIBlueprint() should be invalid for empty content")
 	}
@@ -401,7 +407,10 @@ func TestValidateAPIBlueprint_NoTitle(t *testing.T) {
 + Response 200
 `
 
-	result := ValidateAPIBlueprint(content)
+	result, err := ValidateAPIBlueprint(content)
+	if err != nil {
+		t.Fatalf("ValidateAPIBlueprint() error = %v", err)
+	}
 	if result.Valid {
 		t.Error("ValidateAPIBlueprint() should be invalid when title is missing")
 	}
@@ -415,7 +424,10 @@ func TestValidateAPIBlueprint_NoFormat(t *testing.T) {
 + Response 200
 `
 
-	result := ValidateAPIBlueprint(content)
+	result, err := ValidateAPIBlueprint(content)
+	if err != nil {
+		t.Fatalf("ValidateAPIBlueprint() error = %v", err)
+	}
 	// Should produce warning but still be valid
 	if len(result.Warnings) == 0 {
 		t.Error("ValidateAPIBlueprint() should warn when FORMAT header is missing")
@@ -424,7 +436,10 @@ func TestValidateAPIBlueprint_NoFormat(t *testing.T) {
 
 func TestValidateJSON_Valid(t *testing.T) {
 	data := []byte(`{"openapi": "3.0.0", "info": {"title": "Test"}}`)
-	result := ValidateJSON(data)
+	result, err := ValidateJSON(data)
+	if err != nil {
+		t.Fatalf("ValidateJSON() error = %v", err)
+	}
 
 	if !result.Valid {
 		t.Error("ValidateJSON() should be valid for valid JSON")
@@ -436,7 +451,10 @@ func TestValidateJSON_Valid(t *testing.T) {
 
 func TestValidateJSON_AsyncAPI(t *testing.T) {
 	data := []byte(`{"asyncapi": "2.6.0", "info": {"title": "Test"}}`)
-	result := ValidateJSON(data)
+	result, err := ValidateJSON(data)
+	if err != nil {
+		t.Fatalf("ValidateJSON() error = %v", err)
+	}
 
 	if !result.Valid {
 		t.Error("ValidateJSON() should be valid for valid JSON")
@@ -448,7 +466,10 @@ func TestValidateJSON_AsyncAPI(t *testing.T) {
 
 func TestValidateJSON_Invalid(t *testing.T) {
 	data := []byte(`{invalid json}`)
-	result := ValidateJSON(data)
+	result, err := ValidateJSON(data)
+	if err != nil {
+		t.Fatalf("ValidateJSON() error = %v", err)
+	}
 
 	if result.Valid {
 		t.Error("ValidateJSON() should be invalid for invalid JSON")
@@ -457,7 +478,10 @@ func TestValidateJSON_Invalid(t *testing.T) {
 
 func TestValidateJSON_UnknownFormat(t *testing.T) {
 	data := []byte(`{"foo": "bar"}`)
-	result := ValidateJSON(data)
+	result, err := ValidateJSON(data)
+	if err != nil {
+		t.Fatalf("ValidateJSON() error = %v", err)
+	}
 
 	if len(result.Warnings) == 0 {
 		t.Error("ValidateJSON() should warn for unknown format")
@@ -465,22 +489,27 @@ func TestValidateJSON_UnknownFormat(t *testing.T) {
 }
 
 func TestValidateBytes_Empty(t *testing.T) {
-	result := ValidateBytes([]byte{})
+	result, err := ValidateBytes([]byte{})
+	if err != nil {
+		t.Fatalf("ValidateBytes() error = %v", err)
+	}
 	if result.Valid {
 		t.Error("ValidateBytes() should be invalid for empty input")
 	}
 }
 
 func TestValidateBytes_JSON(t *testing.T) {
-	data := []byte(`{
-		"openapi": "3.0.0",
-		"info": {"title": "Test", "version": "1.0.0"},
-		"paths": {}
-	}`)
-
-	result := ValidateBytes(data)
-	if !result.Valid {
-		t.Errorf("ValidateBytes() should be valid for valid OpenAPI: %v", result.Errors)
+	    data := []byte(`{
+			"openapi": "3.0.0",
+			"info": {"title": "Test", "version": "1.0.0"},
+			"paths": {}
+		}`)
+	
+		result, err := ValidateBytes(data)
+		if err != nil {
+			t.Fatalf("ValidateBytes() error = %v", err)
+		}
+		if !result.Valid {		t.Errorf("ValidateBytes() should be valid for valid OpenAPI: %v", result.Errors)
 	}
 }
 
@@ -494,7 +523,10 @@ func TestValidateBytes_APIBlueprint(t *testing.T) {
 + Response 200
 `)
 
-	result := ValidateBytes(data)
+	result, err := ValidateBytes(data)
+	if err != nil {
+		t.Fatalf("ValidateBytes() error = %v", err)
+	}
 	if !result.Valid {
 		t.Errorf("ValidateBytes() should be valid for valid API Blueprint: %v", result.Errors)
 	}

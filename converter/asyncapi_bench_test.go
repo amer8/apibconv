@@ -98,7 +98,7 @@ func BenchmarkAsyncAPIToAPIBlueprint_Sizes(b *testing.B) {
 			b.ReportAllocs()
 
 			for i := 0; i < b.N; i++ {
-				_, _ = spec.ToBlueprint()
+				_, _ = spec.ToAPIBlueprint()
 			}
 		})
 	}
@@ -134,7 +134,7 @@ func BenchmarkConcurrent_ConvertAsyncAPI(b *testing.B) {
 			if err != nil {
 				b.Fatal(err)
 			}
-			if err := spec.WriteBlueprint(io.Discard); err != nil {
+			if _, err := spec.WriteTo(io.Discard); err != nil {
 				b.Fatal(err)
 			}
 		}

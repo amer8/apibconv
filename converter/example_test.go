@@ -83,7 +83,7 @@ paths: {}
 	}
 
 	if spec, ok := s4.AsAPIBlueprint(); ok {
-		fmt.Printf("API Blueprint Name: %s\n", spec.Name)
+		fmt.Printf("API Blueprint Name: %s\n", spec.TitleField)
 	} else {
 		log.Fatal("Expected OpenAPI spec from API Blueprint")
 	}
@@ -231,7 +231,7 @@ func ExampleAsyncAPI_ToOpenAPI() {
 }
 
 // Example demonstrates converting an AsyncAPI structure to API Blueprint.
-func ExampleAsyncAPI_ToBlueprint() {
+func ExampleAsyncAPI_ToAPIBlueprint() {
 	spec := &converter.AsyncAPI{
 		AsyncAPI: "2.6.0",
 		Info: converter.Info{
@@ -247,10 +247,11 @@ func ExampleAsyncAPI_ToBlueprint() {
 		},
 	}
 
-	bp, err := spec.ToBlueprint()
+	bpObj, err := spec.ToAPIBlueprint()
 	if err != nil {
 		log.Fatal(err)
 	}
+	bp := bpObj.String()
 
 	fmt.Println(bp)
 
@@ -259,9 +260,11 @@ func ExampleAsyncAPI_ToBlueprint() {
 	//
 	// # Event API
 	//
-	// ## /events [/events]
+	// ## Group Events
 	//
-	// ### Receive events [GET]
+	// ### /events [/events]
+	//
+	// #### Receive events [GET]
 }
 
 // Example demonstrates converting AsyncAPI 2.6 to AsyncAPI 3.0.

@@ -1,5 +1,10 @@
 .PHONY: test test-coverage test-race coverage-html bench bench-converter bench-compare bench-sizes bench-memory lint lint-install lint-fix doc doc-server doc-converter doc-all build build-cmd validate help
 
+# Ensure caches are writable in restricted environments
+export GOCACHE ?= $(CURDIR)/.gocache
+export GOMODCACHE ?= $(CURDIR)/.gomodcache
+export GOLANGCI_LINT_CACHE ?= $(CURDIR)/.golangci-lint-cache
+
 # Running Tests
 test:
 	go test -v ./...

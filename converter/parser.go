@@ -14,11 +14,11 @@ import (
 
 // Pre-compiled regular expressions for parser performance
 var (
-	// Matches resource definition: ## Resource Name [/path]
-	reResource = regexp.MustCompile(`^## (.+?) \[(.+?)\]`)
+	// Matches resource definition: ## Resource Name [/path] or ### Resource Name [/path]
+	reResource = regexp.MustCompile(`^#{2,3} (.+?) \[(.+?)\]`)
 
-	// Matches action definition: ### Action Name [METHOD]
-	reAction = regexp.MustCompile(`^### (.+?) \[(GET|POST|PUT|DELETE|PATCH)\]`)
+	// Matches action definition: ### Action Name [METHOD] or ### METHOD
+	reAction = regexp.MustCompile(`^#{3,4} (?:(.+?) \[(GET|POST|PUT|DELETE|PATCH)\]|(GET|POST|PUT|DELETE|PATCH)\s*$)`)
 
 	// Matches parameter definition: + name (type, required) - description
 	reParameter = regexp.MustCompile(`^(\w+)\s*\((\w+),\s*(\w+)\)(?:\s*-\s*(.+))?`)
@@ -88,12 +88,6 @@ func ParseBlueprint(data []byte) (*APIBlueprint, error) {
 	return parseAPIBlueprintReader(bytes.NewReader(data))
 }
 
-// ParseAPIBlueprint is a deprecated alias for ParseBlueprint.
-//
-// Deprecated: Use ParseBlueprint instead.
-func ParseAPIBlueprint(data []byte) (*APIBlueprint, error) {
-	return ParseBlueprint(data)
-}
 
 // ParseBlueprintWithOptions parses an API Blueprint with custom conversion options.
 //
@@ -122,12 +116,6 @@ func ParseBlueprintWithOptions(data []byte, opts *ConversionOptions) (*APIBluepr
 	return parseAPIBlueprintReaderWithOptions(bytes.NewReader(data), opts)
 }
 
-// ParseAPIBlueprintWithOptions is a deprecated alias for ParseBlueprintWithOptions.
-//
-// Deprecated: Use ParseBlueprintWithOptions instead.
-func ParseAPIBlueprintWithOptions(data []byte, opts *ConversionOptions) (*APIBlueprint, error) {
-	return ParseBlueprintWithOptions(data, opts)
-}
 
 // ParseBlueprintReader parses an API Blueprint format from an io.Reader.
 //
@@ -160,12 +148,6 @@ func ParseBlueprintReader(r io.Reader) (*APIBlueprint, error) {
 	return parseAPIBlueprintReader(r)
 }
 
-// ParseAPIBlueprintReader is a deprecated alias for ParseBlueprintReader.
-//
-// Deprecated: Use ParseBlueprintReader instead.
-func ParseAPIBlueprintReader(r io.Reader) (*APIBlueprint, error) {
-	return ParseBlueprintReader(r)
-}
 
 type parserState struct {
 	spec          *OpenAPI
@@ -209,6 +191,11 @@ func parseAPIBlueprintReaderWithOptions(r io.Reader, opts *ConversionOptions) (*
 		if err := parseLine(state, line); err != nil {
 			return nil, err
 		}
+	}
+
+	// Finalize any remaining JSON
+	if state.inJSON {
+		_ = finalizeJSON(state)
 	}
 
 	// Finalize any remaining response
@@ -333,23 +320,52 @@ func parseStructureLine(state *parserState, trimmed string) error {
 		return parseNamedType(state, trimmed)
 	}
 
-	if strings.HasPrefix(trimmed, "## ") && strings.Contains(trimmed, "[") {
-		if state.currentOp != nil && state.currentPath != "" {
-			finalizeOperation(state)
-		}
-		state.inDataStructures = false
-		return parseResource(state, trimmed)
+	if !strings.Contains(trimmed, "[") {
+		return nil
 	}
 
-	if strings.HasPrefix(trimmed, "### ") && strings.Contains(trimmed, "[") {
-		if state.currentOp != nil && state.currentPath != "" {
-			finalizeOperation(state)
-		}
-		state.inDataStructures = false
-		return parseAction(state, trimmed)
+	if strings.HasPrefix(trimmed, "## ") {
+		return handleResourceLine(state, trimmed)
+	}
+
+	if strings.HasPrefix(trimmed, "### ") {
+		return handleNestedLine(state, trimmed)
+	}
+
+	if strings.HasPrefix(trimmed, "#### ") {
+		return handleActionLine(state, trimmed)
 	}
 
 	return nil
+}
+
+func handleResourceLine(state *parserState, trimmed string) error {
+	finalizePreviousContext(state)
+	return parseResource(state, trimmed)
+}
+
+func handleNestedLine(state *parserState, trimmed string) error {
+	finalizePreviousContext(state)
+
+	// It could be an Action or a nested Resource.
+	// Actions must match the [METHOD] pattern.
+	if reAction.MatchString(trimmed) {
+		return parseAction(state, trimmed)
+	}
+	// If not an action, treat as nested resource
+	return parseResource(state, trimmed)
+}
+
+func handleActionLine(state *parserState, trimmed string) error {
+	finalizePreviousContext(state)
+	return parseAction(state, trimmed)
+}
+
+func finalizePreviousContext(state *parserState) {
+	if state.currentOp != nil && state.currentPath != "" {
+		finalizeOperation(state)
+	}
+	state.inDataStructures = false
 }
 
 func isContentLine(line, trimmed string) bool {
@@ -430,8 +446,9 @@ func handleResponseLine(state *parserState, trimmed string) error {
 }
 
 func handleDescription(state *parserState, line, trimmed string) error {
-	// API description (first non-special line after title)
-	if state.spec.Info.Title != "" && len(state.spec.Servers) == 0 && len(state.spec.Paths) == 0 && state.spec.Info.Description == "" {
+	// API description (first non-special line after title, before any resources/groups/datastructures)
+	if state.spec.Info.Title != "" && state.spec.Info.Description == "" &&
+		!isStructureLine(trimmed) && !isHeaderLine(trimmed) && !isContentLine(line, trimmed) {
 		state.spec.Info.Description = trimmed
 		return nil
 	}
@@ -466,8 +483,17 @@ func parseAction(state *parserState, line string) error {
 	// ### Action Name [METHOD]
 	matches := reAction.FindStringSubmatch(line)
 	if len(matches) >= 3 {
-		summary := matches[1]
-		method := matches[2]
+		var summary, method string
+		if matches[3] != "" {
+			// Shorthand: ### METHOD
+			method = matches[3]
+			// Summary is optional, leave empty
+		} else {
+			// Full: ### Name [METHOD]
+			summary = matches[1]
+			method = matches[2]
+		}
+		
 		state.currentMethod = method
 		state.currentOp = &Operation{
 			Summary:   summary,
@@ -796,92 +822,6 @@ func isStandardType(t string) bool {
 	return false
 }
 
-// ToOpenAPI converts API Blueprint bytes to OpenAPI JSON bytes.
-//
-// Deprecated: Use Parse and Spec.ToOpenAPI instead.
-//
-// This function provides a one-step conversion from API Blueprint format to
-// OpenAPI 3.0 JSON. The output is formatted with indentation for readability.
-//
-// By default, this outputs OpenAPI 3.0.0. Use ToOpenAPIWithOptions to specify a different version.
-//
-// Parameters:
-//   - data: API Blueprint content as bytes
-//
-// Returns:
-//   - []byte: OpenAPI 3.0 specification as formatted JSON bytes
-//   - error: Error if parsing or marshaling fails
-func ToOpenAPI(data []byte) ([]byte, error) {
-	bp, err := ParseBlueprint(data)
-	if err != nil {
-		return nil, err
-	}
-	openapi, err := bp.ToOpenAPI()
-	if err != nil {
-		return nil, err
-	}
-	return json.MarshalIndent(openapi, "", "  ")
-}
 
-// ToOpenAPIWithOptions converts API Blueprint to OpenAPI with options.
-//
-// Deprecated: Use Parse and Spec.ToOpenAPI instead.
-//
-// Parameters:
-//   - data: API Blueprint content as bytes
-//   - opts: Conversion options
-//
-// Returns:
-//   - []byte: OpenAPI specification as formatted JSON bytes
-//   - error: Error if parsing or marshaling fails
-func ToOpenAPIWithOptions(data []byte, opts *ConversionOptions) ([]byte, error) {
-	bp, err := ParseBlueprintWithOptions(data, opts)
-	if err != nil {
-		return nil, err
-	}
-	openapi, err := bp.ToOpenAPI()
-	if err != nil {
-		return nil, err
-	}
-	return json.MarshalIndent(openapi, "", "  ")
-}
 
-// ToOpenAPIString converts API Blueprint string to OpenAPI JSON string.
-//
-// Deprecated: Use Parse and Spec.ToOpenAPI instead.
-//
-// Parameters:
-//   - data: API Blueprint content as string
-//
-// Returns:
-//   - string: OpenAPI 3.0 specification as formatted JSON string
-//   - error: Error if parsing or marshaling fails
-func ToOpenAPIString(data string) (string, error) {
-	jsonBytes, err := ToOpenAPI([]byte(data))
-	return string(jsonBytes), err
-}
 
-// ConvertToOpenAPI reads API Blueprint from r and writes OpenAPI JSON to w.
-//
-// Deprecated: Use ParseBlueprintReader and Spec.ToOpenAPI instead.
-//
-// Parameters:
-//   - r: Reader for API Blueprint content
-//   - w: Writer for OpenAPI JSON output
-//
-// Returns:
-//   - error: Error if reading, parsing, or writing fails
-func ConvertToOpenAPI(r io.Reader, w io.Writer) error {
-	bp, err := parseAPIBlueprintReader(r)
-	if err != nil {
-		return err
-	}
-	openapi, err := bp.ToOpenAPI()
-	if err != nil {
-		return err
-	}
-	
-	encoder := json.NewEncoder(w)
-	encoder.SetIndent("", "  ")
-	return encoder.Encode(openapi)
-}

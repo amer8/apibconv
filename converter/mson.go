@@ -75,6 +75,39 @@ func writeMSON(buf *bytes.Buffer, schema *Schema, indentLevel int) {
 	// Usually root is object or array
 }
 
+// writeDataStructures writes the "## Data Structures" section and its content.
+func writeDataStructures(buf *bytes.Buffer, schemas map[string]*Schema) {
+	if len(schemas) == 0 {
+		return
+	}
+
+	buf.WriteString("## Data Structures\n\n")
+
+	// Sort schemas by name for deterministic output
+	names := make([]string, 0, len(schemas))
+	for name := range schemas {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	for _, name := range names {
+		schema := schemas[name]
+		// Write the named type definition
+		fmt.Fprintf(buf, "### %s (%s)\n", name, schema.TypeName()) // Example: ### User (object)
+		if schema.Description != "" {
+			buf.WriteString(schema.Description)
+			buf.WriteString("\n")
+		}
+		buf.WriteString("\n")
+		
+		// If it's an object or array, write its attributes
+		if schema.IsObject() || schema.IsArray() {
+			writeMSON(buf, schema, 1) // Indent by 1 level
+		}
+		buf.WriteString("\n") // Extra newline after each data structure
+	}
+}
+
 // writeMSONProperty writes a single MSON property definition to the buffer.
 // It handles property name, type, required/optional status, description, default/example values,
 // and recursively writes nested properties for object types.

@@ -146,8 +146,7 @@ func BenchmarkConvertOpenAPIToAPIBlueprint_Sizes(b *testing.B) {
 				if err != nil {
 					b.Fatal(err)
 				}
-				if err := spec.(*OpenAPI).WriteBlueprint(io.Discard); err != nil {
-					b.Fatal(err)
+				                if _, err := spec.(*OpenAPI).WriteTo(io.Discard); err != nil {					b.Fatal(err)
 				}			}
 		})
 	}
@@ -158,18 +157,22 @@ func BenchmarkFormatOpenAPI_Sizes(b *testing.B) {
 	for _, size := range specSizes {
 		spec := generateOpenAPISpec(size.NumPaths, size.OperationsPerPath)
 
-		b.Run(size.Name, func(b *testing.B) {
-			b.ReportAllocs()
-
-			for i := 0; i < b.N; i++ {
-				_, err := spec.ToBlueprint()
-				if err != nil {
-					b.Fatal(err)
-				}
-			}
-		})
-	}
-}
+		            b.Run(size.Name, func(b *testing.B) {
+		                b.ReportAllocs()
+		
+		                for i := 0; i < b.N; i++ {
+		                    					bp, err := spec.ToAPIBlueprint()
+		                    					if err != nil {
+		                    						b.Fatal(err)
+		                    					}
+		                    					_ = bp.String()
+		                    
+		                    if err != nil {
+		                        b.Fatal(err)
+		                    }
+		                }
+		            })
+		        }}
 
 // BenchmarkParseOpenAPI_Sizes benchmarks parsing with different spec sizes
 func BenchmarkParseOpenAPI_Sizes(b *testing.B) {
@@ -305,8 +308,7 @@ func BenchmarkMemoryProfile_Convert(b *testing.B) {
 				if err != nil {
 					b.Fatal(err)
 				}
-				if err := spec.(*OpenAPI).WriteBlueprint(io.Discard); err != nil {
-					b.Fatal(err)
+				                if _, err := spec.(*OpenAPI).WriteTo(io.Discard); err != nil {					b.Fatal(err)
 				}			}
 
 			b.StopTimer()
@@ -395,8 +397,7 @@ func BenchmarkThroughput_Convert(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		if err := spec.(*OpenAPI).WriteBlueprint(io.Discard); err != nil {
-			b.Fatal(err)
+		                if _, err := spec.(*OpenAPI).WriteTo(io.Discard); err != nil {			b.Fatal(err)
 		}	}
 }
 
@@ -427,15 +428,18 @@ func BenchmarkConcurrent_Convert(b *testing.B) {
 		for pb.Next() {
 			reader := bytes.NewReader(jsonData)
 			data, _ := io.ReadAll(reader)
-			spec, err := Parse(data, FormatOpenAPI)
-			if err != nil {
-				b.Fatal(err)
+				spec, err := parseAsync(data)
+				if err != nil {
+					b.Fatal(err)
+				}
+				// Convert to API Blueprint and discard output
+				_, err = spec.ToAPIBlueprint()
+				if err != nil {
+					b.Fatal(err)
+				}
 			}
-			if err := spec.(*OpenAPI).WriteBlueprint(io.Discard); err != nil {
-				b.Fatal(err)
-			}		}
-	})
-}
+		})
+	}
 
 // BenchmarkConcurrent_Parse tests concurrent parsing performance
 func BenchmarkConcurrent_Parse(b *testing.B) {

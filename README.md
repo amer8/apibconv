@@ -188,8 +188,7 @@ if err != nil {
 }
 
 // Serialize to JSON
-data, err := json.MarshalIndent(openapiSpec, "", "  ")
-fmt.Println(string(data))
+fmt.Println(openapiSpec.String())
 ```
 </details>
 
@@ -221,9 +220,8 @@ if err != nil {
     log.Fatal(err)
 }
 
-// Marshal to JSON
-data, err := json.MarshalIndent(asyncSpec, "", "  ")
-fmt.Println(string(data))
+// Serialize to JSON
+fmt.Println(asyncSpec.String())
 ```
 </details>
 

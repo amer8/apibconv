@@ -4,15 +4,14 @@ import (
 	"fmt"
 )
 
-// ConvertToVersion converts an OpenAPI specification to a target version.
+// ConvertTo converts an OpenAPI specification to a target version.
 //
-// This function handles bidirectional conversion between OpenAPI 3.0 and 3.1.
+// This method handles bidirectional conversion between OpenAPI 3.0 and 3.1.
 // When converting from 3.1 to 3.0, features that don't exist in 3.0 (like webhooks)
 // are dropped unless StrictMode is enabled in the options.
 //
 // Parameters:
-//   - spec: The OpenAPI specification to convert
-//   - targetVersion: The desired output version (Version30 or Version31)
+//   - version: The desired output version (Version30 or Version31)
 //   - opts: Optional conversion options (can be nil for defaults)
 //
 // Returns:
@@ -22,11 +21,12 @@ import (
 // Example:
 //
 //	spec, _ := converter.Parse(jsonData)
-//	converted, err := converter.ConvertToVersion(spec, converter.Version31, nil)
+//	openapiSpec, _ := spec.AsOpenAPI()
+//	converted, err := openapiSpec.ConvertTo(converter.Version31, nil)
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
-func ConvertToVersion(spec *OpenAPI, targetVersion Version, opts *ConversionOptions) (*OpenAPI, error) {
+func (spec *OpenAPI) ConvertTo(version Version, opts *ConversionOptions) (*OpenAPI, error) {
 	if spec == nil {
 		return nil, fmt.Errorf("spec cannot be nil")
 	}
@@ -38,7 +38,7 @@ func ConvertToVersion(spec *OpenAPI, targetVersion Version, opts *ConversionOpti
 	currentVersion := DetectVersion(spec.OpenAPI)
 
 	// No conversion needed
-	if currentVersion == targetVersion {
+	if currentVersion == version {
 		return spec, nil
 	}
 
@@ -46,12 +46,12 @@ func ConvertToVersion(spec *OpenAPI, targetVersion Version, opts *ConversionOpti
 	converted := copyOpenAPI(spec)
 
 	switch {
-	case currentVersion == Version30 && targetVersion == Version31:
+	case currentVersion == Version30 && version == Version31:
 		return convert30To31(converted, opts)
-	case currentVersion == Version31 && targetVersion == Version30:
+	case currentVersion == Version31 && version == Version30:
 		return convert31To30(converted, opts)
 	default:
-		return nil, fmt.Errorf("unsupported conversion from %s to %s", currentVersion, targetVersion)
+		return nil, fmt.Errorf("unsupported conversion from %s to %s", currentVersion, version)
 	}
 }
 
@@ -133,36 +133,36 @@ func convert31To30(spec *OpenAPI, opts *ConversionOptions) (*OpenAPI, error) {
 //
 // This primarily involves converting nullable: true to type arrays.
 // For example, {type: "string", nullable: true} becomes {type: ["string", "null"]}.
-func convertSchemaToV31(schema *Schema) {
-	if schema == nil {
+func convertSchemaToV31(s *Schema) {
+	if s == nil {
 		return
 	}
 
 	// Convert nullable to type array
-	if schema.Nullable && schema.Type != nil {
+	if s.Nullable && s.Type != nil {
 		// Check if Type is a string
-		if typeStr, ok := schema.Type.(string); ok && typeStr != "" {
-			schema.Type = []any{typeStr, TypeNull}
-			schema.Nullable = false
+		if typeStr, ok := s.Type.(string); ok && typeStr != "" {
+			s.Type = []any{typeStr, TypeNull}
+			s.Nullable = false
 		}
 	}
 
 	// Recursively convert nested schemas
-	for _, prop := range schema.Properties {
+	for _, prop := range s.Properties {
 		convertSchemaToV31(prop)
 	}
 
-	if schema.Items != nil {
-		convertSchemaToV31(schema.Items)
+	if s.Items != nil {
+		convertSchemaToV31(s.Items)
 	}
 
 	// Convert dependent schemas
-	for _, depSchema := range schema.DependentSchemas {
+	for _, depSchema := range s.DependentSchemas {
 		convertSchemaToV31(depSchema)
 	}
 
 	// Convert prefix items
-	for _, prefixItem := range schema.PrefixItems {
+	for _, prefixItem := range s.PrefixItems {
 		convertSchemaToV31(prefixItem)
 	}
 }
@@ -171,15 +171,15 @@ func convertSchemaToV31(schema *Schema) {
 //
 // This primarily involves converting type arrays to nullable: true.
 // For example, {type: ["string", "null"]} becomes {type: "string", nullable: true}.
-func convertSchemaToV30(schema *Schema) {
-	if schema == nil {
+func convertSchemaToV30(s *Schema) {
+	if s == nil {
 		return
 	}
 
 	// Convert type array to nullable
-	if schema.Type != nil {
+	if s.Type != nil {
 		// Check if Type is an array (slice)
-		if typeArray, ok := schema.Type.([]any); ok {
+		if typeArray, ok := s.Type.([]any); ok {
 			// Look for ["type", "null"] pattern
 			var mainType string
 			hasNull := false
@@ -195,29 +195,29 @@ func convertSchemaToV30(schema *Schema) {
 			}
 
 			if hasNull && mainType != "" {
-				schema.Type = mainType
-				schema.Nullable = true
+				s.Type = mainType
+				s.Nullable = true
 			} else if len(typeArray) == 1 {
 				// Single-element array, just use the type
 				if tStr, ok := typeArray[0].(string); ok {
-					schema.Type = tStr
+					s.Type = tStr
 				}
 			}
 		}
 	}
 
 	// Remove 3.1-only fields
-	schema.Const = nil
-	schema.DependentSchemas = nil
-	schema.PrefixItems = nil
+	s.Const = nil
+	s.DependentSchemas = nil
+	s.PrefixItems = nil
 
 	// Recursively convert nested schemas
-	for _, prop := range schema.Properties {
+	for _, prop := range s.Properties {
 		convertSchemaToV30(prop)
 	}
 
-	if schema.Items != nil {
-		convertSchemaToV30(schema.Items)
+	if s.Items != nil {
+		convertSchemaToV30(s.Items)
 	}
 }
 

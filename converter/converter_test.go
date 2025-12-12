@@ -14,7 +14,7 @@ func convertOpenAPIToBlueprint(t *testing.T, input string) string {
 	s, err := Parse([]byte(input), FormatOpenAPI)
 	if err == nil {
 		if openapiSpec, ok := s.AsOpenAPI(); ok {
-			err = openapiSpec.WriteBlueprint(&output)
+			_, err = openapiSpec.WriteTo(&output)
 		} else {
 			err = fmt.Errorf("spec is not an OpenAPI spec")
 		}
@@ -261,7 +261,7 @@ func TestConvert_InvalidJSON(t *testing.T) {
 	s, err := Parse([]byte(input), FormatOpenAPI)
 	if err == nil {
 		if openapiSpec, ok := s.AsOpenAPI(); ok {
-			err = openapiSpec.WriteBlueprint(&output)
+			_, err = openapiSpec.WriteTo(&output)
 		} else {
 			err = fmt.Errorf("spec is not an OpenAPI spec")
 		}

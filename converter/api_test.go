@@ -38,17 +38,16 @@ func TestParse(t *testing.T) {
 	}
 
 	spec, ok := s.AsOpenAPI()
-	if !ok {
-		t.Fatalf("Expected *OpenAPI, got %T", s)
-	}
-
-	if spec.GetTitle() != "Test API" {
-		t.Errorf("Expected title 'Test API', got '%s'", spec.GetTitle())
+	    if !ok {
+	        t.Fatalf("Expected *OpenAPI, got %T", s)
+	    }
+	
+	    if spec.Title() != "Test API" {		t.Errorf("Expected title 'Test API', got '%s'", spec.Title())
 	}
 
 	// GetVersion returns the OpenAPI version
-	if spec.GetVersion() != "3.0.0" {
-		t.Errorf("Expected version '3.0.0', got '%s'", spec.GetVersion())
+	if spec.Version() != "3.0.0" {
+		t.Errorf("Expected version '3.0.0', got '%s'", spec.Version())
 	}
 
 	// Check API Info version directly
@@ -89,12 +88,12 @@ func TestParseFormatComposition(t *testing.T) {
 	spec.Info.Title = "Modified API"
 
 	// Format
-	result, err := spec.ToBlueprint()
+	blueprint, err := spec.ToAPIBlueprint()
 	if err != nil {
-		t.Fatalf("ToBlueprint failed: %v", err)
+		t.Fatalf("ToAPIBlueprint failed: %v", err)
 	}
 
-	if !strings.Contains(result, "# Modified API") {
+	if !strings.Contains(blueprint.String(), "# Modified API") {
 		t.Error("Expected modified title in output")
 	}
 }
@@ -116,8 +115,8 @@ paths: {}
 		t.Fatalf("Expected *OpenAPI")
 	}
 
-	if spec.GetTitle() != "Test API" {
-		t.Errorf("Expected title 'Test API', got '%s'", spec.GetTitle())
+	if spec.Title() != "Test API" {
+		t.Errorf("Expected title 'Test API', got '%s'", spec.Title())
 	}
 }
 

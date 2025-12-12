@@ -8,24 +8,10 @@ import (
 
 // Spec is a unified interface for any API specification (OpenAPI, AsyncAPI, API Blueprint).
 type Spec interface {
-	// ToBlueprint converts the specification to API Blueprint format.
-	ToBlueprint() (string, error)
-
-	// ToOpenAPI converts the specification to OpenAPI 3.0 format.
-	ToOpenAPI() (*OpenAPI, error)
-
-	// ToAsyncAPI converts the specification to AsyncAPI 2.6 format.
-	// protocol is required for AsyncAPI server definitions.
-	ToAsyncAPI(protocol Protocol) (*AsyncAPI, error)
-
-	// ToAsyncAPIV3 converts the specification to AsyncAPI 3.0 format.
-	// protocol is required for AsyncAPI server definitions.
-	ToAsyncAPIV3(protocol Protocol) (*AsyncAPI, error)
-
-	// GetTitle returns the title of the specification.
-	GetTitle() string
-	// GetVersion returns the version of the specification.
-	GetVersion() string
+	// Title returns the title of the specification.
+	Title() string
+	// Version returns the version of the specification.
+	Version() string
 
 	// AsOpenAPI attempts to return the underlying specification as *OpenAPI.
 	// The boolean indicates if the conversion was successful.
@@ -185,5 +171,5 @@ func ParseWithConversion(data []byte, opts *ConversionOptions) (*OpenAPI, error)
 	}
 
 	// Convert if needed
-	return ConvertToVersion(spec, opts.OutputVersion, opts)
+	return spec.ConvertTo(opts.OutputVersion, opts)
 }
