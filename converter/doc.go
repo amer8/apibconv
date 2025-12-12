@@ -78,10 +78,10 @@ package converter
 //
 //	s, _ := converter.Parse([]byte(`{"openapi": "3.0.0", ...}`))
 //	spec30 := s.(*converter.OpenAPI)
-//	spec31, err := converter.ConvertToVersion(spec30, converter.Version31, nil)
+//	spec31, err := spec30.ConvertTo(converter.Version31, nil)
 //	// Nullable fields become type arrays: ["string", "null"]
 //
-//	spec31to30, err := converter.ConvertToVersion(spec31, converter.Version30, nil)
+//	spec31to30, err := spec31.ConvertTo(converter.Version30, nil)
 //	// Type arrays become nullable: true
 //
 // # Conversion Workflows
@@ -98,8 +98,11 @@ package converter
 //	s, err := converter.Parse(data)
 //	if spec, ok := s.(*converter.OpenAPI); ok {
 //	    spec.Info.Title = "Modified API"
+//	    // Serialize back to JSON
+//	    jsonResult := spec.String()
+//	    // Or convert to Blueprint
+//	    blueprint, err := spec.ToBlueprint()
 //	}
-//	result, err := s.ToBlueprint()
 //
 // 3. Streaming (for large files):
 //
@@ -141,8 +144,8 @@ package converter
 //
 // 4. Version Conversion:
 //
-//	spec31, err := converter.ConvertToVersion(spec30, converter.Version31, nil)
-//	spec30, err := converter.ConvertToVersion(spec31, converter.Version30, nil)
+//	spec31, err := spec30.ConvertTo(converter.Version31, nil)
+//	spec30, err := spec31.ConvertTo(converter.Version30, nil)
 //
 // # Performance
 //
@@ -161,10 +164,10 @@ package converter
 //
 // Version Conversion:
 //
-//   - ConvertToVersion: Convert between OpenAPI 3.0 and 3.1
+//   - OpenAPI.ConvertTo: Convert between OpenAPI 3.0 and 3.1
 //   - DetectVersion: Detect OpenAPI version from spec string
-//   - SchemaType: Get primary type from schema (handles both 3.0 and 3.1)
-//   - IsNullable: Check if schema allows null values
+//   - Schema.TypeName: Get primary type from schema (handles both 3.0 and 3.1)
+//   - Schema.IsNullable: Check if schema allows null values
 //
 // OpenAPI → API Blueprint Conversion:
 //
@@ -175,10 +178,9 @@ package converter
 //
 // API Blueprint → OpenAPI Conversion:
 //
-//   - ToOpenAPI: Convert API Blueprint bytes to OpenAPI JSON bytes (3.0 default)
-//   - ToOpenAPIWithOptions: Convert with version options
-//   - ToOpenAPIString: Convert API Blueprint string to OpenAPI JSON string
-//   - ConvertToOpenAPI: Streaming I/O conversion
+//   - ParseBlueprint: Parse API Blueprint to OpenAPI 3.0
+//   - ParseBlueprintWithOptions: Parse with version options
+//   - ParseBlueprintReader: Parse API Blueprint from reader
 //
 // AsyncAPI Conversion:
 //
@@ -201,9 +203,8 @@ package converter
 //
 // Formatting:
 //
-//   - Format, FormatTo: Format OpenAPI spec to API Blueprint (Deprecated, use ToBlueprint)
-//   - OpenAPI.ToBlueprint: Convert OpenAPI to API Blueprint string
-//   - OpenAPI.WriteBlueprint: Write OpenAPI as API Blueprint to writer
+//   - OpenAPI.ToAPIBlueprint: Convert OpenAPI to API Blueprint string
+//   - OpenAPI.WriteTo: Write OpenAPI as API Blueprint to writer
 //   - MustFormat, MustFromJSON: Panic on error (useful for testing)
 //
 // # OpenAPI Structure

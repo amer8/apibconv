@@ -46,8 +46,12 @@ const (
 	ProtocolAMQP  Protocol = "amqp"
 	// ProtocolWS indicates the WebSocket protocol.
 	ProtocolWS    Protocol = "ws"
+	// ProtocolWSS indicates the WebSocket Secure protocol.
+	ProtocolWSS   Protocol = "wss"
 	// ProtocolHTTP indicates the HTTP protocol.
 	ProtocolHTTP  Protocol = "http"
 	// ProtocolHTTPS indicates the HTTPS protocol.
 	ProtocolHTTPS Protocol = "https"
+	// ProtocolAuto indicates that the protocol should be inferred or is generic.
+	ProtocolAuto Protocol = "auto"
 )

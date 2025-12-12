@@ -66,7 +66,7 @@ func BenchmarkBufferStrategies(b *testing.B) {
 			// Would need a version of writeAPIBlueprint for strings.Builder
 			builder.WriteString("FORMAT: 1A\n\n")
 			builder.WriteString("# ")
-			builder.WriteString(spec.Info.Title)
+			builder.WriteString(spec.Title())
 			_ = builder.String()
 		}
 	})
@@ -78,7 +78,7 @@ func BenchmarkBufferStrategies(b *testing.B) {
 			result := make([]byte, 0, 2048)
 			result = append(result, "FORMAT: 1A\n\n"...)
 			result = append(result, "# "...)
-			result = append(result, spec.Info.Title...)
+			result = append(result, spec.Title()...)
 			_ = result
 		}
 	})

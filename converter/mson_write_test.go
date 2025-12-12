@@ -37,7 +37,11 @@ func TestMSONGeneration(t *testing.T) {
 		},
 	}
 
-	output, err := Format(spec)
+	bp, err := spec.ToAPIBlueprint()
+	if err != nil {
+		t.Fatalf("Format failed: %v", err)
+	}
+	output := bp.String()
 	if err != nil {
 		t.Fatalf("Format failed: %v", err)
 	}
@@ -93,7 +97,11 @@ func TestMSON_Arrays(t *testing.T) {
 		},
 	}
 
-	output, err := Format(spec)
+	bp, err := spec.ToAPIBlueprint()
+	if err != nil {
+		t.Fatalf("Format failed: %v", err)
+	}
+	output := bp.String()
 	if err != nil {
 		t.Fatalf("Format failed: %v", err)
 	}
@@ -138,7 +146,11 @@ func TestMSON_References(t *testing.T) {
 		},
 	}
 
-	output, err := Format(spec)
+	bp, err := spec.ToAPIBlueprint()
+	if err != nil {
+		t.Fatalf("Format failed: %v", err)
+	}
+	output := bp.String()
 	if err != nil {
 		t.Fatalf("Format failed: %v", err)
 	}
@@ -179,7 +191,11 @@ func TestMSON_DescriptionAndExample(t *testing.T) {
 		},
 	}
 
-	output, err := Format(spec)
+	bp, err := spec.ToAPIBlueprint()
+	if err != nil {
+		t.Fatalf("Format failed: %v", err)
+	}
+	output := bp.String()
 	if err != nil {
 		t.Fatalf("Format failed: %v", err)
 	}
@@ -218,7 +234,11 @@ func TestMSON_RequiredOptional(t *testing.T) {
 		},
 	}
 
-	output, err := Format(spec)
+	bp, err := spec.ToAPIBlueprint()
+	if err != nil {
+		t.Fatalf("Format failed: %v", err)
+	}
+	output := bp.String()
 	if err != nil {
 		t.Fatalf("Format failed: %v", err)
 	}
@@ -263,7 +283,11 @@ func TestMSON_NestedObject(t *testing.T) {
 		},
 	}
 
-	output, err := Format(spec)
+	bp, err := spec.ToAPIBlueprint()
+	if err != nil {
+		t.Fatalf("Format failed: %v", err)
+	}
+	output := bp.String()
 	if err != nil {
 		t.Fatalf("Format failed: %v", err)
 	}

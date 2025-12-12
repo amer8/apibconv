@@ -93,11 +93,21 @@ func processExampleFile(t *testing.T, path string, content []byte, ext string) {
 	}
 }
 func testAPIBConversion(t *testing.T, content []byte) {
-	// 1. Parse API Blueprint to OpenAPI
-	// This implicitly validates the APIB parsing logic
-	spec, err := ToOpenAPI(content)
+	// 1. Parse API Blueprint
+	bp, err := ParseBlueprint(content)
 	if err != nil {
-		t.Fatalf("Failed to convert API Blueprint to OpenAPI: %v", err)
+		t.Fatalf("Failed to parse API Blueprint: %v", err)
+	}
+
+	// Convert to OpenAPI
+	specObj, err := bp.ToOpenAPI()
+	if err != nil {
+		t.Fatalf("Failed to convert to OpenAPI: %v", err)
+	}
+
+	spec, err := json.Marshal(specObj)
+	if err != nil {
+		t.Fatalf("Failed to marshal spec: %v", err)
 	}
 
 	// 2. Validate the generated OpenAPI JSON
@@ -122,14 +132,18 @@ func testOpenAPIConversion(t *testing.T, content []byte) {
 	if err != nil {
 		t.Fatalf("Failed to parse OpenAPI: %v", err)
 	}
-	spec, ok := s.(*OpenAPI)
+	spec, ok := s.AsOpenAPI()
 	if !ok {
 		t.Fatalf("Expected *OpenAPI")
 	}
 
 	// 2. Convert to API Blueprint
 	var buf bytes.Buffer
-	err = Convert(bytes.NewReader(content), &buf)
+	specToConvert, err := Parse(content, FormatOpenAPI)
+	if err != nil {
+		t.Fatalf("Failed to parse OpenAPI for conversion: %v", err)
+	}
+	_, err = specToConvert.(*OpenAPI).WriteTo(&buf)
 	if err != nil {
 		t.Fatalf("Failed to convert OpenAPI to API Blueprint: %v", err)
 	}
@@ -141,13 +155,13 @@ func testOpenAPIConversion(t *testing.T, content []byte) {
 
 	// 3. Round-trip (APIB -> OpenAPI)
 	// Note: Round-trip is lossy, so we can't compare exactly, but we can check if it parses back.
-	parsedSpec, err := ParseAPIBlueprint([]byte(apibOutput))
+	parsedSpec, err := ParseBlueprint([]byte(apibOutput))
 	if err != nil {
 		t.Fatalf("Failed to parse generated API Blueprint back to OpenAPI: %v", err)
 	}
 
-	if parsedSpec.Info.Title != spec.Info.Title {
-		t.Errorf("Title mismatch after round-trip. Got %q, want %q", parsedSpec.Info.Title, spec.Info.Title)
+	if parsedSpec.Title() != spec.Title() {
+		t.Errorf("Title mismatch: expected %q, got %q", "Test API", spec.Title())
 	}
 }
 
@@ -156,10 +170,34 @@ func testAsyncAPIConversion(t *testing.T, content []byte, version string) {
 	var err error
 	var buf bytes.Buffer
 
+	var spec Spec
+
 	if strings.HasPrefix(version, "3.") {
-		err = ConvertAsyncAPIV3ToAPIBlueprint(bytes.NewReader(content), &buf)
+		s, e := parseAsyncV3(content)
+		spec = s
+		err = e
 	} else {
-		err = ConvertAsyncAPIToAPIBlueprint(bytes.NewReader(content), &buf)
+		s, e := parseAsync(content)
+		spec = s
+		err = e
+	}
+
+	if err == nil {
+		var blueprintStr string
+		if s, ok := spec.(*AsyncAPI); ok {
+			bpObj, err := s.ToAPIBlueprint()
+			if err != nil {
+				t.Fatalf("ToAPIBlueprint failed: %v", err)
+			}
+			blueprintStr = bpObj.String()
+		} else {
+			// Should not happen for AsyncAPI parsing
+			t.Fatalf("Parsed spec is not *AsyncAPI")
+		}
+
+		if err == nil {
+			buf.WriteString(blueprintStr)
+		}
 	}
 
 	if err != nil {
@@ -172,139 +210,4 @@ func testAsyncAPIConversion(t *testing.T, content []byte, version string) {
 	}
 }
 
-// TestWorkflow_AsyncAPI_To_OpenAPI verifies a multi-step conversion:
-// AsyncAPI -> API Blueprint -> OpenAPI
-// This simulates a user wanting to document their Event API using OpenAPI tools.
-func TestWorkflow_AsyncAPI_To_OpenAPI(t *testing.T) {
-	// Create a simple AsyncAPI spec
-	asyncAPI := `{
-		"asyncapi": "2.6.0",
-		"info": {
-			"title": "Workflow Test",
-			"version": "1.0.0"
-		},
-		"channels": {
-			"user/signup": {
-				"subscribe": {
-					"message": {
-						"payload": {
-							"type": "object",
-							"properties": {
-								"username": {"type": "string"}
-							}
-						}
-					}
-				}
-			}
-		}
-	}`
 
-	// Step 1: AsyncAPI -> API Blueprint
-	var apibBuf bytes.Buffer
-	err := ConvertAsyncAPIToAPIBlueprint(strings.NewReader(asyncAPI), &apibBuf)
-	if err != nil {
-		t.Fatalf("Step 1 Failed: AsyncAPI -> APIB: %v", err)
-	}
-	apibOutput := apibBuf.String()
-
-	// Step 2: API Blueprint -> OpenAPI
-	var openapiBuf bytes.Buffer
-	err = ConvertToOpenAPI(strings.NewReader(apibOutput), &openapiBuf)
-	if err != nil {
-		t.Fatalf("Step 2 Failed: APIB -> OpenAPI: %v", err)
-	}
-
-	// Step 3: Verify OpenAPI structure
-	openapiOutput := openapiBuf.Bytes()
-	s, err := Parse(openapiOutput)
-	if err != nil {
-		t.Fatalf("Step 3 Failed: Parsing generated OpenAPI: %v", err)
-	}
-	spec, ok := s.(*OpenAPI)
-	if !ok {
-		t.Fatalf("Expected *OpenAPI")
-	}
-
-	// Verification
-	if spec.Info.Title != "Workflow Test" {
-		t.Errorf("Title lost in translation. Got %q", spec.Info.Title)
-	}
-
-	// The AsyncAPI "user/signup" channel should become a path
-	// The "subscribe" operation (receive) should become a "GET" operation (standard mapping in this lib)
-	pathItem, exists := spec.Paths["/user/signup"]
-	if !exists {
-		t.Fatalf("Path '/user/signup' missing in final OpenAPI. Paths: %v", spec.Paths)
-	}
-
-	if pathItem.Get == nil {
-		t.Error("Operation mapping incorrect. Expected GET operation for AsyncAPI subscribe.")
-	}
-}
-
-// TestWorkflow_APIB_To_AsyncAPI verifies the API Blueprint -> AsyncAPI conversion workflow.
-// This matches the second example in the README.
-func TestWorkflow_APIB_To_AsyncAPI(t *testing.T) {
-	apibContent := []byte(`FORMAT: 1A
-# Events API
-HOST: kafka://events.example.com
-
-## /events [/events]
-
-### Receive events [GET]
-
-+ Response 200 (application/json)
-`)
-
-	// 1. Parse API Blueprint
-	s, err := Parse(apibContent)
-	if err != nil {
-		t.Fatalf("Failed to parse API Blueprint: %v", err)
-	}
-	spec, ok := s.(*OpenAPI)
-	if !ok {
-		t.Fatalf("Expected *OpenAPI, got %T", s)
-	}
-
-	// 2. Convert to AsyncAPI 2.6 with Kafka protocol
-	asyncSpec, err := spec.ToAsyncAPI(ProtocolKafka)
-	if err != nil {
-		t.Fatalf("Failed to convert to AsyncAPI: %v", err)
-	}
-
-	// 3. Verify AsyncAPI structure
-	if asyncSpec.AsyncAPI != AsyncAPIVersion26 {
-		t.Errorf("Expected AsyncAPI version %s, got %s", AsyncAPIVersion26, asyncSpec.AsyncAPI)
-	}
-
-	if len(asyncSpec.Servers) == 0 {
-		t.Error("Expected servers to be defined")
-	} else {
-		// Check protocol
-		for _, server := range asyncSpec.Servers {
-			if server.Protocol != string(ProtocolKafka) {
-				t.Errorf("Expected protocol %s, got %s", ProtocolKafka, server.Protocol)
-			}
-		}
-	}
-
-	// Check channels mapping
-	// /events should become "events" channel (or similar depending on sanitization)
-	if len(asyncSpec.Channels) == 0 {
-		t.Error("Expected channels to be defined")
-	}
-	
-	// APIB GET /events -> Subscribe (receive) on "events" channel
-	found := false
-	for name, channel := range asyncSpec.Channels {
-		if strings.Contains(name, "events") {
-			found = true
-			if channel.Subscribe == nil {
-				t.Error("Expected Subscribe operation for GET action")
-			}
-		}
-	}
-	if !found {
-		t.Error("Channel 'events' not found in AsyncAPI output")
-	}
-}

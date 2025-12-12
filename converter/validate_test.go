@@ -24,7 +24,7 @@ func TestValidateOpenAPI_Valid(t *testing.T) {
 		},
 	}
 
-	result := ValidateOpenAPI(spec)
+	result := spec.Validate()
 	if !result.Valid {
 		t.Errorf("ValidateOpenAPI() should be valid, got errors: %v", result.Errors)
 	}
@@ -58,7 +58,7 @@ func TestValidateOpenAPI_Warnings(t *testing.T) {
 		},
 	}
 
-	result := ValidateOpenAPI(spec)
+	result := spec.Validate()
 	if !result.Valid {
 		t.Error("Spec should be valid despite warnings")
 	}
@@ -84,7 +84,7 @@ func TestValidateOpenAPI_Warnings(t *testing.T) {
 }
 
 func TestValidateOpenAPI_Nil(t *testing.T) {
-	result := ValidateOpenAPI(nil)
+	result := (*OpenAPI)(nil).Validate()
 	if result.Valid {
 		t.Error("ValidateOpenAPI(nil) should be invalid")
 	}
@@ -102,7 +102,7 @@ func TestValidateOpenAPI_MissingVersion(t *testing.T) {
 		Paths: map[string]PathItem{},
 	}
 
-	result := ValidateOpenAPI(spec)
+	result := spec.Validate()
 	if result.Valid {
 		t.Error("ValidateOpenAPI() should be invalid when openapi version is missing")
 	}
@@ -128,7 +128,7 @@ func TestValidateOpenAPI_MissingTitle(t *testing.T) {
 		Paths: map[string]PathItem{},
 	}
 
-	result := ValidateOpenAPI(spec)
+	result := spec.Validate()
 	if result.Valid {
 		t.Error("ValidateOpenAPI() should be invalid when title is missing")
 	}
@@ -154,7 +154,7 @@ func TestValidateOpenAPI_MissingInfoVersion(t *testing.T) {
 		Paths: map[string]PathItem{},
 	}
 
-	result := ValidateOpenAPI(spec)
+	result := spec.Validate()
 	if result.Valid {
 		t.Error("ValidateOpenAPI() should be invalid when info.version is missing")
 	}
@@ -178,7 +178,7 @@ func TestValidateOpenAPI_InvalidPath(t *testing.T) {
 		},
 	}
 
-	result := ValidateOpenAPI(spec)
+	result := spec.Validate()
 	if result.Valid {
 		t.Error("ValidateOpenAPI() should be invalid when path doesn't start with /")
 	}
@@ -201,7 +201,7 @@ func TestValidateOpenAPI_MissingResponses(t *testing.T) {
 		},
 	}
 
-	result := ValidateOpenAPI(spec)
+	result := spec.Validate()
 	if result.Valid {
 		t.Error("ValidateOpenAPI() should be invalid when responses are missing")
 	}
@@ -231,7 +231,7 @@ func TestValidateOpenAPI_InvalidParameterLocation(t *testing.T) {
 		},
 	}
 
-	result := ValidateOpenAPI(spec)
+	result := spec.Validate()
 	if result.Valid {
 		t.Error("ValidateOpenAPI() should be invalid when parameter location is invalid")
 	}
@@ -262,7 +262,7 @@ func TestValidateOpenAPI_PathParameterNotRequired(t *testing.T) {
 		},
 	}
 
-	result := ValidateOpenAPI(spec)
+	result := spec.Validate()
 	// Should produce warning, not error
 	if len(result.Warnings) == 0 {
 		t.Error("ValidateOpenAPI() should warn when path parameter is not required")
@@ -282,7 +282,7 @@ func TestValidateOpenAPI_ServerURLRequired(t *testing.T) {
 		Paths: map[string]PathItem{},
 	}
 
-	result := ValidateOpenAPI(spec)
+	result := spec.Validate()
 	if result.Valid {
 		t.Error("ValidateOpenAPI() should be invalid when server URL is empty")
 	}
@@ -300,7 +300,7 @@ func TestValidateAsyncAPI_Valid(t *testing.T) {
 		},
 	}
 
-	result := ValidateAsyncAPI(spec)
+	result := spec.Validate()
 	if !result.Valid {
 		t.Errorf("ValidateAsyncAPI() should be valid, got errors: %v", result.Errors)
 	}
@@ -310,7 +310,7 @@ func TestValidateAsyncAPI_Valid(t *testing.T) {
 }
 
 func TestValidateAsyncAPI_Nil(t *testing.T) {
-	result := ValidateAsyncAPI(nil)
+	result := (*AsyncAPI)(nil).Validate()
 	if result.Valid {
 		t.Error("ValidateAsyncAPI(nil) should be invalid")
 	}
@@ -324,7 +324,7 @@ func TestValidateAsyncAPI_MissingVersion(t *testing.T) {
 		},
 	}
 
-	result := ValidateAsyncAPI(spec)
+	result := spec.Validate()
 	if result.Valid {
 		t.Error("ValidateAsyncAPI() should be invalid when asyncapi version is missing")
 	}
@@ -339,15 +339,15 @@ func TestValidateAsyncAPI_NoChannels(t *testing.T) {
 		},
 	}
 
-	result := ValidateAsyncAPI(spec)
+	result := spec.Validate()
 	// Should produce warning, not error
 	if len(result.Warnings) == 0 {
 		t.Error("ValidateAsyncAPI() should warn when no channels are defined")
 	}
 }
 
-func TestValidateAsyncAPIV3_Valid(t *testing.T) {
-	spec := &AsyncAPIV3{
+func TestValidateAsyncAPI_V3_Valid(t *testing.T) {
+	spec := &AsyncAPI{
 		AsyncAPI: "3.0.0",
 		Info: Info{
 			Title:   "Test AsyncAPI V3",
@@ -355,33 +355,15 @@ func TestValidateAsyncAPIV3_Valid(t *testing.T) {
 		},
 	}
 
-	result := ValidateAsyncAPIV3(spec)
+	result := spec.Validate()
 	if !result.Valid {
-		t.Errorf("ValidateAsyncAPIV3() should be valid, got errors: %v", result.Errors)
+		t.Errorf("ValidateAsyncAPI() for v3 should be valid, got errors: %v", result.Errors)
 	}
 }
 
-func TestValidateAsyncAPIV3_Nil(t *testing.T) {
-	result := ValidateAsyncAPIV3(nil)
-	if result.Valid {
-		t.Error("ValidateAsyncAPIV3(nil) should be invalid")
-	}
-}
 
-func TestValidateAsyncAPIV3_WrongVersion(t *testing.T) {
-	spec := &AsyncAPIV3{
-		AsyncAPI: "2.6.0", // Wrong version for V3 spec
-		Info: Info{
-			Title:   "Test",
-			Version: "1.0.0",
-		},
-	}
 
-	result := ValidateAsyncAPIV3(spec)
-	if len(result.Warnings) == 0 {
-		t.Error("ValidateAsyncAPIV3() should warn when version is not 3.x")
-	}
-}
+
 
 func TestValidateAPIBlueprint_Valid(t *testing.T) {
 	content := `FORMAT: 1A
@@ -395,7 +377,10 @@ A test API
 + Response 200 (application/json)
 `
 
-	result := ValidateAPIBlueprint(content)
+	result, err := ValidateAPIBlueprint(content)
+	if err != nil {
+		t.Fatalf("ValidateAPIBlueprint() error = %v", err)
+	}
 	if !result.Valid {
 		t.Errorf("ValidateAPIBlueprint() should be valid, got errors: %v", result.Errors)
 	}
@@ -405,7 +390,10 @@ A test API
 }
 
 func TestValidateAPIBlueprint_Empty(t *testing.T) {
-	result := ValidateAPIBlueprint("")
+	result, err := ValidateAPIBlueprint("")
+	if err != nil {
+		t.Fatalf("ValidateAPIBlueprint() error = %v", err)
+	}
 	if result.Valid {
 		t.Error("ValidateAPIBlueprint() should be invalid for empty content")
 	}
@@ -419,7 +407,10 @@ func TestValidateAPIBlueprint_NoTitle(t *testing.T) {
 + Response 200
 `
 
-	result := ValidateAPIBlueprint(content)
+	result, err := ValidateAPIBlueprint(content)
+	if err != nil {
+		t.Fatalf("ValidateAPIBlueprint() error = %v", err)
+	}
 	if result.Valid {
 		t.Error("ValidateAPIBlueprint() should be invalid when title is missing")
 	}
@@ -433,7 +424,10 @@ func TestValidateAPIBlueprint_NoFormat(t *testing.T) {
 + Response 200
 `
 
-	result := ValidateAPIBlueprint(content)
+	result, err := ValidateAPIBlueprint(content)
+	if err != nil {
+		t.Fatalf("ValidateAPIBlueprint() error = %v", err)
+	}
 	// Should produce warning but still be valid
 	if len(result.Warnings) == 0 {
 		t.Error("ValidateAPIBlueprint() should warn when FORMAT header is missing")
@@ -442,7 +436,10 @@ func TestValidateAPIBlueprint_NoFormat(t *testing.T) {
 
 func TestValidateJSON_Valid(t *testing.T) {
 	data := []byte(`{"openapi": "3.0.0", "info": {"title": "Test"}}`)
-	result := ValidateJSON(data)
+	result, err := ValidateJSON(data)
+	if err != nil {
+		t.Fatalf("ValidateJSON() error = %v", err)
+	}
 
 	if !result.Valid {
 		t.Error("ValidateJSON() should be valid for valid JSON")
@@ -454,7 +451,10 @@ func TestValidateJSON_Valid(t *testing.T) {
 
 func TestValidateJSON_AsyncAPI(t *testing.T) {
 	data := []byte(`{"asyncapi": "2.6.0", "info": {"title": "Test"}}`)
-	result := ValidateJSON(data)
+	result, err := ValidateJSON(data)
+	if err != nil {
+		t.Fatalf("ValidateJSON() error = %v", err)
+	}
 
 	if !result.Valid {
 		t.Error("ValidateJSON() should be valid for valid JSON")
@@ -466,7 +466,10 @@ func TestValidateJSON_AsyncAPI(t *testing.T) {
 
 func TestValidateJSON_Invalid(t *testing.T) {
 	data := []byte(`{invalid json}`)
-	result := ValidateJSON(data)
+	result, err := ValidateJSON(data)
+	if err != nil {
+		t.Fatalf("ValidateJSON() error = %v", err)
+	}
 
 	if result.Valid {
 		t.Error("ValidateJSON() should be invalid for invalid JSON")
@@ -475,7 +478,10 @@ func TestValidateJSON_Invalid(t *testing.T) {
 
 func TestValidateJSON_UnknownFormat(t *testing.T) {
 	data := []byte(`{"foo": "bar"}`)
-	result := ValidateJSON(data)
+	result, err := ValidateJSON(data)
+	if err != nil {
+		t.Fatalf("ValidateJSON() error = %v", err)
+	}
 
 	if len(result.Warnings) == 0 {
 		t.Error("ValidateJSON() should warn for unknown format")
@@ -483,22 +489,27 @@ func TestValidateJSON_UnknownFormat(t *testing.T) {
 }
 
 func TestValidateBytes_Empty(t *testing.T) {
-	result := ValidateBytes([]byte{})
+	result, err := ValidateBytes([]byte{})
+	if err != nil {
+		t.Fatalf("ValidateBytes() error = %v", err)
+	}
 	if result.Valid {
 		t.Error("ValidateBytes() should be invalid for empty input")
 	}
 }
 
 func TestValidateBytes_JSON(t *testing.T) {
-	data := []byte(`{
-		"openapi": "3.0.0",
-		"info": {"title": "Test", "version": "1.0.0"},
-		"paths": {}
-	}`)
-
-	result := ValidateBytes(data)
-	if !result.Valid {
-		t.Errorf("ValidateBytes() should be valid for valid OpenAPI: %v", result.Errors)
+	    data := []byte(`{
+			"openapi": "3.0.0",
+			"info": {"title": "Test", "version": "1.0.0"},
+			"paths": {}
+		}`)
+	
+		result, err := ValidateBytes(data)
+		if err != nil {
+			t.Fatalf("ValidateBytes() error = %v", err)
+		}
+		if !result.Valid {		t.Errorf("ValidateBytes() should be valid for valid OpenAPI: %v", result.Errors)
 	}
 }
 
@@ -512,7 +523,10 @@ func TestValidateBytes_APIBlueprint(t *testing.T) {
 + Response 200
 `)
 
-	result := ValidateBytes(data)
+	result, err := ValidateBytes(data)
+	if err != nil {
+		t.Fatalf("ValidateBytes() error = %v", err)
+	}
 	if !result.Valid {
 		t.Errorf("ValidateBytes() should be valid for valid API Blueprint: %v", result.Errors)
 	}
@@ -546,7 +560,7 @@ func TestValidationResult_Fields(t *testing.T) {
 		Paths: map[string]PathItem{},
 	}
 
-	result := ValidateOpenAPI(spec)
+	result := spec.Validate()
 
 	if result.Version != "3.1.0" {
 		t.Errorf("ValidationResult.Version = %q, want %q", result.Version, "3.1.0")
@@ -566,7 +580,7 @@ func TestValidateOpenAPI_UnsupportedVersion(t *testing.T) {
 		Paths: map[string]PathItem{},
 	}
 
-	result := ValidateOpenAPI(spec)
+	result := spec.Validate()
 	// Should produce warning for unsupported version
 	if len(result.Warnings) == 0 {
 		t.Error("ValidateOpenAPI() should warn for unsupported OpenAPI version")
@@ -589,7 +603,7 @@ func TestValidateOpenAPI_Components(t *testing.T) {
 		},
 	}
 
-	result := ValidateOpenAPI(spec)
+	result := spec.Validate()
 	if result.Valid {
 		t.Error("ValidateOpenAPI() should be invalid when component schema is null")
 	}

@@ -337,29 +337,4 @@ func TestFormatAsyncAPIAsYAML_Nil(t *testing.T) {
 	}
 }
 
-func TestFormatAsyncAPIV3AsYAML(t *testing.T) {
-	spec := &AsyncAPIV3{
-		AsyncAPI: "3.0.0",
-		Info: Info{
-			Title:   "Test AsyncAPI V3",
-			Version: "1.0.0",
-		},
-	}
 
-	yamlBytes, err := FormatAsyncAPIV3AsYAML(spec)
-	if err != nil {
-		t.Fatalf("FormatAsyncAPIV3AsYAML() error = %v", err)
-	}
-
-	yaml := string(yamlBytes)
-	if !strings.Contains(yaml, "asyncapi:") {
-		t.Error("YAML should contain asyncapi version")
-	}
-}
-
-func TestFormatAsyncAPIV3AsYAML_Nil(t *testing.T) {
-	_, err := FormatAsyncAPIV3AsYAML(nil)
-	if err != ErrNilSpec {
-		t.Errorf("FormatAsyncAPIV3AsYAML(nil) error = %v, want ErrNilSpec", err)
-	}
-}

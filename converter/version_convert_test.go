@@ -35,7 +35,7 @@ func TestConvertToVersion_30to31(t *testing.T) {
 		},
 	}
 
-	converted, err := ConvertToVersion(spec, Version31, nil)
+	converted, err := spec.ConvertTo(Version31, nil)
 	if err != nil {
 		t.Fatalf("ConvertToVersion failed: %v", err)
 	}
@@ -121,7 +121,7 @@ func TestConvertToVersion_31to30(t *testing.T) {
 		},
 	}
 
-	converted, err := ConvertToVersion(spec, Version30, nil)
+	converted, err := spec.ConvertTo(Version30, nil)
 	if err != nil {
 		t.Fatalf("ConvertToVersion failed: %v", err)
 	}
@@ -184,7 +184,7 @@ func TestConvertToVersion_31to30_StrictMode(t *testing.T) {
 		StrictMode:    true,
 	}
 
-	_, err := ConvertToVersion(spec, Version30, opts)
+	_, err := spec.ConvertTo(Version30, opts)
 	if err == nil {
 		t.Error("ConvertToVersion with StrictMode should fail when webhooks are present")
 	}
@@ -200,7 +200,7 @@ func TestConvertToVersion_NoConversionNeeded(t *testing.T) {
 		Paths: map[string]PathItem{},
 	}
 
-	converted, err := ConvertToVersion(spec, Version30, nil)
+	converted, err := spec.ConvertTo(Version30, nil)
 	if err != nil {
 		t.Fatalf("ConvertToVersion failed: %v", err)
 	}
@@ -246,7 +246,7 @@ func TestSchemaType(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := SchemaType(tt.schema)
+			result := tt.schema.TypeName()
 			if result != tt.expected {
 				t.Errorf("SchemaType() = %q, want %q", result, tt.expected)
 			}
@@ -299,7 +299,7 @@ func TestIsNullable(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := IsNullable(tt.schema)
+			result := tt.schema.IsNullable()
 			if result != tt.expected {
 				t.Errorf("IsNullable() = %v, want %v", result, tt.expected)
 			}
@@ -368,26 +368,26 @@ func TestConvertNestedSchemas(t *testing.T) {
 		},
 	}
 
-	converted, err := ConvertToVersion(spec, Version31, nil)
+	converted, err := spec.ConvertTo(Version31, nil)
 	if err != nil {
 		t.Fatalf("ConvertToVersion failed: %v", err)
 	}
 
 	// Check parameter schema
 	paramSchema := converted.Paths["/test"].Get.Parameters[0].Schema
-	if IsNullable(paramSchema) != true {
+	if paramSchema.IsNullable() != true {
 		t.Error("Parameter schema should be nullable")
 	}
 
 	// Check request body nested property
 	nameSchema := converted.Paths["/test"].Get.RequestBody.Content["application/json"].Schema.Properties["name"]
-	if IsNullable(nameSchema) != true {
+	if nameSchema.IsNullable() != true {
 		t.Error("Request body 'name' property should be nullable")
 	}
 
 	// Check array items schema
 	itemsSchema := converted.Paths["/test"].Get.Responses["200"].Content["application/json"].Schema.Items
-	if IsNullable(itemsSchema) != true {
+	if itemsSchema.IsNullable() != true {
 		t.Error("Array items schema should be nullable")
 	}
 }
@@ -436,13 +436,13 @@ func TestRoundTripConversion(t *testing.T) {
 	}
 
 	// Convert to 3.1
-	converted31, err := ConvertToVersion(original, Version31, nil)
+	converted31, err := original.ConvertTo(Version31, nil)
 	if err != nil {
 		t.Fatalf("Conversion to 3.1 failed: %v", err)
 	}
 
 	// Convert back to 3.0
-	converted30, err := ConvertToVersion(converted31, Version30, nil)
+	converted30, err := converted31.ConvertTo(Version30, nil)
 	if err != nil {
 		t.Fatalf("Conversion back to 3.0 failed: %v", err)
 	}
@@ -499,7 +499,7 @@ func TestJSONMarshaling(t *testing.T) {
 	}
 
 	// Convert to 3.1
-	converted, err := ConvertToVersion(spec, Version31, nil)
+	converted, err := spec.ConvertTo(Version31, nil)
 	if err != nil {
 		t.Fatalf("Conversion failed: %v", err)
 	}
@@ -643,11 +643,11 @@ func TestNormalizeSchemaType(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.schema == nil {
-				NormalizeSchemaType(nil, tt.version)
+				tt.schema.NormalizeType(tt.version)
 				return
 			}
 
-			NormalizeSchemaType(tt.schema, tt.version)
+			tt.schema.NormalizeType(tt.version)
 
 			// Check type
 			if tt.expectedType != nil {
@@ -741,7 +741,7 @@ func TestNormalizeSchemaType_ComplexNesting(t *testing.T) {
 		},
 	}
 
-	NormalizeSchemaType(schema, Version31)
+	schema.NormalizeType(Version31)
 
 	// Check deeply nested property
 	avatarSchema := schema.Properties["user"].Properties["profile"].Properties["avatar"]

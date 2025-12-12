@@ -4,17 +4,12 @@ package converter
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"sort"
 	"strings"
 )
-
-// BlueprintConvertible is an interface for types that can be converted to API Blueprint format.
-type BlueprintConvertible interface {
-	ToBlueprint() (string, error)
-	WriteBlueprint(w io.Writer) error
-}
 
 // OpenAPI represents a minimal OpenAPI 3.0 specification structure.
 //
@@ -250,6 +245,7 @@ type RequestBody struct {
 //	}
 type Response struct {
 	Description string               `json:"description"`       // A description of the response (required)
+	Headers     map[string]string    `json:"headers,omitempty"` // Response headers
 	Content     map[string]MediaType `json:"content,omitempty"` // Response content for different media types
 }
 
@@ -362,71 +358,214 @@ type Components struct {
 	Schemas map[string]*Schema `json:"schemas,omitempty"` // Reusable schemas keyed by name
 }
 
-// ToBlueprint converts the OpenAPI specification to API Blueprint format.
-func (spec *OpenAPI) ToBlueprint() (string, error) {
-	buf := getBuffer()
-	defer putBuffer(buf)
-	writeAPIBlueprint(buf, spec)
-	return buf.String(), nil
+// String returns the OpenAPI specification as a JSON string.
+// This satisfies the fmt.Stringer interface.
+func (spec *OpenAPI) String() string {
+	s, _ := spec.JSON()
+	return s
 }
 
-// WriteBlueprint writes the OpenAPI specification in API Blueprint format to the writer.
-func (spec *OpenAPI) WriteBlueprint(w io.Writer) error {
-	buf := getBuffer()
-	defer putBuffer(buf)
-	writeAPIBlueprint(buf, spec)
-	_, err := w.Write(buf.Bytes())
-	return err
+// JSON returns the OpenAPI specification as a JSON string.
+func (spec *OpenAPI) JSON() (string, error) {
+	b, err := json.MarshalIndent(spec, "", "  ")
+	return string(b), err
 }
 
-// ToOpenAPI returns the OpenAPI specification itself.
-func (spec *OpenAPI) ToOpenAPI() (*OpenAPI, error) {
-	return spec, nil
+// YAML returns the OpenAPI specification as a YAML string.
+func (spec *OpenAPI) YAML() (string, error) {
+	b, err := MarshalYAML(spec)
+	return string(b), err
 }
 
-// Convert converts OpenAPI JSON to API Blueprint format using streaming I/O.
-//
-// Deprecated: Use Parse and Spec.WriteBlueprint instead.
-//
-// This is the primary conversion function for transforming OpenAPI specifications
-// to API Blueprint format. It reads from the provided io.Reader, parses the OpenAPI JSON,
-// and writes the formatted API Blueprint output to the provided io.Writer.
-//
-// The function uses zero allocations for buffer operations after initial parsing,
-// thanks to internal buffer pooling with sync.Pool.
-//
-// Parameters:
-//   - r: An io.Reader containing OpenAPI 3.0 JSON data
-//   - w: An io.Writer where the API Blueprint output will be written
-//
-// Returns an error if:
-//   - The input cannot be read
-//   - The JSON is malformed or invalid
-//   - The output cannot be written
-//
-// Example:
-//
-//	input, err := os.Open("openapi.json")
-//	if err != nil {
-//	    log.Fatal(err)
-//	}
-//	defer input.Close()
-//
-//	output, err := os.Create("api.apib")
-//	if err != nil {
-//	    log.Fatal(err)
-//	}
-//	defer output.Close()
-//
-//	if err := converter.Convert(input, output); err != nil {
-//	    log.Fatal(err)
-//	}
-func Convert(r io.Reader, w io.Writer) error {
-	spec, err := ParseReader(r)
-	if err != nil {
-		return err
+// ToAPIBlueprint converts the OpenAPI specification to API Blueprint format.
+func (spec *OpenAPI) ToAPIBlueprint() (*APIBlueprint, error) {
+	bp, ok := spec.AsAPIBlueprint()
+	if !ok {
+		return nil, fmt.Errorf("failed to convert OpenAPI to API Blueprint")
 	}
-	return spec.WriteBlueprint(w)
+	return bp, nil
+}
+
+// WriteTo writes the OpenAPI specification in API Blueprint format to the writer.
+func (spec *OpenAPI) WriteTo(w io.Writer) (int64, error) {
+	buf := getBuffer()
+	defer putBuffer(buf)
+	writeAPIBlueprint(buf, spec)
+	n, err := w.Write(buf.Bytes())
+	return int64(n), err
+}
+
+// Title returns the title of the OpenAPI specification.
+func (spec *OpenAPI) Title() string {
+	if spec != nil {
+		return spec.Info.Title
+	}
+	return ""
+}
+
+// Version returns the version of the OpenAPI specification.
+func (spec *OpenAPI) Version() string {
+	if spec != nil {
+		return spec.OpenAPI
+	}
+	return ""
+}
+
+// AsOpenAPI returns the *OpenAPI spec itself, and true.
+func (spec *OpenAPI) AsOpenAPI() (*OpenAPI, bool) {
+	return spec, true
+}
+
+// AsAsyncAPI returns nil and false for an OpenAPI spec.
+func (spec *OpenAPI) AsAsyncAPI() (*AsyncAPI, bool) {
+	return nil, false
+}
+
+// AsAsyncAPIV3 returns nil and false for an OpenAPI spec.
+func (spec *OpenAPI) AsAsyncAPIV3() (*AsyncAPI, bool) {
+	return nil, false
+}
+
+// AsAPIBlueprint attempts to return the underlying specification as *APIBlueprint.
+// For OpenAPI specs, it performs a best-effort conversion to the API Blueprint AST.
+func (spec *OpenAPI) AsAPIBlueprint() (*APIBlueprint, bool) {
+	bp := &APIBlueprint{
+		TitleField:   spec.Info.Title,
+		Description:  spec.Info.Description,
+		VersionField: spec.Info.Version,
+		Metadata: map[string]string{
+			"FORMAT": "1A",
+		},
+		Groups:     []*ResourceGroup{},
+		Components: spec.Components,
+	}
+
+	if len(spec.Servers) > 0 {
+		bp.Metadata["HOST"] = spec.Servers[0].URL
+	}
+
+	// Simple grouping by first path segment
+	groups := make(map[string]*ResourceGroup)
+
+	// Sort paths for deterministic output
+	paths := make([]string, 0, len(spec.Paths))
+	for path := range spec.Paths {
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+
+	for _, path := range paths {
+		pathItem := spec.Paths[path]
+
+		// Determine group name
+		groupName := "Resources"
+		parts := strings.Split(strings.Trim(path, "/"), "/")
+		if len(parts) > 0 && parts[0] != "" {
+			groupName = titleCase(parts[0])
+		}
+
+		group, ok := groups[groupName]
+		if !ok {
+			group = &ResourceGroup{
+				Name:      groupName,
+				Resources: []*Resource{},
+			}
+			groups[groupName] = group
+			bp.Groups = append(bp.Groups, group)
+		}
+
+		resource := &Resource{
+			Name:        path,
+			URITemplate: path,
+			Actions:     []*Action{},
+		}
+
+		// Add actions
+		addOperationToAction(resource, http.MethodGet, pathItem.Get)
+		addOperationToAction(resource, http.MethodPost, pathItem.Post)
+		addOperationToAction(resource, http.MethodPut, pathItem.Put)
+		addOperationToAction(resource, http.MethodDelete, pathItem.Delete)
+		addOperationToAction(resource, http.MethodPatch, pathItem.Patch)
+
+		group.Resources = append(group.Resources, resource)
+	}
+
+	return bp, true
+}
+
+func addOperationToAction(resource *Resource, method string, op *Operation) {
+	if op == nil {
+		return
+	}
+	action := &Action{
+		Name:        op.Summary,
+		Description: op.Description,
+		Method:      method,
+		Parameters:  op.Parameters,
+		Examples:    []*Transaction{},
+	}
+
+	transaction := &Transaction{}
+	hasContent := false
+
+	// Map RequestBody
+	if op.RequestBody != nil {
+		for ct, media := range op.RequestBody.Content {
+			transaction.Request = &Request{
+				Headers: map[string]string{"Content-Type": ct},
+				Content: map[string]MediaType{ct: media},
+			}
+			hasContent = true
+			break // Only map first one for this basic implementation
+		}
+	}
+
+	var extraTransactions []*Transaction
+
+	// Map Responses
+	if len(op.Responses) > 0 {
+		// Sort codes
+		var codes []string
+		for code := range op.Responses {
+			codes = append(codes, code)
+		}
+		sort.Strings(codes)
+
+		for _, code := range codes {
+			resp := op.Responses[code]
+			if transaction.Response == nil {
+				transaction.Response = &BlueprintResponse{
+					Name: code,
+					Response: Response{
+						Description: resp.Description,
+						Headers:     resp.Headers,
+						Content:     resp.Content,
+					},
+				}
+				hasContent = true
+			} else {
+				// Create a new transaction for subsequent responses
+				newTrans := &Transaction{
+					Response: &BlueprintResponse{
+						Name: code,
+						Response: Response{
+							Description: resp.Description,
+							Headers:     resp.Headers,
+							Content:     resp.Content,
+						},
+					},
+				}
+				extraTransactions = append(extraTransactions, newTrans)
+			}
+		}
+	}
+
+	if hasContent {
+		action.Examples = append(action.Examples, transaction)
+		action.Examples = append(action.Examples, extraTransactions...)
+	}
+
+	resource.Actions = append(resource.Actions, action)
 }
 
 // writeAPIBlueprint writes the API Blueprint format to the buffer
@@ -544,7 +683,7 @@ func writeOperation(buf *bytes.Buffer, method, path string, op *Operation) {
 				buf.WriteString(" (optional, ")
 			}
 			if param.Schema != nil {
-				typeStr := SchemaType(param.Schema)
+				typeStr := param.Schema.TypeName()
 				if typeStr != "" {
 					buf.WriteString(typeStr)
 				} else {
@@ -641,23 +780,23 @@ func titleCase(s string) string {
 	return strings.ToUpper(s[:1]) + s[1:]
 }
 
-// SchemaType returns the primary type of a schema as a string.
+// TypeName returns the primary type of a schema as a string.
 //
 // In OpenAPI 3.0, Type is always a string.
 // In OpenAPI 3.1, Type can be a string or []string.
 // This helper extracts the primary (non-null) type.
-func SchemaType(schema *Schema) string {
-	if schema == nil || schema.Type == nil {
+func (s *Schema) TypeName() string {
+	if s == nil || s.Type == nil {
 		return ""
 	}
 
 	// Handle string type
-	if typeStr, ok := schema.Type.(string); ok {
+	if typeStr, ok := s.Type.(string); ok {
 		return typeStr
 	}
 
 	// Handle array type (3.1)
-	if typeArr, ok := schema.Type.([]any); ok {
+	if typeArr, ok := s.Type.([]any); ok {
 		for _, t := range typeArr {
 			if tStr, ok := t.(string); ok && tStr != TypeNull {
 				return tStr
@@ -672,18 +811,18 @@ func SchemaType(schema *Schema) string {
 //
 // In OpenAPI 3.0, this is indicated by nullable: true.
 // In OpenAPI 3.1, this is indicated by type: [..., "null"].
-func IsNullable(schema *Schema) bool {
-	if schema == nil {
+func (s *Schema) IsNullable() bool {
+	if s == nil {
 		return false
 	}
 
 	// Check 3.0 style nullable
-	if schema.Nullable {
+	if s.Nullable {
 		return true
 	}
 
 	// Check 3.1 style type array
-	if typeArr, ok := schema.Type.([]any); ok {
+	if typeArr, ok := s.Type.([]any); ok {
 		for _, t := range typeArr {
 			if tStr, ok := t.(string); ok && tStr == TypeNull {
 				return true
@@ -694,38 +833,38 @@ func IsNullable(schema *Schema) bool {
 	return false
 }
 
-// NormalizeSchemaType ensures schema.Type is properly formatted for JSON marshaling.
+// NormalizeType ensures schema.Type is properly formatted for JSON marshaling.
 //
 // This is useful when you've manipulated the Type field and want to ensure
 // it's in the correct format for the target OpenAPI version.
-func NormalizeSchemaType(schema *Schema, version Version) {
-	if schema == nil || schema.Type == nil {
+func (s *Schema) NormalizeType(version Version) {
+	if s == nil || s.Type == nil {
 		return
 	}
 
 	// For 3.0, ensure Type is a string
 	if version == Version30 {
-		typeStr := SchemaType(schema)
+		typeStr := s.TypeName()
 		if typeStr != "" {
-			schema.Type = typeStr
+			s.Type = typeStr
 		}
 	}
 
 	// For 3.1, convert to array if nullable
-	if version == Version31 && schema.Nullable {
-		typeStr := SchemaType(schema)
+	if version == Version31 && s.Nullable {
+		typeStr := s.TypeName()
 		if typeStr != "" {
-			schema.Type = []any{typeStr, TypeNull}
-			schema.Nullable = false
+			s.Type = []any{typeStr, TypeNull}
+			s.Nullable = false
 		}
 	}
 
 	// Recursively normalize nested schemas
-	for _, prop := range schema.Properties {
-		NormalizeSchemaType(prop, version)
+	for _, prop := range s.Properties {
+		prop.NormalizeType(version)
 	}
 
-	if schema.Items != nil {
-		NormalizeSchemaType(schema.Items, version)
+	if s.Items != nil {
+		s.Items.NormalizeType(version)
 	}
 }

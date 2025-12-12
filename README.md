@@ -76,7 +76,7 @@ Options:
 
 AsyncAPI Options:
   --protocol PROTO
-      Protocol: ws, mqtt, kafka, amqp, http (required)
+      Protocol: ws, wss, mqtt, kafka, amqp, http, https, auto (required)
   
   --asyncapi-version VERSION
       Version: 2.6, 3.0 (default: "2.6")
@@ -119,7 +119,7 @@ The tool supports AsyncAPI 2.6 and 3.0 for event-driven APIs:
   - AsyncAPI 2.6 (default output)
   - AsyncAPI 3.0
   - Note: AsyncAPI 1.x is not supported
-- **Protocols**: WebSocket (`ws`), MQTT (`mqtt`), Kafka (`kafka`), AMQP (`amqp`), HTTP (`http`)
+- **Protocols**: WebSocket (`ws`, `wss`), MQTT (`mqtt`), Kafka (`kafka`), AMQP (`amqp`), HTTP (`http`, `https`), Auto (`auto`)
 - **Conversion Mappings**:
   - **AsyncAPI 2.6**: Channels contain publish/subscribe operations
   - **AsyncAPI 3.0**: Operations at root level with send/receive actions
@@ -131,6 +131,33 @@ The tool supports AsyncAPI 2.6 and 3.0 for event-driven APIs:
 ## Examples
 
 The `examples/` directory contains paired specification files, demonstrating various conversions. Each subdirectory represents a base API or specification, with `.json`, `.yml` and `.apib` files showing the input and converted output.
+
+<details>
+<summary>Unified Parsing (OpenAPI, AsyncAPI, Blueprint)</summary>
+
+```go
+import "github.com/amer8/apibconv/converter"
+
+// OpenAPI (JSON)
+spec, _ := converter.Parse([]byte(`{"openapi": "3.0.0", ...}`))
+if openapiSpec, ok := spec.AsOpenAPI(); ok {
+    fmt.Println(openapiSpec.Info.Title)
+}
+
+// AsyncAPI (YAML)
+spec, _ := converter.Parse([]byte(`asyncapi: 2.6.0\n...`))
+if asyncapiSpec, ok := spec.AsAsyncAPI(); ok {
+    fmt.Println(asyncapiSpec.Info.Title)
+}
+
+// API Blueprint
+spec, _ := converter.Parse([]byte(`FORMAT: 1A...`))
+// Access via API Blueprint AST
+if apibSpec, ok := spec.AsAPIBlueprint(); ok {
+    fmt.Println(apibSpec.Name)
+}
+```
+</details>
 
 <details>
 <summary>API Blueprint → OpenAPI</summary>
@@ -148,15 +175,20 @@ if err != nil {
     log.Fatal(err)
 }
 
+// Access as API Blueprint AST
+apibSpec, ok := spec.AsAPIBlueprint()
+if !ok {
+    log.Fatal("Expected API Blueprint spec")
+}
+
 // Convert to OpenAPI 3.0 (default)
-openapiSpec, err := spec.ToOpenAPI()
+openapiSpec, err := apibSpec.ToOpenAPI()
 if err != nil {
     log.Fatal(err)
 }
 
 // Serialize to JSON
-data, err := json.MarshalIndent(openapiSpec, "", "  ")
-fmt.Println(string(data))
+fmt.Println(openapiSpec.String())
 ```
 </details>
 
@@ -176,15 +208,20 @@ if err != nil {
     log.Fatal(err)
 }
 
+// Access as API Blueprint AST
+apibSpec, ok := spec.AsAPIBlueprint()
+if !ok {
+    log.Fatal("Expected API Blueprint spec")
+}
+
 // Convert to AsyncAPI 2.6 with Kafka protocol
-asyncSpec, err := spec.ToAsyncAPI(converter.ProtocolKafka)
+asyncSpec, err := apibSpec.ToAsyncAPI(converter.ProtocolKafka)
 if err != nil {
     log.Fatal(err)
 }
 
-// Marshal to JSON
-data, err := json.MarshalIndent(asyncSpec, "", "  ")
-fmt.Println(string(data))
+// Serialize to JSON
+fmt.Println(asyncSpec.String())
 ```
 </details>
 
@@ -202,12 +239,14 @@ if err != nil {
     log.Fatal(err)
 }
 
-// Convert to API Blueprint
-apiBlueprint, err := spec.ToBlueprint()
-if err != nil {
-    log.Fatal(err)
+if openapiSpec, ok := spec.AsOpenAPI(); ok {
+    // Convert to API Blueprint
+    apibSpec, err := openapiSpec.ToBlueprint()
+    if err != nil {
+        log.Fatal(err)
+    }
+    fmt.Println(apibSpec)
 }
-fmt.Println(apiBlueprint)
 ```
 </details>
 
@@ -229,12 +268,14 @@ if err != nil {
     log.Fatal(err)
 }
 
-// Convert to API Blueprint
-apiBlueprint, err := spec.ToBlueprint()
-if err != nil {
-    log.Fatal(err)
+if asyncApiSpec, ok := spec.AsAsyncAPI(); ok {
+    // Convert to API Blueprint
+    apibSpec, err := asyncApiSpec.ToBlueprint()
+    if err != nil {
+        log.Fatal(err)
+    }
+    fmt.Println(apibSpec)
 }
-fmt.Println(apiBlueprint)
 ```
 </details>
 

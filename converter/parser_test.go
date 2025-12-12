@@ -1,6 +1,7 @@
 package converter
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -72,9 +73,13 @@ Get a specific user
 
 func parseTestSpec(t *testing.T) *OpenAPI {
 	t.Helper()
-	spec, err := ParseAPIBlueprint([]byte(testAPIBlueprint))
+	bp, err := ParseBlueprint([]byte(testAPIBlueprint))
 	if err != nil {
 		t.Fatalf("ParseAPIBlueprint failed: %v", err)
+	}
+	spec, err := bp.ToOpenAPI()
+	if err != nil {
+		t.Fatalf("ToOpenAPI failed: %v", err)
 	}
 	return spec
 }
@@ -198,6 +203,23 @@ func TestParseAPIBlueprint_MultipleResponses(t *testing.T) {
 	}
 }
 
+func toOpenAPIBytes(t *testing.T, data []byte) []byte {
+	t.Helper()
+	bp, err := ParseBlueprint(data)
+	if err != nil {
+		t.Fatalf("ParseBlueprint failed: %v", err)
+	}
+	openapi, err := bp.ToOpenAPI()
+	if err != nil {
+		t.Fatalf("ToOpenAPI failed: %v", err)
+	}
+	b, err := json.MarshalIndent(openapi, "", "  ")
+	if err != nil {
+		t.Fatalf("json.Marshal failed: %v", err)
+	}
+	return b
+}
+
 func TestToOpenAPI(t *testing.T) {
 	apib := `FORMAT: 1A
 
@@ -214,11 +236,7 @@ HOST: https://api.test.com
         {"status": "ok"}
 `
 
-	jsonBytes, err := ToOpenAPI([]byte(apib))
-	if err != nil {
-		t.Fatalf("ToOpenAPI failed: %v", err)
-	}
-
+	jsonBytes := toOpenAPIBytes(t, []byte(apib))
 	jsonStr := string(jsonBytes)
 	if !strings.Contains(jsonStr, "Simple API") {
 		t.Error("Expected JSON to contain 'Simple API'")
@@ -243,10 +261,8 @@ func TestToOpenAPIString(t *testing.T) {
 + Response 200
 `
 
-	jsonStr, err := ToOpenAPIString(apib)
-	if err != nil {
-		t.Fatalf("ToOpenAPIString failed: %v", err)
-	}
+	jsonBytes := toOpenAPIBytes(t, []byte(apib))
+	jsonStr := string(jsonBytes)
 
 	if !strings.Contains(jsonStr, "String Test") {
 		t.Error("Expected JSON string to contain 'String Test'")
@@ -295,15 +311,20 @@ func TestRoundTrip(t *testing.T) {
 	}
 
 	// Convert to API Blueprint
-	apibStr, err := Format(openapi)
+	apibObj, err := openapi.ToAPIBlueprint()
 	if err != nil {
 		t.Fatalf("Format to API Blueprint failed: %v", err)
 	}
+	apibStr := apibObj.String()
 
 	// Convert back to OpenAPI
-	spec, err := ParseAPIBlueprint([]byte(apibStr))
+	bp, err := ParseBlueprint([]byte(apibStr))
 	if err != nil {
 		t.Fatalf("ParseAPIBlueprint failed: %v", err)
+	}
+	spec, err := bp.ToOpenAPI()
+	if err != nil {
+		t.Fatalf("ToOpenAPI failed: %v", err)
 	}
 
 	// Verify key fields survived the round trip
@@ -326,9 +347,13 @@ func TestRoundTrip(t *testing.T) {
 
 func TestParseAPIBlueprintReader(t *testing.T) {
 	reader := strings.NewReader(testAPIBlueprint)
-	spec, err := ParseAPIBlueprintReader(reader)
+	bp, err := ParseBlueprintReader(reader)
 	if err != nil {
 		t.Fatalf("ParseAPIBlueprintReader failed: %v", err)
+	}
+	spec, err := bp.ToOpenAPI()
+	if err != nil {
+		t.Fatalf("ToOpenAPI failed: %v", err)
 	}
 
 	if spec.Info.Title != "Test API" {
@@ -346,13 +371,13 @@ func TestParseAPIBlueprintReader(t *testing.T) {
 
 func TestParseAPIBlueprintReaderEmpty(t *testing.T) {
 	reader := strings.NewReader("")
-	spec, err := ParseAPIBlueprintReader(reader)
+	bp, err := ParseBlueprintReader(reader)
 	if err != nil {
 		t.Fatalf("ParseAPIBlueprintReader failed on empty input: %v", err)
 	}
 
 	// Empty input should still produce a valid (minimal) spec
-	if spec == nil {
+	if bp == nil {
 		t.Error("Expected non-nil spec for empty input")
 	}
 }
@@ -384,9 +409,17 @@ Convert some data
 	reader := strings.NewReader(apib)
 	var buf strings.Builder
 
-	err := ConvertToOpenAPI(reader, &buf)
+	// Manual conversion workflow
+	bp, err := ParseBlueprintReader(reader)
 	if err != nil {
-		t.Fatalf("ConvertToOpenAPI failed: %v", err)
+		t.Fatalf("ParseBlueprintReader failed: %v", err)
+	}
+	openapi, err := bp.ToOpenAPI()
+	if err != nil {
+		t.Fatalf("ToOpenAPI failed: %v", err)
+	}
+	if err := json.NewEncoder(&buf).Encode(openapi); err != nil {
+		t.Fatalf("Encode failed: %v", err)
 	}
 
 	result := buf.String()
@@ -408,9 +441,16 @@ func TestConvertToOpenAPIEmpty(t *testing.T) {
 	reader := strings.NewReader("")
 	var buf strings.Builder
 
-	err := ConvertToOpenAPI(reader, &buf)
+	bp, err := ParseBlueprintReader(reader)
 	if err != nil {
-		t.Fatalf("ConvertToOpenAPI failed on empty input: %v", err)
+		t.Fatalf("ParseBlueprintReader failed on empty input: %v", err)
+	}
+	openapi, err := bp.ToOpenAPI()
+	if err != nil {
+		t.Fatalf("ToOpenAPI failed: %v", err)
+	}
+	if err := json.NewEncoder(&buf).Encode(openapi); err != nil {
+		t.Fatalf("Encode failed: %v", err)
 	}
 
 	result := buf.String()
@@ -443,9 +483,13 @@ func TestParseAPIBlueprint_WithJSONRequestBody(t *testing.T) {
 
         {"id": 1}`
 
-	spec, err := ParseAPIBlueprint([]byte(apib))
+	bp, err := ParseBlueprint([]byte(apib))
 	if err != nil {
 		t.Fatalf("ParseAPIBlueprint failed: %v", err)
+	}
+	spec, err := bp.ToOpenAPI()
+	if err != nil {
+		t.Fatalf("ToOpenAPI failed: %v", err)
 	}
 
 	path := spec.Paths["/api"]
@@ -477,11 +521,14 @@ func TestParseAPIBlueprint_WithPlainTextResponse(t *testing.T) {
 + Response 200 (text/plain)
 
         This is plain text
-        with multiple lines`
-
-	spec, err := ParseAPIBlueprint([]byte(apib))
+                with multiple lines`
+	bp, err := ParseBlueprint([]byte(apib))
 	if err != nil {
 		t.Fatalf("ParseAPIBlueprint failed: %v", err)
+	}
+	spec, err := bp.ToOpenAPI()
+	if err != nil {
+		t.Fatalf("ToOpenAPI failed: %v", err)
 	}
 
 	path := spec.Paths["/text"]
@@ -515,9 +562,13 @@ func TestParseAPIBlueprint_WithNoContentTypeResponse(t *testing.T) {
 
         Not found`
 
-	spec, err := ParseAPIBlueprint([]byte(apib))
+	bp, err := ParseBlueprint([]byte(apib))
 	if err != nil {
 		t.Fatalf("ParseAPIBlueprint failed: %v", err)
+	}
+	spec, err := bp.ToOpenAPI()
+	if err != nil {
+		t.Fatalf("ToOpenAPI failed: %v", err)
 	}
 
 	path := spec.Paths["/nocontent"]
@@ -581,9 +632,13 @@ Delete a resource
 
 + Response 204`
 
-	spec, err := ParseAPIBlueprint([]byte(apib))
+	bp, err := ParseBlueprint([]byte(apib))
 	if err != nil {
 		t.Fatalf("ParseAPIBlueprint failed: %v", err)
+	}
+	spec, err := bp.ToOpenAPI()
+	if err != nil {
+		t.Fatalf("ToOpenAPI failed: %v", err)
 	}
 
 	path := spec.Paths["/resource"]
@@ -626,9 +681,13 @@ func TestParseAPIBlueprint_WithHeaderParameters(t *testing.T) {
 
 + Response 200`
 
-	spec, err := ParseAPIBlueprint([]byte(apib))
+	bp, err := ParseBlueprint([]byte(apib))
 	if err != nil {
 		t.Fatalf("ParseAPIBlueprint failed: %v", err)
+	}
+	spec, err := bp.ToOpenAPI()
+	if err != nil {
+		t.Fatalf("ToOpenAPI failed: %v", err)
 	}
 
 	path := spec.Paths["/auth"]
@@ -684,9 +743,13 @@ func TestParseAPIBlueprint_ComplexNestedJSON(t *testing.T) {
             }
         }`
 
-	spec, err := ParseAPIBlueprint([]byte(apib))
+	bp, err := ParseBlueprint([]byte(apib))
 	if err != nil {
 		t.Fatalf("ParseAPIBlueprint failed: %v", err)
+	}
+	spec, err := bp.ToOpenAPI()
+	if err != nil {
+		t.Fatalf("ToOpenAPI failed: %v", err)
 	}
 
 	path := spec.Paths["/complex"]
@@ -723,10 +786,7 @@ func TestToOpenAPI_ErrorCases(t *testing.T) {
         {invalid json}`
 
 	// This should still parse (parser is lenient with body content)
-	jsonBytes, err := ToOpenAPI([]byte(invalidApib))
-	if err != nil {
-		t.Fatalf("ToOpenAPI should handle invalid JSON in body: %v", err)
-	}
+	jsonBytes := toOpenAPIBytes(t, []byte(invalidApib))
 
 	if len(jsonBytes) == 0 {
 		t.Error("Expected non-empty result")
@@ -735,10 +795,8 @@ func TestToOpenAPI_ErrorCases(t *testing.T) {
 
 func TestToOpenAPIString_ErrorCases(t *testing.T) {
 	// Empty string should produce valid OpenAPI
-	result, err := ToOpenAPIString("")
-	if err != nil {
-		t.Fatalf("ToOpenAPIString failed on empty string: %v", err)
-	}
+	jsonBytes := toOpenAPIBytes(t, []byte(""))
+	result := string(jsonBytes)
 
 	if !strings.Contains(result, "\"openapi\"") {
 		t.Error("Expected valid OpenAPI JSON structure")

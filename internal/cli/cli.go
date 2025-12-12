@@ -245,7 +245,7 @@ func configureFlags(fs *flag.FlagSet) {
 
 	fs.StringVar(&asyncapiVersion, "asyncapi-version", defaultAsyncAPIVersion, "AsyncAPI target version: 2.6, 3.0")
 
-	fs.StringVar(&protocol, "protocol", "", "Protocol for AsyncAPI: ws, mqtt, kafka, amqp, http")
+	fs.StringVar(&protocol, "protocol", "", "Protocol for AsyncAPI: ws, wss, mqtt, kafka, amqp, http, https, auto")
 
 	fs.BoolVar(&validateOnly, "validate", false, "Validate input without converting")
 
@@ -290,7 +290,7 @@ func configureFlags(fs *flag.FlagSet) {
 		p("")
 		p("AsyncAPI Options:")
 		p("  --protocol PROTO")
-		p("      Protocol: ws, mqtt, kafka, amqp, http (required)")
+		p("      Protocol: ws, wss, mqtt, kafka, amqp, http, https, auto (required)")
 		p("  ")
 		p("  --asyncapi-version VERSION")
 		p("      Version: 2.6, 3.0 (default: \"2.6\")")
@@ -322,7 +322,11 @@ func runValidation(usageFunc func()) int {
 		return 1
 	}
 
-	result := converter.ValidateBytes(data)
+	result, err := converter.ValidateBytes(data)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error validating: %v\n", err)
+		return 1
+	}
 
 	// Print validation result
 	fmt.Printf("File: %s\n", inputFile)
@@ -542,15 +546,21 @@ func convertAPIBlueprintToOpenAPI(input, output *os.File) int {
 		return 1
 	}
 
+	apibSpec, ok := specInterface.(*converter.APIBlueprint)
+	if !ok {
+		fmt.Fprintf(os.Stderr, "Error: parsed spec is not API Blueprint\n")
+		return 1
+	}
+
 	// Convert to OpenAPI
-	spec, err := specInterface.ToOpenAPI()
+	spec, err := apibSpec.ToOpenAPI()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error converting to OpenAPI: %v\n", err)
 		return 1
 	}
 
 	// Convert to the target version if needed
-	spec, err = converter.ConvertToVersion(spec, targetVersion, opts)
+	spec, err = spec.ConvertTo(targetVersion, opts)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error converting to OpenAPI %s: %v\n", targetVersion.ToFullVersion(), err)
 		return 1
@@ -582,9 +592,15 @@ func convertAPIBlueprintToAsyncAPI(input, output *os.File) int {
 	}
 
 	// Parse API Blueprint
-	spec, err := converter.Parse(data, converter.FormatBlueprint)
+	specInterface, err := converter.Parse(data, converter.FormatBlueprint)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing API Blueprint: %v\n", err)
+		return 1
+	}
+
+	apibSpec, ok := specInterface.(*converter.APIBlueprint)
+	if !ok {
+		fmt.Fprintf(os.Stderr, "Error: parsed spec is not API Blueprint\n")
 		return 1
 	}
 
@@ -595,7 +611,7 @@ func convertAPIBlueprintToAsyncAPI(input, output *os.File) int {
 	switch asyncapiVersion {
 	case "2", "2.6", "2.6.0":
 		targetVersion = "2.6"
-		asyncSpec, err := spec.ToAsyncAPI(converter.Protocol(protocol))
+		asyncSpec, err := apibSpec.ToAsyncAPI(converter.Protocol(protocol))
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error converting API Blueprint to AsyncAPI 2.6: %v\n", err)
 			return 1
@@ -603,7 +619,7 @@ func convertAPIBlueprintToAsyncAPI(input, output *os.File) int {
 		result = asyncSpec
 	case "3", "3.0", "3.0.0":
 		targetVersion = "3.0"
-		asyncSpec, err := spec.ToAsyncAPIV3(converter.Protocol(protocol))
+		asyncSpec, err := apibSpec.ToAsyncAPIV3(converter.Protocol(protocol))
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error converting API Blueprint to AsyncAPI 3.0: %v\n", err)
 			return 1
@@ -634,21 +650,27 @@ func convertOpenAPIToAPIBlueprint(input, output *os.File) int {
 	}
 
 	// Parse OpenAPI
-	spec, err := converter.Parse(data, converter.FormatOpenAPI)
+	specInterface, err := converter.Parse(data, converter.FormatOpenAPI)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing OpenAPI: %v\n", err)
 		return 1
 	}
 
+	openapiSpec, ok := specInterface.(*converter.OpenAPI)
+	if !ok {
+		fmt.Fprintf(os.Stderr, "Error: parsed spec is not OpenAPI\n")
+		return 1
+	}
+
 	// Convert to API Blueprint
-	blueprint, err := spec.ToBlueprint()
+	blueprintObj, err := openapiSpec.ToAPIBlueprint()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error converting to API Blueprint: %v\n", err)
 		return 1
 	}
 
 	// Write output
-	if _, err := output.WriteString(blueprint); err != nil {
+	if _, err := output.WriteString(blueprintObj.String()); err != nil {
 		fmt.Fprintf(os.Stderr, "Error writing output: %v\n", err)
 		return 1
 	}
@@ -667,34 +689,34 @@ func convertAsyncAPIToAPIBlueprint(input, output *os.File) int {
 	}
 
 	// Parse AsyncAPI (auto-detect version)
-	spec, err := converter.Parse(data, converter.FormatAsyncAPI)
+	specInterface, err := converter.Parse(data, converter.FormatAsyncAPI)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing AsyncAPI: %v\n", err)
 		return 1
 	}
 
+	asyncSpec, ok := specInterface.(*converter.AsyncAPI)
+	if !ok {
+		fmt.Fprintf(os.Stderr, "Error: parsed spec is not AsyncAPI\n")
+		return 1
+	}
+
 	// Convert to API Blueprint
-	blueprint, err := spec.ToBlueprint()
+	blueprintObj, err := asyncSpec.ToAPIBlueprint()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error converting to API Blueprint: %v\n", err)
 		return 1
 	}
 
 	// Write output
-	if _, err := output.WriteString(blueprint); err != nil {
+	if _, err := output.WriteString(blueprintObj.String()); err != nil {
 		fmt.Fprintf(os.Stderr, "Error writing output: %v\n", err)
 		return 1
 	}
 
 	// Try to get version string for logging, if possible
 	// This is purely informational and relies on the underlying struct
-	versionStr := "AsyncAPI"
-	switch s := spec.(type) {
-	case *converter.AsyncAPI:
-		versionStr = fmt.Sprintf("AsyncAPI %s", s.AsyncAPI)
-	case *converter.AsyncAPIV3:
-		versionStr = fmt.Sprintf("AsyncAPI %s", s.AsyncAPI)
-	}
+	versionStr := fmt.Sprintf("AsyncAPI %s", asyncSpec.AsyncAPI)
 
 	fmt.Printf("Successfully converted %s %s to API Blueprint %s\n", versionStr, inputFile, outputFile)
 	return 0

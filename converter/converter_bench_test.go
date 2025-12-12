@@ -172,11 +172,21 @@ func BenchmarkConvert(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		reader := strings.NewReader(benchmarkSpec)
 		writer := io.Discard
-		if err := Convert(reader, writer); err != nil {
+		data, _ := io.ReadAll(reader)
+		s, err := Parse(data, FormatOpenAPI)
+		if err != nil {
 			b.Fatal(err)
 		}
-	}
-}
+				if openapiSpec, ok := s.AsOpenAPI(); ok {
+					if _, err := openapiSpec.WriteTo(writer); err != nil {
+						b.Fatal(err)
+					}
+				} else {
+					b.Fatal("spec is not an OpenAPI spec")
+				}
+			}
+		}
+		
 
 // BenchmarkConvertWithBuffer benchmarks with actual buffer writes
 func BenchmarkConvertWithBuffer(b *testing.B) {
@@ -185,8 +195,17 @@ func BenchmarkConvertWithBuffer(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		reader := strings.NewReader(benchmarkSpec)
 		var writer bytes.Buffer
-		if err := Convert(reader, &writer); err != nil {
+		data, _ := io.ReadAll(reader)
+		s, err := Parse(data, FormatOpenAPI)
+		if err != nil {
 			b.Fatal(err)
+		}
+		if openapiSpec, ok := s.AsOpenAPI(); ok {
+			if _, err := openapiSpec.WriteTo(&writer); err != nil {
+				b.Fatal(err)
+			}
+		} else {
+			b.Fatal("spec is not an OpenAPI spec")
 		}
 	}
 }

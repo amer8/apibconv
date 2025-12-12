@@ -31,7 +31,7 @@ func TestExamples_Parse(t *testing.T) {
 
 			// Try to parse as AsyncAPI first if filename contains "asyncapi"
 			if strings.Contains(strings.ToLower(filepath.Base(path)), "asyncapi") {
-				_, _, err := ParseAsyncAPIAny(data)
+				_, _, err := parseAsyncAPIAny(data)
 				if err != nil {
 					t.Errorf("Failed to parse AsyncAPI example %s: %v", filepath.Base(path), err)
 				}

@@ -18,6 +18,9 @@ go.work
 
 # Go build cache
 .tmp
+.gocache
+.golangci-lint-cache
+.gomodcache
 
 # GoReleaser
 dist/
