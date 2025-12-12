@@ -139,22 +139,22 @@ The `examples/` directory contains paired specification files, demonstrating var
 import "github.com/amer8/apibconv/converter"
 
 // OpenAPI (JSON)
-spec1, _ := converter.Parse([]byte(`{"openapi": "3.0.0", ...}`))
-if openapi, ok := spec1.AsOpenAPI(); ok {
-    fmt.Println(openapi.Info.Title)
+spec, _ := converter.Parse([]byte(`{"openapi": "3.0.0", ...}`))
+if openapiSpec, ok := spec.AsOpenAPI(); ok {
+    fmt.Println(openapiSpec.Info.Title)
 }
 
 // AsyncAPI (YAML)
-spec2, _ := converter.Parse([]byte(`asyncapi: 2.6.0\n...`))
-if asyncapi, ok := spec2.AsAsyncAPI(); ok {
-    fmt.Println(asyncapi.Info.Title)
+spec, _ := converter.Parse([]byte(`asyncapi: 2.6.0\n...`))
+if asyncapiSpec, ok := spec.AsAsyncAPI(); ok {
+    fmt.Println(asyncapiSpec.Info.Title)
 }
 
 // API Blueprint
-spec3, _ := converter.Parse([]byte(`FORMAT: 1A...`))
+spec, _ := converter.Parse([]byte(`FORMAT: 1A...`))
 // Access via API Blueprint AST
-if blueprint, ok := spec3.AsAPIBlueprint(); ok {
-    fmt.Println(blueprint.Name)
+if apibSpec, ok := spec.AsAPIBlueprint(); ok {
+    fmt.Println(apibSpec.Name)
 }
 ```
 </details>
@@ -176,13 +176,13 @@ if err != nil {
 }
 
 // Access as API Blueprint AST
-blueprintSpec, ok := spec.AsAPIBlueprint()
+apibSpec, ok := spec.AsAPIBlueprint()
 if !ok {
     log.Fatal("Expected API Blueprint spec")
 }
 
 // Convert to OpenAPI 3.0 (default)
-openapiSpec, err := blueprintSpec.ToOpenAPI()
+openapiSpec, err := apibSpec.ToOpenAPI()
 if err != nil {
     log.Fatal(err)
 }
@@ -210,13 +210,13 @@ if err != nil {
 }
 
 // Access as API Blueprint AST
-blueprintSpec, ok := spec.AsAPIBlueprint()
+apibSpec, ok := spec.AsAPIBlueprint()
 if !ok {
     log.Fatal("Expected API Blueprint spec")
 }
 
 // Convert to AsyncAPI 2.6 with Kafka protocol
-asyncSpec, err := blueprintSpec.ToAsyncAPI(converter.ProtocolKafka)
+asyncSpec, err := apibSpec.ToAsyncAPI(converter.ProtocolKafka)
 if err != nil {
     log.Fatal(err)
 }
@@ -243,11 +243,11 @@ if err != nil {
 
 if openapiSpec, ok := spec.AsOpenAPI(); ok {
     // Convert to API Blueprint
-    apiBlueprint, err := openapiSpec.ToBlueprint()
+    apibSpec, err := openapiSpec.ToBlueprint()
     if err != nil {
         log.Fatal(err)
     }
-    fmt.Println(apiBlueprint)
+    fmt.Println(apibSpec)
 }
 ```
 </details>
@@ -270,13 +270,13 @@ if err != nil {
     log.Fatal(err)
 }
 
-if asyncSpec, ok := spec.AsAsyncAPI(); ok {
+if asyncApiSpec, ok := spec.AsAsyncAPI(); ok {
     // Convert to API Blueprint
-    apiBlueprint, err := asyncSpec.ToBlueprint()
+    apibSpec, err := asyncApiSpec.ToBlueprint()
     if err != nil {
         log.Fatal(err)
     }
-    fmt.Println(apiBlueprint)
+    fmt.Println(apibSpec)
 }
 ```
 </details>

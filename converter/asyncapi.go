@@ -931,19 +931,19 @@ func writeAsyncAPIV3Channel(buf *bytes.Buffer, channelID string, channel Channel
 		switch opInfo.op.Action {
 		case ActionReceive:
 			// Receive -> GET (receiving messages)
-			writeAsyncAPIV3Operation(buf, http.MethodGet, opInfo.op, firstMessage, "Receive messages")
+			writeAsyncAPIV3Operation(buf, http.MethodGet, &opInfo.op, firstMessage, "Receive messages")
 		case ActionSend:
 			// Send -> POST (sending messages)
-			writeAsyncAPIV3Operation(buf, http.MethodPost, opInfo.op, firstMessage, "Send a message")
+			writeAsyncAPIV3Operation(buf, http.MethodPost, &opInfo.op, firstMessage, "Send a message")
 		}
 	}
 }
 
 // writeAsyncAPIV3Operation writes an AsyncAPI v3 operation as API Blueprint operation
-func writeAsyncAPIV3Operation(buf *bytes.Buffer, method string, op AsyncAPIOperation, msg *Message, defaultSummary string) {
-	summary := op.Summary
-	if summary == "" {
-		summary = defaultSummary
+func writeAsyncAPIV3Operation(buf *bytes.Buffer, method string, op *AsyncAPIOperation, msg *Message, defaultSummary string) {
+	summary := defaultSummary
+	if op != nil && op.Summary != "" {
+		summary = op.Summary
 	}
 
 	buf.WriteString("### ")
@@ -952,7 +952,7 @@ func writeAsyncAPIV3Operation(buf *bytes.Buffer, method string, op AsyncAPIOpera
 	buf.WriteString(method)
 	buf.WriteString("]\n\n")
 
-	if op.Description != "" {
+	if op != nil && op.Description != "" {
 		buf.WriteString(op.Description)
 		buf.WriteString("\n\n")
 	}
@@ -966,4 +966,5 @@ func writeAsyncAPIV3Operation(buf *bytes.Buffer, method string, op AsyncAPIOpera
 		}
 	}
 }
+
 
