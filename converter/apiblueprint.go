@@ -217,21 +217,12 @@ func mergeParameters(actionParams, resourceParams []Parameter) []Parameter {
 }
 
 // ToAsyncAPI converts the API Blueprint to AsyncAPI.
-func (spec *APIBlueprint) ToAsyncAPI(protocol Protocol) (*AsyncAPI, error) {
+func (spec *APIBlueprint) ToAsyncAPI(protocol Protocol, version int) (*AsyncAPI, error) {
 	openapi, err := spec.ToOpenAPI()
 	if err != nil {
 		return nil, err
 	}
-	return openapi.ToAsyncAPI(protocol)
-}
-
-// ToAsyncAPIV3 converts the API Blueprint to AsyncAPI 3.0.
-func (spec *APIBlueprint) ToAsyncAPIV3(protocol Protocol) (*AsyncAPI, error) {
-	openapi, err := spec.ToOpenAPI()
-	if err != nil {
-		return nil, err
-	}
-	return openapi.ToAsyncAPIV3(protocol)
+	return openapi.ToAsyncAPI(protocol, version)
 }
 
 // GetTitle returns the title.
@@ -242,10 +233,11 @@ func (spec *APIBlueprint) GetTitle() string {
 // GetVersion returns the version.
 func (spec *APIBlueprint) GetVersion() string {
 	// Check metadata for version
-	    if v, ok := spec.Metadata["VERSION"]; ok {
-	        return v
-	    }
-	    return spec.VersionField}
+	if v, ok := spec.Metadata["VERSION"]; ok {
+		return v
+	}
+	return spec.VersionField
+}
 
 // AsOpenAPI returns nil.
 func (spec *APIBlueprint) AsOpenAPI() (*OpenAPI, bool) {
@@ -253,12 +245,7 @@ func (spec *APIBlueprint) AsOpenAPI() (*OpenAPI, bool) {
 }
 
 // AsAsyncAPI returns nil.
-func (spec *APIBlueprint) AsAsyncAPI() (*AsyncAPI, bool) {
-	return nil, false
-}
-
-// AsAsyncAPIV3 returns nil.
-func (spec *APIBlueprint) AsAsyncAPIV3() (*AsyncAPI, bool) {
+func (spec *APIBlueprint) AsAsyncAPI(version int) (*AsyncAPI, bool) {
 	return nil, false
 }
 

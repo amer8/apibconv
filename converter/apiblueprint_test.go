@@ -296,21 +296,10 @@ func TestAPIBlueprint_AsTypeMethods(t *testing.T) {
 		t.Errorf("expected nil OpenAPI, got %v", o)
 	}
 
-	a, ok := bp.AsAsyncAPI()
-	if ok {
+	if a, ok := bp.AsAsyncAPI(0); ok || a != nil {
 		t.Error("expected AsAsyncAPI to return false")
 	}
-	if a != nil {
-		t.Errorf("expected nil AsyncAPI, got %v", a)
-	}
 
-	av3, ok := bp.AsAsyncAPIV3()
-	if ok {
-		t.Error("expected AsAsyncAPIV3 to return false")
-	}
-	if av3 != nil {
-		t.Errorf("expected nil AsyncAPIV3, got %v", av3)
-	}
 
 	ap, ok := bp.AsAPIBlueprint()
 	if !ok {

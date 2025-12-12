@@ -234,18 +234,37 @@ func (spec *AsyncAPI) ToOpenAPI() (*OpenAPI, error) {
 	return blueprintSpec.ToOpenAPI()
 }
 
-// ToAsyncAPIV3 converts the AsyncAPI specification to AsyncAPI 3.0 format.
-func (spec *AsyncAPI) ToAsyncAPIV3(protocol Protocol) (*AsyncAPI, error) {
-	// If already v3, return self (maybe clone?)
-	if strings.HasPrefix(spec.AsyncAPI, "3.") {
+// ToAsyncAPI converts the AsyncAPI specification to the requested AsyncAPI version.
+func (spec *AsyncAPI) ToAsyncAPI(protocol Protocol, version int) (*AsyncAPI, error) {
+	// If version is 0 (auto) or matches current version, return self
+	currentVersion := detectAsyncAPIVersion(spec.AsyncAPI)
+	if version == 0 || currentVersion == version {
 		return spec, nil
 	}
-	// Convert via OpenAPI
-	openapi, err := spec.ToOpenAPI()
-	if err != nil {
-		return nil, err
+
+	// If requesting v3
+	if version == 3 {
+		// Convert via OpenAPI
+		openapi, err := spec.ToOpenAPI()
+		if err != nil {
+			return nil, err
+		}
+		return openapi.ToAsyncAPI(protocol, 3)
 	}
-	return openapi.ToAsyncAPIV3(protocol)
+
+	// If requesting v2
+	if version == 2 {
+		// If currently v3, we might need to downgrade.
+		// Current implementation doesn't support v3->v2 explicitly via OpenAPI conversion in this file,
+		// but let's try via OpenAPI if possible.
+		openapi, err := spec.ToOpenAPI()
+		if err != nil {
+			return nil, err
+		}
+		return openapi.ToAsyncAPI(protocol, 2)
+	}
+
+	return nil, fmt.Errorf("unsupported AsyncAPI version: %d", version)
 }
 
 // Title returns the title of the AsyncAPI specification.
@@ -269,21 +288,19 @@ func (spec *AsyncAPI) AsOpenAPI() (*OpenAPI, bool) {
 	return nil, false
 }
 
-// AsAsyncAPI returns the *AsyncAPI spec itself, and true.
-func (spec *AsyncAPI) AsAsyncAPI() (*AsyncAPI, bool) {
-	return spec, true
-}
-
-// AsAsyncAPIV3 returns the *AsyncAPI spec itself if it's v3, or converts.
-func (spec *AsyncAPI) AsAsyncAPIV3() (*AsyncAPI, bool) {
-	if strings.HasPrefix(spec.AsyncAPI, "3.") {
+// AsAsyncAPI returns the *AsyncAPI spec itself if it matches the version, or converts.
+// If version is 0, it returns the spec as-is.
+func (spec *AsyncAPI) AsAsyncAPI(version int) (*AsyncAPI, bool) {
+	// If version is 0, return as is
+	if version == 0 {
 		return spec, true
 	}
-	specV3, err := spec.ToAsyncAPIV3(ProtocolAuto)
+
+	converted, err := spec.ToAsyncAPI(ProtocolAuto, version)
 	if err != nil {
 		return nil, false
 	}
-	return specV3, true
+	return converted, true
 }
 
 // AsAPIBlueprint returns nil and false for an AsyncAPI spec.
@@ -440,13 +457,14 @@ func writeAsyncAPIMessageAsResponse(buf *bytes.Buffer, msg *Message) {
 // ToAsyncAPI converts an API Blueprint (OpenAPI struct) to AsyncAPI format.
 //
 // This function converts OpenAPI/API Blueprint paths to AsyncAPI channels:
-//   - GET operations -> Subscribe operations (receiving messages)
-//   - POST operations -> Publish operations (sending messages)
+//   - GET operations -> Subscribe/Receive operations (receiving messages)
+//   - POST operations -> Publish/Send operations (sending messages)
 //   - Response bodies -> Message payloads for GET
 //   - Request bodies -> Message payloads for POST
 //
 // Parameters:
 //   - protocol: Protocol to use for AsyncAPI servers (e.g., ProtocolHTTP, ProtocolWS)
+//   - version: AsyncAPI version to generate (2 or 3). If 0, defaults to 2.
 //
 // Returns:
 //   - *AsyncAPI: Converted AsyncAPI specification
@@ -455,8 +473,12 @@ func writeAsyncAPIMessageAsResponse(buf *bytes.Buffer, msg *Message) {
 // Example:
 //
 //	openAPISpec := converter.ParseAPIBlueprint(data)
-//	asyncSpec, err := openAPISpec.ToAsyncAPI(converter.ProtocolWS)
-func (spec *OpenAPI) ToAsyncAPI(protocol Protocol) (*AsyncAPI, error) {
+//	asyncSpec, err := openAPISpec.ToAsyncAPI(converter.ProtocolWS, 2)
+func (spec *OpenAPI) ToAsyncAPI(protocol Protocol, version int) (*AsyncAPI, error) {
+	if version == 3 {
+		return spec.toAsyncAPIV3(protocol)
+	}
+
 	asyncSpec := &AsyncAPI{
 		AsyncAPI: AsyncAPIVersion26,
 		Info:     spec.Info,
@@ -505,90 +527,9 @@ func (spec *OpenAPI) ToAsyncAPI(protocol Protocol) (*AsyncAPI, error) {
 	return asyncSpec, nil
 }
 
-// ToAsyncAPI converts an OpenAPI operation to AsyncAPI operation
-func (op *Operation) ToAsyncAPI(isPublish bool) *AsyncAPIOperation {
-	asyncOp := &AsyncAPIOperation{
-		Summary:     op.Summary,
-		Description: op.Description,
-	}
-
-	asyncOp.Message = op.ExtractMessage(isPublish)
-	return asyncOp
-}
-
-// ============================================================================
-// AsyncAPI 3.0 Support
-// ============================================================================
-
-// ChannelReference represents a reference to a channel in AsyncAPI 3.0.
-//
-// Example:
-//
-//	ref := &ChannelReference{
-//	    Ref: "#/channels/userSignup",
-//	}
-type ChannelReference struct {
-	Ref string `json:"$ref"` // JSON reference to a channel
-}
-
-// detectAsyncAPIVersion detects the AsyncAPI version from the version string.
-//
-// Returns:
-//   - 2: for AsyncAPI 2.x versions
-//   - 3: for AsyncAPI 3.x versions
-//   - 0: for unknown or invalid versions
-//
-// Example:
-//
-//	version := detectAsyncAPIVersion("2.6.0") // returns 2
-//	version := detectAsyncAPIVersion("3.0.0") // returns 3
-func detectAsyncAPIVersion(asyncapiVersion string) int {
-	if asyncapiVersion == "" {
-		return 0
-	}
-	// Check first character of version
-	if asyncapiVersion[0] == '2' {
-		return 2
-	}
-	if asyncapiVersion[0] == '3' {
-		return 3
-	}
-	return 0
-}
-
-// parseAsyncV3 parses AsyncAPI 3.0 JSON or YAML data into an AsyncAPI struct.
-func parseAsyncV3(data []byte) (*AsyncAPI, error) {
-	var spec AsyncAPI
-
-	// Try JSON first
-	if isJSON(data) {
-		if err := json.Unmarshal(data, &spec); err != nil {
-			return nil, fmt.Errorf("failed to parse AsyncAPI v3 JSON: %w", err)
-		}
-		return &spec, nil
-	}
-
-	// Try YAML
-	if err := UnmarshalYAML(data, &spec); err != nil {
-		return nil, fmt.Errorf("failed to parse AsyncAPI v3 YAML: %w", err)
-	}
-
-	return &spec, nil
-}
-
-// ToAsyncAPIV3 converts an API Blueprint (OpenAPI struct) to AsyncAPI 3.0 format.
-//
-// This function converts OpenAPI/API Blueprint paths to AsyncAPI v3 channels and operations:
-//   - GET operations -> Receive operations (receiving messages)
-//   - POST operations -> Send operations (sending messages)
-//   - Response bodies -> Message payloads for GET
-//   - Request bodies -> Message payloads for POST
-//
-// Example:
-//
-//	openAPISpec := converter.ParseAPIBlueprint(data)
-//	asyncSpec, err := openAPISpec.ToAsyncAPIV3(converter.ProtocolWS)
-func (spec *OpenAPI) ToAsyncAPIV3(protocol Protocol) (*AsyncAPI, error) {
+// toAsyncAPIV3 converts an API Blueprint (OpenAPI struct) to AsyncAPI 3.0 format.
+// Internal helper function.
+func (spec *OpenAPI) toAsyncAPIV3(protocol Protocol) (*AsyncAPI, error) {
 	asyncSpec := &AsyncAPI{
 		AsyncAPI:   AsyncAPIVersion30,
 		Info:       spec.Info,
@@ -685,6 +626,79 @@ func (spec *OpenAPI) ToAsyncAPIV3(protocol Protocol) (*AsyncAPI, error) {
 
 	return asyncSpec, nil
 }
+
+
+// ToAsyncAPI converts an OpenAPI operation to AsyncAPI operation
+func (op *Operation) ToAsyncAPI(isPublish bool) *AsyncAPIOperation {
+	asyncOp := &AsyncAPIOperation{
+		Summary:     op.Summary,
+		Description: op.Description,
+	}
+
+	asyncOp.Message = op.ExtractMessage(isPublish)
+	return asyncOp
+}
+
+// ============================================================================
+// AsyncAPI 3.0 Support
+// ============================================================================
+
+// ChannelReference represents a reference to a channel in AsyncAPI 3.0.
+//
+// Example:
+//
+//	ref := &ChannelReference{
+//	    Ref: "#/channels/userSignup",
+//	}
+type ChannelReference struct {
+	Ref string `json:"$ref"` // JSON reference to a channel
+}
+
+// detectAsyncAPIVersion detects the AsyncAPI version from the version string.
+//
+// Returns:
+//   - 2: for AsyncAPI 2.x versions
+//   - 3: for AsyncAPI 3.x versions
+//   - 0: for unknown or invalid versions
+//
+// Example:
+//
+//	version := detectAsyncAPIVersion("2.6.0") // returns 2
+//	version := detectAsyncAPIVersion("3.0.0") // returns 3
+func detectAsyncAPIVersion(asyncapiVersion string) int {
+	if asyncapiVersion == "" {
+		return 0
+	}
+	// Check first character of version
+	if asyncapiVersion[0] == '2' {
+		return 2
+	}
+	if asyncapiVersion[0] == '3' {
+		return 3
+	}
+	return 0
+}
+
+// parseAsyncV3 parses AsyncAPI 3.0 JSON or YAML data into an AsyncAPI struct.
+func parseAsyncV3(data []byte) (*AsyncAPI, error) {
+	var spec AsyncAPI
+
+	// Try JSON first
+	if isJSON(data) {
+		if err := json.Unmarshal(data, &spec); err != nil {
+			return nil, fmt.Errorf("failed to parse AsyncAPI v3 JSON: %w", err)
+		}
+		return &spec, nil
+	}
+
+	// Try YAML
+	if err := UnmarshalYAML(data, &spec); err != nil {
+		return nil, fmt.Errorf("failed to parse AsyncAPI v3 YAML: %w", err)
+	}
+
+	return &spec, nil
+}
+
 
 // sanitizeChannelID converts a path to a valid channel ID.
 // Uses strings.Builder for efficient string concatenation and preserves

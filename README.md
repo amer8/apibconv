@@ -146,7 +146,7 @@ if openapiSpec, ok := spec.AsOpenAPI(); ok {
 
 // AsyncAPI (YAML)
 spec, _ := converter.Parse([]byte(`asyncapi: 2.6.0\n...`))
-if asyncapiSpec, ok := spec.AsAsyncAPI(); ok {
+if asyncapiSpec, ok := spec.AsAsyncAPI(0); ok {
     fmt.Println(asyncapiSpec.Info.Title)
 }
 
@@ -215,7 +215,7 @@ if !ok {
 }
 
 // Convert to AsyncAPI 2.6 with Kafka protocol
-asyncSpec, err := apibSpec.ToAsyncAPI(converter.ProtocolKafka)
+asyncSpec, err := apibSpec.ToAsyncAPI(converter.ProtocolKafka, 2)
 if err != nil {
     log.Fatal(err)
 }
@@ -268,9 +268,9 @@ if err != nil {
     log.Fatal(err)
 }
 
-if asyncApiSpec, ok := spec.AsAsyncAPI(); ok {
+if asyncApiSpec, ok := spec.AsAsyncAPI(0); ok {
     // Convert to API Blueprint
-    apibSpec, err := asyncApiSpec.ToBlueprint()
+    apibSpec, err := asyncApiSpec.ToAPIBlueprint()
     if err != nil {
         log.Fatal(err)
     }

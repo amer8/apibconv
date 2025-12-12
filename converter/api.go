@@ -17,11 +17,10 @@ type Spec interface {
 	// The boolean indicates if the conversion was successful.
 	AsOpenAPI() (*OpenAPI, bool)
 	// AsAsyncAPI attempts to return the underlying specification as *AsyncAPI.
+	// The version parameter specifies the desired AsyncAPI major version (e.g., 2 or 3).
+	// If version is 0, it returns the specification as-is if it is AsyncAPI.
 	// The boolean indicates if the conversion was successful.
-	AsAsyncAPI() (*AsyncAPI, bool)
-	// AsAsyncAPIV3 attempts to return the underlying specification as *AsyncAPI (v3).
-	// The boolean indicates if the conversion was successful.
-	AsAsyncAPIV3() (*AsyncAPI, bool)
+	AsAsyncAPI(version int) (*AsyncAPI, bool)
 	// AsAPIBlueprint attempts to return the underlying specification as *APIBlueprint.
 	// The boolean indicates if the conversion was successful.
 	AsAPIBlueprint() (*APIBlueprint, bool)

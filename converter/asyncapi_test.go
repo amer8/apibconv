@@ -266,7 +266,7 @@ func createTestEventOpenAPISpec(title, description string) *OpenAPI {
 func TestAPIBlueprintToAsyncAPI(t *testing.T) {
 	openAPISpec := createTestEventOpenAPISpec("Events API", "Event streaming API")
 
-	asyncSpec, _ := openAPISpec.ToAsyncAPI("kafka")
+	asyncSpec, _ := openAPISpec.ToAsyncAPI("kafka", 2)
 
 	if asyncSpec.AsyncAPI != "2.6.0" {
 		t.Errorf("Expected AsyncAPI version '2.6.0', got '%s'", asyncSpec.AsyncAPI)
@@ -403,7 +403,7 @@ Webhook event delivery API
 	if err != nil {
 		t.Fatalf("ParseBlueprintReader failed: %v", err)
 	}
-	asyncSpecObj, err := spec.ToAsyncAPI("http")
+	asyncSpecObj, err := spec.ToAsyncAPI("http", 2)
 	if err != nil {
 		t.Fatalf("ToAsyncAPI failed: %v", err)
 	}
@@ -743,7 +743,7 @@ func TestAsyncAPIV3ToAPIBlueprint(t *testing.T) {
 func TestAPIBlueprintToAsyncAPIV3(t *testing.T) {
 	openAPISpec := createTestEventOpenAPISpec("Events API v3", "Event streaming API for AsyncAPI 3.0")
 
-	asyncSpec, _ := openAPISpec.ToAsyncAPIV3("kafka")
+	asyncSpec, _ := openAPISpec.ToAsyncAPI("kafka", 3)
 
 	if asyncSpec.AsyncAPI != "3.0.0" {
 		t.Errorf("Expected AsyncAPI version '3.0.0', got '%s'", asyncSpec.AsyncAPI)
@@ -894,9 +894,9 @@ Webhook event delivery API for AsyncAPI 3.0
 	if err != nil {
 		t.Fatalf("ParseBlueprintReader failed: %v", err)
 	}
-	asyncSpecObj, err := spec.ToAsyncAPIV3("http")
+	asyncSpecObj, err := spec.ToAsyncAPI("http", 3)
 	if err != nil {
-		t.Fatalf("ToAsyncAPIV3 failed: %v", err)
+		t.Fatalf("ToAsyncAPI failed: %v", err)
 	}
 	if err := json.NewEncoder(output).Encode(asyncSpecObj); err != nil {
 		t.Fatalf("Encode failed: %v", err)

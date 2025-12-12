@@ -44,7 +44,7 @@ func ExampleParse() {
 		log.Fatal(err)
 	}
 
-	if spec, ok := s2.AsAsyncAPI(); ok {
+	if spec, ok := s2.AsAsyncAPI(0); ok {
 		fmt.Printf("AsyncAPI Title: %s\n", spec.Info.Title)
 		fmt.Printf("AsyncAPI Version: %s\n", spec.Info.Version)
 	}
@@ -122,7 +122,7 @@ paths:
 		log.Fatal("Expected OpenAPI spec")
 	}
 
-	asyncSpec, err := openAPISpec.ToAsyncAPI(converter.ProtocolWS)
+	asyncSpec, err := openAPISpec.ToAsyncAPI(converter.ProtocolWS, 2)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -144,7 +144,7 @@ paths:
 }
 
 // Example demonstrates converting an OpenAPI structure to AsyncAPI 3.0.
-func ExampleOpenAPI_ToAsyncAPIV3() {
+func ExampleOpenAPI_ToAsyncAPI_v3() {
 	yamlData := []byte(`
 openapi: 3.0.0
 info:
@@ -168,7 +168,7 @@ paths:
 		log.Fatal("Expected OpenAPI spec")
 	}
 
-	asyncSpec, err := openAPISpec.ToAsyncAPIV3(converter.ProtocolKafka)
+	asyncSpec, err := openAPISpec.ToAsyncAPI(converter.ProtocolKafka, 3)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -268,7 +268,7 @@ func ExampleAsyncAPI_ToAPIBlueprint() {
 }
 
 // Example demonstrates converting AsyncAPI 2.6 to AsyncAPI 3.0.
-func ExampleAsyncAPI_ToAsyncAPIV3() {
+func ExampleAsyncAPI_ToAsyncAPI_v3() {
 	spec := &converter.AsyncAPI{
 		AsyncAPI: "2.6.0",
 		Info: converter.Info{
@@ -285,7 +285,7 @@ func ExampleAsyncAPI_ToAsyncAPIV3() {
 	}
 
 	// Note: protocol is needed for server conversion, but we have no servers here.
-	v3Spec, err := spec.ToAsyncAPIV3(converter.ProtocolWS)
+	v3Spec, err := spec.ToAsyncAPI(converter.ProtocolWS, 3)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -325,7 +325,7 @@ func ExampleProtocolAuto() {
 	}
 
 	// Use ProtocolAuto to infer or set a generic protocol
-	asyncSpec, err := spec.ToAsyncAPI(converter.ProtocolAuto)
+	asyncSpec, err := spec.ToAsyncAPI(converter.ProtocolAuto, 2)
 	if err != nil {
 		log.Fatal(err)
 	}

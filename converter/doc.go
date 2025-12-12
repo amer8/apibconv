@@ -186,12 +186,9 @@ package converter
 //
 //   - ParseAsync: Parse AsyncAPI 2.x JSON/YAML
 //   - ParseAsyncV3: Parse AsyncAPI 3.x JSON/YAML
-//   - AsyncAPI.ToBlueprint: Convert AsyncAPI 2.x to API Blueprint
-//   - AsyncAPIV3.ToBlueprint: Convert AsyncAPI 3.x to API Blueprint
-//   - OpenAPI.ToAsyncAPI: Convert API Blueprint (via OpenAPI struct) to AsyncAPI 2.x
-//   - OpenAPI.ToAsyncAPIV3: Convert API Blueprint (via OpenAPI struct) to AsyncAPI 3.x
-//   - ConvertAPIBlueprintToAsyncAPI: Streaming conversion to AsyncAPI 2.x
-//   - ConvertAPIBlueprintToAsyncAPIV3: Streaming conversion to AsyncAPI 3.x
+//   - AsyncAPI.ToAPIBlueprint: Convert AsyncAPI 2.x/3.x to API Blueprint
+//   - OpenAPI.ToAsyncAPI: Convert API Blueprint (via OpenAPI struct) to AsyncAPI 2.x or 3.x
+//   - ConvertAPIBlueprintToAsyncAPI: Streaming conversion to AsyncAPI 2.x or 3.x
 //
 // Parsing:
 //

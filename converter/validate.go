@@ -382,7 +382,7 @@ func validateJSONSpec(data []byte) (*ValidationResult, error) {
 		}
 
 		// For unified AsyncAPI struct, we can use AsAsyncAPI for both versions
-		if spec, ok := s.AsAsyncAPI(); ok {
+		if spec, ok := s.AsAsyncAPI(0); ok {
 			return spec.Validate(), nil
 		}
 

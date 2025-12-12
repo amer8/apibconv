@@ -69,7 +69,7 @@ func BenchmarkAPIBlueprintToAsyncAPI_Sizes(b *testing.B) {
 				if err != nil {
 					b.Fatal(err)
 				}
-				asyncSpec, err := spec.ToAsyncAPI("ws")
+				asyncSpec, err := spec.ToAsyncAPI("ws", 2)
 				if err != nil {
 					b.Fatal(err)
 				}
@@ -96,7 +96,7 @@ func BenchmarkAPIBlueprintToAsyncAPIV3_Sizes(b *testing.B) {
 				if err != nil {
 					b.Fatal(err)
 				}
-				asyncSpec, err := spec.ToAsyncAPIV3("ws")
+				asyncSpec, err := spec.ToAsyncAPI("ws", 3)
 				if err != nil {
 					b.Fatal(err)
 				}
