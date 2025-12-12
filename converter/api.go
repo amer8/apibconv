@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 )
 
 // Spec is a unified interface for any API specification (OpenAPI, AsyncAPI, API Blueprint).
@@ -21,7 +20,25 @@ type Spec interface {
 
 	// ToAsyncAPIV3 converts the specification to AsyncAPI 3.0 format.
 	// protocol is required for AsyncAPI server definitions.
-	ToAsyncAPIV3(protocol Protocol) (*AsyncAPIV3, error)
+	ToAsyncAPIV3(protocol Protocol) (*AsyncAPI, error)
+
+	// GetTitle returns the title of the specification.
+	GetTitle() string
+	// GetVersion returns the version of the specification.
+	GetVersion() string
+
+	// AsOpenAPI attempts to return the underlying specification as *OpenAPI.
+	// The boolean indicates if the conversion was successful.
+	AsOpenAPI() (*OpenAPI, bool)
+	// AsAsyncAPI attempts to return the underlying specification as *AsyncAPI.
+	// The boolean indicates if the conversion was successful.
+	AsAsyncAPI() (*AsyncAPI, bool)
+	// AsAsyncAPIV3 attempts to return the underlying specification as *AsyncAPI (v3).
+	// The boolean indicates if the conversion was successful.
+	AsAsyncAPIV3() (*AsyncAPI, bool)
+	// AsAPIBlueprint attempts to return the underlying specification as *APIBlueprint.
+	// The boolean indicates if the conversion was successful.
+	AsAPIBlueprint() (*APIBlueprint, bool)
 }
 
 // SpecFormat represents the specification format.
@@ -61,19 +78,18 @@ func Parse(data []byte, formats ...SpecFormat) (Spec, error) {
 
 	switch format {
 	case FormatBlueprint:
+		// ParseBlueprint now returns *APIBlueprint
 		return ParseBlueprint(data)
 	case FormatOpenAPI:
 		return parseOpenAPI(data)
 	case FormatAsyncAPI:
 		// Detect AsyncAPI version
-		spec, _, err := ParseAsyncAPIAny(data)
+		s, _, err := parseAsyncAPIAny(data)
 		if err != nil {
 			return nil, err
 		}
-		if s, ok := spec.(Spec); ok {
-			return s, nil
-		}
-		return nil, fmt.Errorf("parsed AsyncAPI spec does not implement Spec interface")
+		// s is *AsyncAPI, which implements Spec
+		return s, nil
 	default:
 		return nil, fmt.Errorf("unsupported format: %s", format)
 	}
@@ -170,100 +186,4 @@ func ParseWithConversion(data []byte, opts *ConversionOptions) (*OpenAPI, error)
 
 	// Convert if needed
 	return ConvertToVersion(spec, opts.OutputVersion, opts)
-}
-
-// ParseReader parses OpenAPI 3.0 JSON or YAML from an io.Reader into an OpenAPI structure.
-//
-// Deprecated: Use Parse with io.ReadAll instead.
-func ParseReader(r io.Reader) (*OpenAPI, error) {
-	data, err := io.ReadAll(r)
-	if err != nil {
-		return nil, err
-	}
-	return parseOpenAPI(data)
-}
-
-// Format converts a Spec to API Blueprint format and returns it as a string.
-//
-// Deprecated: Use Spec.ToBlueprint instead.
-func Format(spec Spec) (string, error) {
-	if spec == nil {
-		return "", fmt.Errorf("spec cannot be nil")
-	}
-	return spec.ToBlueprint()
-}
-
-// FormatTo converts a Spec to API Blueprint format and writes it to w.
-//
-// Deprecated: Use write logic manually or new interface methods.
-func FormatTo(spec *OpenAPI, w io.Writer) error {
-	if spec == nil {
-		return fmt.Errorf("spec cannot be nil")
-	}
-
-	return spec.WriteBlueprint(w)
-}
-
-// FromJSON converts OpenAPI 3.0 JSON bytes directly to API Blueprint format string.
-//
-// Deprecated: Use Parse and Spec.ToBlueprint instead.
-func FromJSON(data []byte) (string, error) {
-	spec, err := Parse(data, FormatOpenAPI)
-	if err != nil {
-		return "", err
-	}
-	return spec.ToBlueprint()
-}
-
-// FromJSONString converts an OpenAPI 3.0 JSON string to API Blueprint format string.
-//
-// Deprecated: Use Parse and Spec.ToBlueprint instead.
-func FromJSONString(jsonStr string) (string, error) {
-	return FromJSON([]byte(jsonStr))
-}
-
-// ToBytes converts OpenAPI 3.0 JSON bytes to API Blueprint format bytes.
-//
-// Deprecated: Use Parse and Spec.ToBlueprint instead.
-func ToBytes(data []byte) ([]byte, error) {
-	spec, err := Parse(data, FormatOpenAPI)
-	if err != nil {
-		return nil, err
-	}
-
-	bp, err := spec.ToBlueprint()
-	if err != nil {
-		return nil, err
-	}
-
-	return []byte(bp), nil
-}
-
-// ConvertString provides string-to-string conversion of OpenAPI to API Blueprint.
-//
-// Deprecated: Use Parse and Spec.ToBlueprint instead.
-func ConvertString(openapiJSON string) (string, error) {
-	return FromJSONString(openapiJSON)
-}
-
-// MustFormat is like Format but panics if an error occurs.
-//
-// Deprecated: Use Format and handle errors instead.
-func MustFormat(spec *OpenAPI) string {
-	result, err := Format(spec)
-	if err != nil {
-		panic(err)
-	}
-	return result
-}
-
-// MustFromJSON is like FromJSON but panics if an error occurs.
-//
-// Deprecated: Use FromJSON and handle errors instead.
-func MustFromJSON(data []byte) string {
-	result, err := FromJSON(data)
-	if err != nil {
-		panic(err)
-	}
-	return result
 }

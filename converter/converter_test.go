@@ -2,9 +2,28 @@ package converter
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"testing"
 )
+
+// Helper function to convert OpenAPI JSON to Blueprint for testing
+func convertOpenAPIToBlueprint(t *testing.T, input string) string {
+	t.Helper()
+	var output bytes.Buffer
+	s, err := Parse([]byte(input), FormatOpenAPI)
+	if err == nil {
+		if openapiSpec, ok := s.AsOpenAPI(); ok {
+			err = openapiSpec.WriteBlueprint(&output)
+		} else {
+			err = fmt.Errorf("spec is not an OpenAPI spec")
+		}
+	}
+	if err != nil {
+		t.Fatalf("Convert failed: %v", err)
+	}
+	return output.String()
+}
 
 func TestConvert_BasicSpec(t *testing.T) {
 	input := `{
@@ -34,13 +53,7 @@ func TestConvert_BasicSpec(t *testing.T) {
 		}
 	}`
 
-	var output bytes.Buffer
-	err := Convert(strings.NewReader(input), &output)
-	if err != nil {
-		t.Fatalf("Convert failed: %v", err)
-	}
-
-	result := output.String()
+	result := convertOpenAPIToBlueprint(t, input)
 
 	// Check for required elements
 	if !strings.Contains(result, "FORMAT: 1A") {
@@ -92,13 +105,7 @@ func TestConvert_WithParameters(t *testing.T) {
 		}
 	}`
 
-	var output bytes.Buffer
-	err := Convert(strings.NewReader(input), &output)
-	if err != nil {
-		t.Fatalf("Convert failed: %v", err)
-	}
-
-	result := output.String()
+	result := convertOpenAPIToBlueprint(t, input)
 
 	if !strings.Contains(result, "+ Parameters") {
 		t.Error("Missing Parameters section")
@@ -146,13 +153,7 @@ func TestConvert_WithRequestBody(t *testing.T) {
 		}
 	}`
 
-	var output bytes.Buffer
-	err := Convert(strings.NewReader(input), &output)
-	if err != nil {
-		t.Fatalf("Convert failed: %v", err)
-	}
-
-	result := output.String()
+	result := convertOpenAPIToBlueprint(t, input)
 
 	if !strings.Contains(result, "+ Request (application/json)") {
 		t.Error("Missing Request section")
@@ -193,13 +194,7 @@ func TestConvert_WithResponseExample(t *testing.T) {
 		}
 	}`
 
-	var output bytes.Buffer
-	err := Convert(strings.NewReader(input), &output)
-	if err != nil {
-		t.Fatalf("Convert failed: %v", err)
-	}
-
-	result := output.String()
+	result := convertOpenAPIToBlueprint(t, input)
 
 	if !strings.Contains(result, "+ Response 200 (application/json)") {
 		t.Error("Missing Response with content type")
@@ -246,13 +241,7 @@ func TestConvert_MultipleHTTPMethods(t *testing.T) {
 		}
 	}`
 
-	var output bytes.Buffer
-	err := Convert(strings.NewReader(input), &output)
-	if err != nil {
-		t.Fatalf("Convert failed: %v", err)
-	}
-
-	result := output.String()
+	result := convertOpenAPIToBlueprint(t, input)
 
 	if !strings.Contains(result, "[GET]") {
 		t.Error("Missing GET method")
@@ -269,7 +258,14 @@ func TestConvert_InvalidJSON(t *testing.T) {
 	input := `{invalid json`
 
 	var output bytes.Buffer
-	err := Convert(strings.NewReader(input), &output)
+	s, err := Parse([]byte(input), FormatOpenAPI)
+	if err == nil {
+		if openapiSpec, ok := s.AsOpenAPI(); ok {
+			err = openapiSpec.WriteBlueprint(&output)
+		} else {
+			err = fmt.Errorf("spec is not an OpenAPI spec")
+		}
+	}
 	if err == nil {
 		t.Error("Expected error for invalid JSON")
 	}
@@ -285,13 +281,7 @@ func TestConvert_EmptySpec(t *testing.T) {
 		"paths": {}
 	}`
 
-	var output bytes.Buffer
-	err := Convert(strings.NewReader(input), &output)
-	if err != nil {
-		t.Fatalf("Convert failed: %v", err)
-	}
-
-	result := output.String()
+	result := convertOpenAPIToBlueprint(t, input)
 	if !strings.Contains(result, "# Empty API") {
 		t.Error("Missing API title")
 	}
@@ -337,13 +327,7 @@ func TestConvert_WithRequestBodyNoExample(t *testing.T) {
 		}
 	}`
 
-	var output bytes.Buffer
-	err := Convert(strings.NewReader(input), &output)
-	if err != nil {
-		t.Fatalf("Convert failed: %v", err)
-	}
-
-	result := output.String()
+	result := convertOpenAPIToBlueprint(t, input)
 	if !strings.Contains(result, "+ Request (application/json)") {
 		t.Error("Missing Request section")
 	}
@@ -376,13 +360,7 @@ func TestConvert_WithRequestBodyNotRequired(t *testing.T) {
 		}
 	}`
 
-	var output bytes.Buffer
-	err := Convert(strings.NewReader(input), &output)
-	if err != nil {
-		t.Fatalf("Convert failed: %v", err)
-	}
-
-	result := output.String()
+	result := convertOpenAPIToBlueprint(t, input)
 	if !strings.Contains(result, "+ Request (application/json)") {
 		t.Error("Missing Request section")
 	}
@@ -423,13 +401,7 @@ func TestConvert_WithMultipleContentTypes(t *testing.T) {
 		}
 	}`
 
-	var output bytes.Buffer
-	err := Convert(strings.NewReader(input), &output)
-	if err != nil {
-		t.Fatalf("Convert failed: %v", err)
-	}
-
-	result := output.String()
+	result := convertOpenAPIToBlueprint(t, input)
 	// Should include at least the application/json content type
 	if !strings.Contains(result, "application/json") {
 		t.Error("Missing content type in output")
@@ -469,13 +441,7 @@ func TestConvert_WithPutPatchOperations(t *testing.T) {
 		}
 	}`
 
-	var output bytes.Buffer
-	err := Convert(strings.NewReader(input), &output)
-	if err != nil {
-		t.Fatalf("Convert failed: %v", err)
-	}
-
-	result := output.String()
+	result := convertOpenAPIToBlueprint(t, input)
 	if !strings.Contains(result, "[PUT]") {
 		t.Error("Missing PUT method")
 	}
@@ -508,13 +474,7 @@ func TestConvert_WithResponseNoContentType(t *testing.T) {
 		}
 	}`
 
-	var output bytes.Buffer
-	err := Convert(strings.NewReader(input), &output)
-	if err != nil {
-		t.Fatalf("Convert failed: %v", err)
-	}
-
-	result := output.String()
+	result := convertOpenAPIToBlueprint(t, input)
 	if !strings.Contains(result, "Response 204") {
 		t.Error("Missing 204 response")
 	}
@@ -558,13 +518,7 @@ func TestConvert_WithQueryParameters(t *testing.T) {
 		}
 	}`
 
-	var output bytes.Buffer
-	err := Convert(strings.NewReader(input), &output)
-	if err != nil {
-		t.Fatalf("Convert failed: %v", err)
-	}
-
-	result := output.String()
+	result := convertOpenAPIToBlueprint(t, input)
 	if !strings.Contains(result, "+ Parameters") {
 		t.Error("Missing Parameters section")
 	}
@@ -601,13 +555,7 @@ func TestConvert_TitleCaseEdgeCases(t *testing.T) {
 		}
 	}`
 
-	var output bytes.Buffer
-	err := Convert(strings.NewReader(input), &output)
-	if err != nil {
-		t.Fatalf("Convert failed: %v", err)
-	}
-
-	result := output.String()
+	result := convertOpenAPIToBlueprint(t, input)
 	// Single letter should be handled
 	if !strings.Contains(result, "a") || !strings.Contains(result, "A") {
 		t.Error("Single letter summary not handled correctly")
@@ -633,13 +581,7 @@ func TestConvert_NoServers(t *testing.T) {
 		}
 	}`
 
-	var output bytes.Buffer
-	err := Convert(strings.NewReader(input), &output)
-	if err != nil {
-		t.Fatalf("Convert failed: %v", err)
-	}
-
-	result := output.String()
+	result := convertOpenAPIToBlueprint(t, input)
 	// Should work without servers
 	if !strings.Contains(result, "# Test API") {
 		t.Error("Missing API title")
@@ -664,13 +606,7 @@ func TestConvert_NoDescription(t *testing.T) {
 		}
 	}`
 
-	var output bytes.Buffer
-	err := Convert(strings.NewReader(input), &output)
-	if err != nil {
-		t.Fatalf("Convert failed: %v", err)
-	}
-
-	result := output.String()
+	result := convertOpenAPIToBlueprint(t, input)
 	// Should work without operation summary/description
 	if !strings.Contains(result, "# Test API") {
 		t.Error("Missing API title")

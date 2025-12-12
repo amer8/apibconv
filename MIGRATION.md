@@ -2,6 +2,34 @@
 
 This document outlines important changes and how to migrate your usage of `apibconv` to newer versions.
 
+## From 0.4.x to 0.5.x
+
+Introducing a dedicated `APIBlueprint` struct (AST) for representing API Blueprint documents. Previously, parsing an API Blueprint resulted in an `*OpenAPI` struct.
+
+**Example Migration:**
+
+```go
+// Old (0.4.x):
+spec, _ := converter.Parse([]byte(apibContent), converter.FormatBlueprint)
+// API Blueprint was parsed into an OpenAPI struct
+if openapi, ok := spec.AsOpenAPI(); ok {
+    fmt.Println(openapi.Info.Title)
+}
+
+// New (0.5.x):
+spec, _ := converter.Parse([]byte(apibContent), converter.FormatBlueprint)
+// Access the dedicated APIBlueprint AST
+if bp, ok := spec.AsAPIBlueprint(); ok {
+    fmt.Println(bp.Name)
+}
+
+// If you need the OpenAPI representation, convert it explicitly:
+if bp, ok := spec.AsAPIBlueprint(); ok {
+    openapi, _ := bp.ToOpenAPI()
+    fmt.Println(openapi.Info.Title)
+}
+```
+
 ## From 0.3.x to 0.4.x
 
 Introducing an unified `converter.Parse` and `converter.Spec` Interface.

@@ -426,10 +426,4 @@ func FormatAsyncAPIAsYAML(spec *AsyncAPI) ([]byte, error) {
 	return MarshalYAML(spec)
 }
 
-// FormatAsyncAPIV3AsYAML formats an AsyncAPI 3.0 spec as YAML.
-func FormatAsyncAPIV3AsYAML(spec *AsyncAPIV3) ([]byte, error) {
-	if spec == nil {
-		return nil, ErrNilSpec
-	}
-	return MarshalYAML(spec)
-}
+

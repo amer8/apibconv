@@ -31,14 +31,14 @@ var (
 
 	// Matches named type definition: ### User (object)
 	// Must not match Action definition (which contains [METHOD])
-	reNamedType = regexp.MustCompile(`^###\s+([^\[\n]+?)(?:\s*\((.+?)\))?$`)
+	reNamedType = regexp.MustCompile(`^###\s+([^[\n]+?)(?:\s*\((.+?)\))?$`)
 
 	// Matches Attributes section: + Attributes (User)
 	reAttributes = regexp.MustCompile(`^\+ Attributes(?:\s+\((.+?)\))?`)
 
 	// Matches MSON property: + name: value (type) - description
 	// Groups: 1=name, 2=value(backticked), 3=value(raw), 4=type, 5=description
-	reMSONProperty = regexp.MustCompile(`^\s*\+\s+([^:(]+?)(?::\s*(?:` + "`([^`]+)`" + `|([^(\n]+)))?(?:\s*\((.+?)\))?(?:\s*-\s*(.+))?$`)
+	reMSONProperty = regexp.MustCompile(`^\s*\+\s+([^:(]+?)(?:\:\s*(?:` + "`([^`]+)`" + `|([^(\n]+)))?(?:\s*\((.+?)\))?(?:\s*-\s*(.+))?$`)
 )
 
 // ParseBlueprint parses an API Blueprint format document and returns an OpenAPI specification.
@@ -53,7 +53,7 @@ var (
 //   - data: API Blueprint content as bytes
 //
 // Returns:
-//   - *OpenAPI: Parsed OpenAPI 3.0 specification
+//   - *APIBlueprint: Parsed API Blueprint AST
 //   - error: Error if parsing fails
 //
 // Example:
@@ -78,20 +78,20 @@ var (
 //	        }
 //	`)
 //
-//	spec, err := converter.ParseBlueprint(apibContent)
+//	spec, err := ParseBlueprint(apibContent)
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
 //
-//	fmt.Printf("API Title: %s\n", spec.Info.Title)
-func ParseBlueprint(data []byte) (*OpenAPI, error) {
+//	fmt.Printf("API Name: %s\n", spec.Name)
+func ParseBlueprint(data []byte) (*APIBlueprint, error) {
 	return parseAPIBlueprintReader(bytes.NewReader(data))
 }
 
 // ParseAPIBlueprint is a deprecated alias for ParseBlueprint.
 //
 // Deprecated: Use ParseBlueprint instead.
-func ParseAPIBlueprint(data []byte) (*OpenAPI, error) {
+func ParseAPIBlueprint(data []byte) (*APIBlueprint, error) {
 	return ParseBlueprint(data)
 }
 
@@ -105,27 +105,27 @@ func ParseAPIBlueprint(data []byte) (*OpenAPI, error) {
 //   - opts: Conversion options (nil for defaults)
 //
 // Returns:
-//   - *OpenAPI: Parsed OpenAPI specification
+//   - *APIBlueprint: Parsed API Blueprint AST
 //   - error: Error if parsing fails
 //
 // Example:
 //
-//	opts := &converter.ConversionOptions{
-//	    OutputVersion: converter.Version31,
+//	opts := &ConversionOptions{
+//	    OutputVersion: Version31,
 //	}
-//	spec, err := converter.ParseBlueprintWithOptions(apibContent, opts)
+//	spec, err := ParseBlueprintWithOptions(apibContent, opts)
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
-//	fmt.Printf("OpenAPI version: %s\n", spec.OpenAPI) // "3.1.0"
-func ParseBlueprintWithOptions(data []byte, opts *ConversionOptions) (*OpenAPI, error) {
+//	fmt.Printf("API Name: %s\n", spec.Name)
+func ParseBlueprintWithOptions(data []byte, opts *ConversionOptions) (*APIBlueprint, error) {
 	return parseAPIBlueprintReaderWithOptions(bytes.NewReader(data), opts)
 }
 
 // ParseAPIBlueprintWithOptions is a deprecated alias for ParseBlueprintWithOptions.
 //
 // Deprecated: Use ParseBlueprintWithOptions instead.
-func ParseAPIBlueprintWithOptions(data []byte, opts *ConversionOptions) (*OpenAPI, error) {
+func ParseAPIBlueprintWithOptions(data []byte, opts *ConversionOptions) (*APIBlueprint, error) {
 	return ParseBlueprintWithOptions(data, opts)
 }
 
@@ -139,7 +139,7 @@ func ParseAPIBlueprintWithOptions(data []byte, opts *ConversionOptions) (*OpenAP
 //   - r: An io.Reader containing API Blueprint content
 //
 // Returns:
-//   - *OpenAPI: Parsed OpenAPI 3.0 specification
+//   - *APIBlueprint: Parsed API Blueprint AST
 //   - error: Error if reading or parsing fails
 //
 // Example:
@@ -150,20 +150,20 @@ func ParseAPIBlueprintWithOptions(data []byte, opts *ConversionOptions) (*OpenAP
 //	}
 //	defer file.Close()
 //
-//	spec, err := converter.ParseBlueprintReader(file)
+//	spec, err := ParseBlueprintReader(file)
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
 //
-//	fmt.Printf("Parsed %d paths\n", len(spec.Paths))
-func ParseBlueprintReader(r io.Reader) (*OpenAPI, error) {
+//	fmt.Printf("Parsed API Blueprint\n")
+func ParseBlueprintReader(r io.Reader) (*APIBlueprint, error) {
 	return parseAPIBlueprintReader(r)
 }
 
 // ParseAPIBlueprintReader is a deprecated alias for ParseBlueprintReader.
 //
 // Deprecated: Use ParseBlueprintReader instead.
-func ParseAPIBlueprintReader(r io.Reader) (*OpenAPI, error) {
+func ParseAPIBlueprintReader(r io.Reader) (*APIBlueprint, error) {
 	return ParseBlueprintReader(r)
 }
 
@@ -185,11 +185,11 @@ type parserState struct {
 	currentSchema    *Schema
 }
 
-func parseAPIBlueprintReader(r io.Reader) (*OpenAPI, error) {
+func parseAPIBlueprintReader(r io.Reader) (*APIBlueprint, error) {
 	return parseAPIBlueprintReaderWithOptions(r, nil)
 }
 
-func parseAPIBlueprintReaderWithOptions(r io.Reader, opts *ConversionOptions) (*OpenAPI, error) {
+func parseAPIBlueprintReaderWithOptions(r io.Reader, opts *ConversionOptions) (*APIBlueprint, error) {
 	if opts == nil {
 		opts = DefaultConversionOptions()
 	}
@@ -225,7 +225,12 @@ func parseAPIBlueprintReaderWithOptions(r io.Reader, opts *ConversionOptions) (*
 		return nil, fmt.Errorf("error reading API Blueprint: %w", err)
 	}
 
-	return state.spec, nil
+	// Convert OpenAPI to APIBlueprint AST
+	bp, ok := state.spec.AsAPIBlueprint()
+	if !ok {
+		return nil, fmt.Errorf("failed to convert OpenAPI to APIBlueprint AST")
+	}
+	return bp, nil
 }
 
 func parseLine(state *parserState, line string) error {
@@ -274,7 +279,7 @@ func handleJSONLine(state *parserState, line, trimmed string) error {
 		state.jsonBuffer = nil
 	} else if trimmed != "" {
 		// Continue collecting JSON
-		state.jsonBuffer = append(state.jsonBuffer, strings.TrimLeft(line, " \t"))
+		state.jsonBuffer = append(state.jsonBuffer, strings.TrimLeft(line, " 	"))
 	}
 	return nil
 }
@@ -452,8 +457,7 @@ func parseResource(state *parserState, line string) error {
 	if len(matches) >= 3 {
 		state.currentPath = matches[2]
 		if _, exists := state.spec.Paths[state.currentPath]; !exists {
-			state.spec.Paths[state.currentPath] = PathItem{}
-		}
+			state.spec.Paths[state.currentPath] = PathItem{}}
 	}
 	return nil
 }
@@ -584,167 +588,6 @@ func finalizeOperation(state *parserState) {
 
 	state.currentOp = nil
 	state.currentMethod = ""
-}
-
-// ToOpenAPI converts API Blueprint bytes to OpenAPI JSON bytes.
-//
-// Deprecated: Use Parse and Spec.ToOpenAPI instead.
-//
-// This function provides a one-step conversion from API Blueprint format to
-// OpenAPI 3.0 JSON. The output is formatted with indentation for readability.
-//
-// By default, this outputs OpenAPI 3.0.0. Use ToOpenAPIWithOptions to specify a different version.
-//
-// Parameters:
-//   - data: API Blueprint content as bytes
-//
-// Returns:
-//   - []byte: OpenAPI 3.0 specification as formatted JSON bytes
-//   - error: Error if parsing or marshaling fails
-//
-// Example:
-//
-//	apibContent := []byte(`FORMAT: 1A
-//	# Pet Store API
-//
-//	## /pets [/pets]
-//
-//	### List Pets [GET]
-//
-//	+ Response 200 (application/json)
-//
-//	        [{"id": 1, "name": "Fluffy"}]
-//	`)
-//
-//	openapiJSON, err := converter.ToOpenAPI(apibContent)
-//	if err != nil {
-//	    log.Fatal(err)
-//	}
-//
-//	// Write to file
-//	os.WriteFile("openapi.json", openapiJSON, 0644)
-func ToOpenAPI(data []byte) ([]byte, error) {
-	spec, err := ParseBlueprint(data)
-	if err != nil {
-		return nil, err
-	}
-
-	return json.MarshalIndent(spec, "", "  ")
-}
-
-// ToOpenAPIWithOptions converts API Blueprint bytes to OpenAPI JSON with custom options.
-//
-// Deprecated: Use Parse and Spec.ToOpenAPI instead (for 3.0), or use ConvertToVersion after Parse.
-//
-// This allows you to specify the output OpenAPI version (3.0 or 3.1).
-//
-// Parameters:
-//   - data: API Blueprint content as bytes
-//   - opts: Conversion options (nil for defaults)
-//
-// Returns:
-//   - []byte: OpenAPI specification as formatted JSON bytes
-//   - error: Error if parsing or marshaling fails
-//
-// Example:
-//
-//	opts := &converter.ConversionOptions{
-//	    OutputVersion: converter.Version31,
-//	}
-//	openapiJSON, err := converter.ToOpenAPIWithOptions(apibContent, opts)
-//	if err != nil {
-//	    log.Fatal(err)
-//	}
-func ToOpenAPIWithOptions(data []byte, opts *ConversionOptions) ([]byte, error) {
-	spec, err := ParseBlueprintWithOptions(data, opts)
-	if err != nil {
-		return nil, err
-	}
-
-	return json.MarshalIndent(spec, "", "  ")
-}
-
-// ToOpenAPIString converts API Blueprint string to OpenAPI JSON string.
-//
-// Deprecated: Use Parse and Spec.ToOpenAPI instead.
-//
-// This is a convenience wrapper around ToOpenAPI for string inputs. The output
-// is formatted JSON with 2-space indentation.
-//
-// Parameters:
-//   - apibStr: API Blueprint content as a string
-//
-// Returns:
-//   - string: OpenAPI 3.0 specification as a formatted JSON string
-//   - error: Error if parsing or marshaling fails
-//
-// Example:
-//
-//	apibContent := `FORMAT: 1A
-//	# My API
-//
-//	## /users [/users]
-//
-//	### Get Users [GET]
-//
-//	+ Response 200`
-//
-//	openapiJSON, err := converter.ToOpenAPIString(apibContent)
-//	if err != nil {
-//	    log.Fatal(err)
-//	}
-//	fmt.Println(openapiJSON)
-func ToOpenAPIString(apibStr string) (string, error) {
-	jsonBytes, err := ToOpenAPI([]byte(apibStr))
-	if err != nil {
-		return "", err
-	}
-	return string(jsonBytes), nil
-}
-
-// ConvertToOpenAPI converts API Blueprint from a reader to OpenAPI JSON written to a writer.
-//
-// Deprecated: Use Parse and Spec.ToOpenAPI instead.
-//
-// This is the streaming version for converting API Blueprint to OpenAPI, useful
-// for working with files or network streams. The output JSON is formatted with
-// 2-space indentation for readability.
-//
-// Parameters:
-//   - r: An io.Reader containing API Blueprint content
-//   - w: An io.Writer where the OpenAPI JSON output will be written
-//
-// Returns an error if:
-//   - Reading from r fails
-//   - Parsing the API Blueprint fails
-//   - Writing to w fails
-//
-// Example:
-//
-//	input, err := os.Open("api.apib")
-//	if err != nil {
-//	    log.Fatal(err)
-//	}
-//	defer input.Close()
-//
-//	output, err := os.Create("openapi.json")
-//	if err != nil {
-//	    log.Fatal(err)
-//	}
-//	defer output.Close()
-//
-//	if err := converter.ConvertToOpenAPI(input, output); err != nil {
-//	    log.Fatal(err)
-//	}
-func ConvertToOpenAPI(r io.Reader, w io.Writer) error {
-	spec, err := ParseBlueprintReader(r)
-	if err != nil {
-		return err
-	}
-
-	encoder := json.NewEncoder(w)
-	encoder.SetIndent("", "  ")
-	return encoder.Encode(spec)
 }
 
 // parseNamedType parses a named type definition (e.g., "### User (object)").
@@ -902,20 +745,20 @@ func processMSONAttribute(attr, val string, res *parsedMSONAttributes) {
 	case "number":
 		res.schemaType = "number"
 		if val != "" {
-			if f, err := strconv.ParseFloat(val, 64); err == nil {
-				res.example = f
-				res.exampleParsed = true
-			}
+				if f, err := strconv.ParseFloat(val, 64); err == nil {
+					res.example = f
+					res.exampleParsed = true
+				}
 		}
 	case "boolean":
 		res.schemaType = "boolean"
 		if val == "true" {
-			res.example = true
-			res.exampleParsed = true
+				res.example = true
+				res.exampleParsed = true
 		}
 		if val == "false" {
-			res.example = false
-			res.exampleParsed = true
+				res.example = false
+				res.exampleParsed = true
 		}
 	case "string":
 		res.schemaType = "string"
@@ -951,4 +794,94 @@ func isStandardType(t string) bool {
 		return true
 	}
 	return false
+}
+
+// ToOpenAPI converts API Blueprint bytes to OpenAPI JSON bytes.
+//
+// Deprecated: Use Parse and Spec.ToOpenAPI instead.
+//
+// This function provides a one-step conversion from API Blueprint format to
+// OpenAPI 3.0 JSON. The output is formatted with indentation for readability.
+//
+// By default, this outputs OpenAPI 3.0.0. Use ToOpenAPIWithOptions to specify a different version.
+//
+// Parameters:
+//   - data: API Blueprint content as bytes
+//
+// Returns:
+//   - []byte: OpenAPI 3.0 specification as formatted JSON bytes
+//   - error: Error if parsing or marshaling fails
+func ToOpenAPI(data []byte) ([]byte, error) {
+	bp, err := ParseBlueprint(data)
+	if err != nil {
+		return nil, err
+	}
+	openapi, err := bp.ToOpenAPI()
+	if err != nil {
+		return nil, err
+	}
+	return json.MarshalIndent(openapi, "", "  ")
+}
+
+// ToOpenAPIWithOptions converts API Blueprint to OpenAPI with options.
+//
+// Deprecated: Use Parse and Spec.ToOpenAPI instead.
+//
+// Parameters:
+//   - data: API Blueprint content as bytes
+//   - opts: Conversion options
+//
+// Returns:
+//   - []byte: OpenAPI specification as formatted JSON bytes
+//   - error: Error if parsing or marshaling fails
+func ToOpenAPIWithOptions(data []byte, opts *ConversionOptions) ([]byte, error) {
+	bp, err := ParseBlueprintWithOptions(data, opts)
+	if err != nil {
+		return nil, err
+	}
+	openapi, err := bp.ToOpenAPI()
+	if err != nil {
+		return nil, err
+	}
+	return json.MarshalIndent(openapi, "", "  ")
+}
+
+// ToOpenAPIString converts API Blueprint string to OpenAPI JSON string.
+//
+// Deprecated: Use Parse and Spec.ToOpenAPI instead.
+//
+// Parameters:
+//   - data: API Blueprint content as string
+//
+// Returns:
+//   - string: OpenAPI 3.0 specification as formatted JSON string
+//   - error: Error if parsing or marshaling fails
+func ToOpenAPIString(data string) (string, error) {
+	jsonBytes, err := ToOpenAPI([]byte(data))
+	return string(jsonBytes), err
+}
+
+// ConvertToOpenAPI reads API Blueprint from r and writes OpenAPI JSON to w.
+//
+// Deprecated: Use ParseBlueprintReader and Spec.ToOpenAPI instead.
+//
+// Parameters:
+//   - r: Reader for API Blueprint content
+//   - w: Writer for OpenAPI JSON output
+//
+// Returns:
+//   - error: Error if reading, parsing, or writing fails
+func ConvertToOpenAPI(r io.Reader, w io.Writer) error {
+	bp, err := parseAPIBlueprintReader(r)
+	if err != nil {
+		return err
+	}
+	openapi, err := bp.ToOpenAPI()
+	if err != nil {
+		return err
+	}
+	
+	encoder := json.NewEncoder(w)
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(openapi)
 }

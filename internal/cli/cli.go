@@ -245,7 +245,7 @@ func configureFlags(fs *flag.FlagSet) {
 
 	fs.StringVar(&asyncapiVersion, "asyncapi-version", defaultAsyncAPIVersion, "AsyncAPI target version: 2.6, 3.0")
 
-	fs.StringVar(&protocol, "protocol", "", "Protocol for AsyncAPI: ws, mqtt, kafka, amqp, http")
+	fs.StringVar(&protocol, "protocol", "", "Protocol for AsyncAPI: ws, wss, mqtt, kafka, amqp, http, https, auto")
 
 	fs.BoolVar(&validateOnly, "validate", false, "Validate input without converting")
 
@@ -290,7 +290,7 @@ func configureFlags(fs *flag.FlagSet) {
 		p("")
 		p("AsyncAPI Options:")
 		p("  --protocol PROTO")
-		p("      Protocol: ws, mqtt, kafka, amqp, http (required)")
+		p("      Protocol: ws, wss, mqtt, kafka, amqp, http, https, auto (required)")
 		p("  ")
 		p("  --asyncapi-version VERSION")
 		p("      Version: 2.6, 3.0 (default: \"2.6\")")
@@ -689,10 +689,7 @@ func convertAsyncAPIToAPIBlueprint(input, output *os.File) int {
 	// Try to get version string for logging, if possible
 	// This is purely informational and relies on the underlying struct
 	versionStr := "AsyncAPI"
-	switch s := spec.(type) {
-	case *converter.AsyncAPI:
-		versionStr = fmt.Sprintf("AsyncAPI %s", s.AsyncAPI)
-	case *converter.AsyncAPIV3:
+	if s, ok := spec.(*converter.AsyncAPI); ok {
 		versionStr = fmt.Sprintf("AsyncAPI %s", s.AsyncAPI)
 	}
 

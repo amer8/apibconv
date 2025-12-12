@@ -1,6 +1,7 @@
 package converter
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"strings"
@@ -41,7 +42,11 @@ func BenchmarkAPIBlueprintToOpenAPI_Sizes(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				reader := strings.NewReader(content)
-				if err := ConvertToOpenAPI(reader, io.Discard); err != nil {
+				spec, err := ParseBlueprintReader(reader)
+				if err != nil {
+					b.Fatal(err)
+				}
+				if err := json.NewEncoder(io.Discard).Encode(spec); err != nil {
 					b.Fatal(err)
 				}
 			}
@@ -60,7 +65,15 @@ func BenchmarkAPIBlueprintToAsyncAPI_Sizes(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				reader := strings.NewReader(content)
-				if err := ConvertAPIBlueprintToAsyncAPI(reader, io.Discard, "ws"); err != nil {
+				spec, err := ParseBlueprintReader(reader)
+				if err != nil {
+					b.Fatal(err)
+				}
+				asyncSpec, err := spec.ToAsyncAPI("ws")
+				if err != nil {
+					b.Fatal(err)
+				}
+				if err := json.NewEncoder(io.Discard).Encode(asyncSpec); err != nil {
 					b.Fatal(err)
 				}
 			}
@@ -79,7 +92,15 @@ func BenchmarkAPIBlueprintToAsyncAPIV3_Sizes(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				reader := strings.NewReader(content)
-				if err := ConvertAPIBlueprintToAsyncAPIV3(reader, io.Discard, "ws"); err != nil {
+				spec, err := ParseBlueprintReader(reader)
+				if err != nil {
+					b.Fatal(err)
+				}
+				asyncSpec, err := spec.ToAsyncAPIV3("ws")
+				if err != nil {
+					b.Fatal(err)
+				}
+				if err := json.NewEncoder(io.Discard).Encode(asyncSpec); err != nil {
 					b.Fatal(err)
 				}
 			}

@@ -141,10 +141,14 @@ func BenchmarkConvertOpenAPIToAPIBlueprint_Sizes(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				reader := bytes.NewReader(jsonData)
-				if err := Convert(reader, io.Discard); err != nil {
+				data, _ := io.ReadAll(reader)
+				spec, err := Parse(data, FormatOpenAPI)
+				if err != nil {
 					b.Fatal(err)
 				}
-			}
+				if err := spec.(*OpenAPI).WriteBlueprint(io.Discard); err != nil {
+					b.Fatal(err)
+				}			}
 		})
 	}
 }
@@ -158,7 +162,7 @@ func BenchmarkFormatOpenAPI_Sizes(b *testing.B) {
 			b.ReportAllocs()
 
 			for i := 0; i < b.N; i++ {
-				_, err := Format(spec)
+				_, err := spec.ToBlueprint()
 				if err != nil {
 					b.Fatal(err)
 				}
@@ -214,7 +218,7 @@ func BenchmarkValidateOpenAPI_Sizes(b *testing.B) {
 			b.ReportAllocs()
 
 			for i := 0; i < b.N; i++ {
-				_ = ValidateOpenAPI(spec)
+				_ = spec.Validate()
 			}
 		})
 	}
@@ -251,7 +255,7 @@ func BenchmarkAPIBlueprintParse_Sizes(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				reader := strings.NewReader(content)
-				_, err := ParseAPIBlueprintReader(reader)
+				_, err := ParseBlueprintReader(reader)
 				if err != nil {
 					b.Fatal(err)
 				}
@@ -296,10 +300,14 @@ func BenchmarkMemoryProfile_Convert(b *testing.B) {
 
 			for i := 0; i < b.N; i++ {
 				reader := bytes.NewReader(jsonData)
-				if err := Convert(reader, io.Discard); err != nil {
+				data, _ := io.ReadAll(reader)
+				spec, err := Parse(data, FormatOpenAPI)
+				if err != nil {
 					b.Fatal(err)
 				}
-			}
+				if err := spec.(*OpenAPI).WriteBlueprint(io.Discard); err != nil {
+					b.Fatal(err)
+				}			}
 
 			b.StopTimer()
 			runtime.GC()
@@ -382,10 +390,14 @@ func BenchmarkThroughput_Convert(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		reader := bytes.NewReader(jsonData)
-		if err := Convert(reader, io.Discard); err != nil {
+		data, _ := io.ReadAll(reader)
+		spec, err := Parse(data, FormatOpenAPI)
+		if err != nil {
 			b.Fatal(err)
 		}
-	}
+		if err := spec.(*OpenAPI).WriteBlueprint(io.Discard); err != nil {
+			b.Fatal(err)
+		}	}
 }
 
 // BenchmarkThroughput_Parse measures throughput in MB/s for parsing
@@ -414,10 +426,14 @@ func BenchmarkConcurrent_Convert(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			reader := bytes.NewReader(jsonData)
-			if err := Convert(reader, io.Discard); err != nil {
+			data, _ := io.ReadAll(reader)
+			spec, err := Parse(data, FormatOpenAPI)
+			if err != nil {
 				b.Fatal(err)
 			}
-		}
+			if err := spec.(*OpenAPI).WriteBlueprint(io.Discard); err != nil {
+				b.Fatal(err)
+			}		}
 	})
 }
 

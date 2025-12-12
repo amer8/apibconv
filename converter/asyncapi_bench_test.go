@@ -80,7 +80,7 @@ func BenchmarkParseAsyncAPI_Sizes(b *testing.B) {
 			b.ReportAllocs()
 
 			for i := 0; i < b.N; i++ {
-				_, err := ParseAsyncAPI(jsonData)
+				_, err := parseAsync(jsonData)
 				if err != nil {
 					b.Fatal(err)
 				}
@@ -98,7 +98,7 @@ func BenchmarkAsyncAPIToAPIBlueprint_Sizes(b *testing.B) {
 			b.ReportAllocs()
 
 			for i := 0; i < b.N; i++ {
-				_ = AsyncAPIToAPIBlueprint(spec)
+				_, _ = spec.ToBlueprint()
 			}
 		})
 	}
@@ -112,7 +112,7 @@ func BenchmarkConcurrent_ParseAsyncAPI(b *testing.B) {
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			_, err := ParseAsyncAPI(jsonData)
+			_, err := parseAsync(jsonData)
 			if err != nil {
 				b.Fatal(err)
 			}
@@ -129,7 +129,12 @@ func BenchmarkConcurrent_ConvertAsyncAPI(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			reader := bytes.NewReader(jsonData)
-			if err := ConvertAsyncAPIToAPIBlueprint(reader, io.Discard); err != nil {
+			data, _ := io.ReadAll(reader)
+			spec, err := parseAsync(data)
+			if err != nil {
+				b.Fatal(err)
+			}
+			if err := spec.WriteBlueprint(io.Discard); err != nil {
 				b.Fatal(err)
 			}
 		}

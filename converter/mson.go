@@ -27,7 +27,7 @@ func writeMSON(buf *bytes.Buffer, schema *Schema, indentLevel int) {
 	}
 
 	// If it's an object with properties
-	if isObject(schema) {
+	if schema.IsObject() {
 		buf.WriteString(indent)
 		buf.WriteString("+ Attributes")
 
@@ -52,11 +52,11 @@ func writeMSON(buf *bytes.Buffer, schema *Schema, indentLevel int) {
 	}
 
 	// If it's an array
-	if isArray(schema) {
+	if schema.IsArray() {
 		buf.WriteString(indent)
 		buf.WriteString("+ Attributes (array")
 		if schema.Items != nil {
-			itemType := SchemaType(schema.Items)
+			itemType := schema.Items.TypeName()
 			if schema.Items.Ref != "" {
 				buf.WriteString("[")
 				buf.WriteString(getRefName(schema.Items.Ref))
@@ -94,7 +94,7 @@ func writeMSONProperty(buf *bytes.Buffer, name string, prop *Schema, required []
 	buf.WriteString(" (")
 
 	// Type
-	typeStr := SchemaType(prop)
+	typeStr := prop.TypeName()
 	if prop.Ref != "" {
 		typeStr = getRefName(prop.Ref)
 	}
@@ -105,7 +105,7 @@ func writeMSONProperty(buf *bytes.Buffer, name string, prop *Schema, required []
 
 	// Add typed array info: array[User]
 	if typeStr == "array" && prop.Items != nil {
-		itemType := SchemaType(prop.Items)
+		itemType := prop.Items.TypeName()
 		if prop.Items.Ref != "" {
 			itemType = getRefName(prop.Items.Ref)
 		}
@@ -134,7 +134,7 @@ func writeMSONProperty(buf *bytes.Buffer, name string, prop *Schema, required []
 	buf.WriteString("\n")
 
 	// Nested properties (if object)
-	if isObject(prop) && len(prop.Properties) > 0 {
+	if prop.IsObject() && len(prop.Properties) > 0 {
 		var keys []string
 		for k := range prop.Properties {
 			keys = append(keys, k)
@@ -158,14 +158,14 @@ func isPropRequired(name string, required []string) bool {
 	return false
 }
 
-// isObject checks if a schema is an object type or has properties.
-func isObject(s *Schema) bool {
-	return SchemaType(s) == TypeObject || len(s.Properties) > 0
+// IsObject checks if a schema is an object type or has properties.
+func (s *Schema) IsObject() bool {
+	return s.TypeName() == TypeObject || len(s.Properties) > 0
 }
 
-// isArray checks if a schema is an array type or has items.
-func isArray(s *Schema) bool {
-	return SchemaType(s) == TypeArray || s.Items != nil
+// IsArray checks if a schema is an array type or has items.
+func (s *Schema) IsArray() bool {
+	return s.TypeName() == TypeArray || s.Items != nil
 }
 
 // getRefName extracts the simple name from a reference string (e.g. "#/components/schemas/User" -> "User").

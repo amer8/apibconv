@@ -23,7 +23,7 @@ func writeDataStructures(buf *bytes.Buffer, schemas map[string]*Schema) {
 		buf.WriteString("### ")
 		buf.WriteString(name)
 
-		typeStr := SchemaType(schema)
+		typeStr := schema.TypeName()
 		if typeStr != "" {
 			buf.WriteString(" (")
 			buf.WriteString(typeStr)

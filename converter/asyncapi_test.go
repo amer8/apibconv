@@ -3,6 +3,7 @@ package converter
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"strings"
 	"testing"
 )
@@ -44,7 +45,7 @@ func TestParseAsyncAPI(t *testing.T) {
 		}
 	}`)
 
-	spec, err := ParseAsyncAPI(asyncapiJSON)
+	spec, err := parseAsync(asyncapiJSON)
 	if err != nil {
 		t.Fatalf("ParseAsyncAPI failed: %v", err)
 	}
@@ -147,7 +148,7 @@ func TestAsyncAPIToAPIBlueprint(t *testing.T) {
 		},
 	}
 
-	blueprint := AsyncAPIToAPIBlueprint(spec)
+	blueprint, _ := spec.ToBlueprint()
 
 	// Check for required API Blueprint elements
 	if !strings.Contains(blueprint, "FORMAT: 1A") {
@@ -261,7 +262,7 @@ func createTestEventOpenAPISpec(title, description string) *OpenAPI {
 func TestAPIBlueprintToAsyncAPI(t *testing.T) {
 	openAPISpec := createTestEventOpenAPISpec("Events API", "Event streaming API")
 
-	asyncSpec := APIBlueprintToAsyncAPI(openAPISpec, "kafka")
+	asyncSpec, _ := openAPISpec.ToAsyncAPI("kafka")
 
 	if asyncSpec.AsyncAPI != "2.6.0" {
 		t.Errorf("Expected AsyncAPI version '2.6.0', got '%s'", asyncSpec.AsyncAPI)
@@ -332,9 +333,14 @@ func TestConvertAsyncAPIToAPIBlueprint(t *testing.T) {
 	input := bytes.NewBufferString(asyncapiJSON)
 	output := &bytes.Buffer{}
 
-	err := ConvertAsyncAPIToAPIBlueprint(input, output)
+	data, _ := io.ReadAll(input)
+	spec, err := parseAsync(data)
 	if err != nil {
-		t.Fatalf("ConvertAsyncAPIToAPIBlueprint failed: %v", err)
+		t.Fatalf("parseAsync failed: %v", err)
+	}
+	err = spec.WriteBlueprint(output)
+	if err != nil {
+		t.Fatalf("WriteBlueprint failed: %v", err)
 	}
 
 	blueprint := output.String()
@@ -389,9 +395,16 @@ Webhook event delivery API
 	input := bytes.NewBufferString(apiblueprintContent)
 	output := &bytes.Buffer{}
 
-	err := ConvertAPIBlueprintToAsyncAPI(input, output, "http")
+	spec, err := ParseBlueprintReader(input)
 	if err != nil {
-		t.Fatalf("ConvertAPIBlueprintToAsyncAPI failed: %v", err)
+		t.Fatalf("ParseBlueprintReader failed: %v", err)
+	}
+	asyncSpecObj, err := spec.ToAsyncAPI("http")
+	if err != nil {
+		t.Fatalf("ToAsyncAPI failed: %v", err)
+	}
+	if err := json.NewEncoder(output).Encode(asyncSpecObj); err != nil {
+		t.Fatalf("Encode failed: %v", err)
 	}
 
 	// Parse the output JSON
@@ -460,7 +473,7 @@ func TestAsyncAPIWithMultipleChannels(t *testing.T) {
 		},
 	}
 
-	blueprint := AsyncAPIToAPIBlueprint(spec)
+	blueprint, _ := spec.ToBlueprint()
 
 	// All channels should be present
 	if !strings.Contains(blueprint, "## /users/created") {
@@ -509,7 +522,7 @@ func TestDetectAsyncAPIVersion(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := DetectAsyncAPIVersion(tt.version)
+			result := detectAsyncAPIVersion(tt.version)
 			if result != tt.expected {
 				t.Errorf("Expected %d, got %d for version %s", tt.expected, result, tt.version)
 			}
@@ -561,7 +574,7 @@ func TestParseAsyncAPIV3(t *testing.T) {
 		}
 	}`)
 
-	spec, err := ParseAsyncAPIV3(asyncapiJSON)
+	spec, err := parseAsyncV3(asyncapiJSON)
 	if err != nil {
 		t.Fatalf("ParseAsyncAPIV3 failed: %v", err)
 	}
@@ -619,7 +632,7 @@ func TestParseAsyncAPIV3(t *testing.T) {
 }
 
 func TestAsyncAPIV3ToAPIBlueprint(t *testing.T) {
-	spec := &AsyncAPIV3{
+	spec := &AsyncAPI{
 		AsyncAPI: "3.0.0",
 		Info: Info{
 			Title:       "Chat API v3",
@@ -633,7 +646,7 @@ func TestAsyncAPIV3ToAPIBlueprint(t *testing.T) {
 				Description: "WebSocket server",
 			},
 		},
-		Channels: map[string]ChannelV3{
+		Channels: map[string]Channel{
 			"chatChannel": {
 				Address:     "chat",
 				Description: "Chat channel",
@@ -656,7 +669,7 @@ func TestAsyncAPIV3ToAPIBlueprint(t *testing.T) {
 				},
 			},
 		},
-		Operations: map[string]OperationV3{
+		Operations: map[string]AsyncAPIOperation{
 			"receiveMessages": {
 				Action:      "receive",
 				Summary:     "Receive chat messages",
@@ -675,7 +688,7 @@ func TestAsyncAPIV3ToAPIBlueprint(t *testing.T) {
 		},
 	}
 
-	blueprint := AsyncAPIV3ToAPIBlueprint(spec)
+	blueprint, _ := spec.ToBlueprint()
 
 	// Check for required API Blueprint elements
 	if !strings.Contains(blueprint, "FORMAT: 1A") {
@@ -718,7 +731,7 @@ func TestAsyncAPIV3ToAPIBlueprint(t *testing.T) {
 func TestAPIBlueprintToAsyncAPIV3(t *testing.T) {
 	openAPISpec := createTestEventOpenAPISpec("Events API v3", "Event streaming API for AsyncAPI 3.0")
 
-	asyncSpec := APIBlueprintToAsyncAPIV3(openAPISpec, "kafka")
+	asyncSpec, _ := openAPISpec.ToAsyncAPIV3("kafka")
 
 	if asyncSpec.AsyncAPI != "3.0.0" {
 		t.Errorf("Expected AsyncAPI version '3.0.0', got '%s'", asyncSpec.AsyncAPI)
@@ -803,9 +816,14 @@ func TestConvertAsyncAPIV3ToAPIBlueprint(t *testing.T) {
 	input := bytes.NewBufferString(asyncapiJSON)
 	output := &bytes.Buffer{}
 
-	err := ConvertAsyncAPIV3ToAPIBlueprint(input, output)
+	data, _ := io.ReadAll(input)
+	spec, err := parseAsyncV3(data)
 	if err != nil {
-		t.Fatalf("ConvertAsyncAPIV3ToAPIBlueprint failed: %v", err)
+		t.Fatalf("parseAsyncV3 failed: %v", err)
+	}
+	err = spec.WriteBlueprint(output)
+	if err != nil {
+		t.Fatalf("WriteBlueprint failed: %v", err)
 	}
 
 	blueprint := output.String()
@@ -860,13 +878,20 @@ Webhook event delivery API for AsyncAPI 3.0
 	input := bytes.NewBufferString(apiblueprintContent)
 	output := &bytes.Buffer{}
 
-	err := ConvertAPIBlueprintToAsyncAPIV3(input, output, "http")
+	spec, err := ParseBlueprintReader(input)
 	if err != nil {
-		t.Fatalf("ConvertAPIBlueprintToAsyncAPIV3 failed: %v", err)
+		t.Fatalf("ParseBlueprintReader failed: %v", err)
+	}
+	asyncSpecObj, err := spec.ToAsyncAPIV3("http")
+	if err != nil {
+		t.Fatalf("ToAsyncAPIV3 failed: %v", err)
+	}
+	if err := json.NewEncoder(output).Encode(asyncSpecObj); err != nil {
+		t.Fatalf("Encode failed: %v", err)
 	}
 
 	// Parse the output JSON
-	var asyncSpec AsyncAPIV3
+	var asyncSpec AsyncAPI
 	err = json.Unmarshal(output.Bytes(), &asyncSpec)
 	if err != nil {
 		t.Fatalf("Failed to parse AsyncAPI v3 output: %v", err)
@@ -921,7 +946,7 @@ func TestParseAsyncAPIAny(t *testing.T) {
 		"channels": {}
 	}`)
 
-	spec, version, err := ParseAsyncAPIAny(v2JSON)
+	spec, version, err := parseAsyncAPIAny(v2JSON)
 	if err != nil {
 		t.Fatalf("ParseAsyncAPIAny failed for v2: %v", err)
 	}
@@ -930,13 +955,8 @@ func TestParseAsyncAPIAny(t *testing.T) {
 		t.Errorf("Expected version 2, got %d", version)
 	}
 
-	v2Spec, ok := spec.(*AsyncAPI)
-	if !ok {
-		t.Error("Expected *AsyncAPI type for v2")
-	}
-
-	if v2Spec.AsyncAPI != "2.6.0" {
-		t.Errorf("Expected version '2.6.0', got '%s'", v2Spec.AsyncAPI)
+	if spec.AsyncAPI != "2.6.0" {
+		t.Errorf("Expected version '2.6.0', got '%s'", spec.AsyncAPI)
 	}
 
 	// Test v3
@@ -947,7 +967,7 @@ func TestParseAsyncAPIAny(t *testing.T) {
 		"operations": {}
 	}`)
 
-	spec, version, err = ParseAsyncAPIAny(v3JSON)
+	spec, version, err = parseAsyncAPIAny(v3JSON)
 	if err != nil {
 		t.Fatalf("ParseAsyncAPIAny failed for v3: %v", err)
 	}
@@ -956,13 +976,8 @@ func TestParseAsyncAPIAny(t *testing.T) {
 		t.Errorf("Expected version 3, got %d", version)
 	}
 
-	v3Spec, ok := spec.(*AsyncAPIV3)
-	if !ok {
-		t.Error("Expected *AsyncAPIV3 type for v3")
-	}
-
-	if v3Spec.AsyncAPI != "3.0.0" {
-		t.Errorf("Expected version '3.0.0', got '%s'", v3Spec.AsyncAPI)
+	if spec.AsyncAPI != "3.0.0" {
+		t.Errorf("Expected version '3.0.0', got '%s'", spec.AsyncAPI)
 	}
 
 	// Test invalid version
@@ -971,20 +986,20 @@ func TestParseAsyncAPIAny(t *testing.T) {
 		"info": {"title": "Test API", "version": "1.0.0"}
 	}`)
 
-	_, _, err = ParseAsyncAPIAny(invalidJSON)
+	_, _, err = parseAsyncAPIAny(invalidJSON)
 	if err == nil {
 		t.Error("Expected error for unsupported version")
 	}
 }
 
 func TestAsyncAPIV3WithMultipleChannelsAndOperations(t *testing.T) {
-	spec := &AsyncAPIV3{
+	spec := &AsyncAPI{
 		AsyncAPI: "3.0.0",
 		Info: Info{
 			Title:   "Multi-Channel API v3",
 			Version: "1.0.0",
 		},
-		Channels: map[string]ChannelV3{
+		Channels: map[string]Channel{
 			"userCreated": {
 				Address: "users/created",
 				Messages: map[string]*Message{
@@ -1004,7 +1019,7 @@ func TestAsyncAPIV3WithMultipleChannelsAndOperations(t *testing.T) {
 				},
 			},
 		},
-		Operations: map[string]OperationV3{
+		Operations: map[string]AsyncAPIOperation{
 			"onUserCreated": {
 				Action:  "receive",
 				Summary: "User created events",
@@ -1023,7 +1038,7 @@ func TestAsyncAPIV3WithMultipleChannelsAndOperations(t *testing.T) {
 		},
 	}
 
-	blueprint := AsyncAPIV3ToAPIBlueprint(spec)
+	blueprint, _ := spec.ToBlueprint()
 
 	// All channels should be present
 	if !strings.Contains(blueprint, "## /users/created") {
@@ -1059,9 +1074,10 @@ func TestParseAsyncAPIReader(t *testing.T) {
 		"channels": {}
 	}`
 	reader := strings.NewReader(jsonContent)
-	spec, err := ParseAsyncAPIReader(reader)
+	data, _ := io.ReadAll(reader)
+	spec, err := parseAsync(data)
 	if err != nil {
-		t.Fatalf("ParseAsyncAPIReader failed: %v", err)
+		t.Fatalf("parseAsync failed: %v", err)
 	}
 	if spec.Info.Title != "Reader Test" {
 		t.Errorf("Expected title 'Reader Test', got '%s'", spec.Info.Title)
@@ -1076,9 +1092,10 @@ func TestParseAsyncAPIV3Reader(t *testing.T) {
 		"operations": {}
 	}`
 	reader := strings.NewReader(jsonContent)
-	spec, err := ParseAsyncAPIV3Reader(reader)
+	data, _ := io.ReadAll(reader)
+	spec, err := parseAsyncV3(data)
 	if err != nil {
-		t.Fatalf("ParseAsyncAPIV3Reader failed: %v", err)
+		t.Fatalf("parseAsyncV3 failed: %v", err)
 	}
 	if spec.Info.Title != "Reader Test V3" {
 		t.Errorf("Expected title 'Reader Test V3', got '%s'", spec.Info.Title)
@@ -1087,14 +1104,14 @@ func TestParseAsyncAPIV3Reader(t *testing.T) {
 
 func TestParseAsyncAPI_Errors(t *testing.T) {
 	// Invalid JSON - Malformed
-	_, err := ParseAsyncAPI([]byte(`{invalid`))
+	_, err := parseAsync([]byte(`{invalid`))
 	if err == nil {
 		t.Error("Expected error for invalid JSON")
 	}
 
 	// Invalid YAML - Type mismatch (asyncapi field should be string)
 	// The simplified parser is permissive, so we use a type mismatch to trigger unmarshal error
-	_, err = ParseAsyncAPI([]byte(`asyncapi: ["2.6.0"]`))
+	_, err = parseAsync([]byte(`asyncapi: ["2.6.0"]`))
 	if err == nil {
 		t.Error("Expected error for invalid YAML type mismatch")
 	}
@@ -1102,13 +1119,13 @@ func TestParseAsyncAPI_Errors(t *testing.T) {
 
 func TestParseAsyncAPIV3_Errors(t *testing.T) {
 	// Invalid JSON
-	_, err := ParseAsyncAPIV3([]byte(`{invalid`))
+	_, err := parseAsyncV3([]byte(`{invalid`))
 	if err == nil {
 		t.Error("Expected error for invalid JSON")
 	}
 
 	// Invalid YAML - Type mismatch
-	_, err = ParseAsyncAPIV3([]byte(`asyncapi: ["3.0.0"]`))
+	_, err = parseAsyncV3([]byte(`asyncapi: ["3.0.0"]`))
 	if err == nil {
 		t.Error("Expected error for invalid YAML type mismatch")
 	}
@@ -1142,7 +1159,8 @@ func TestSanitizeIDs(t *testing.T) {
 
 func TestExtractMessageFromOperation_EdgeCases(t *testing.T) {
 	// Test nil operation/message
-	msg := extractMessageFromOperation(&Operation{}, false)
+	opEmpty := &Operation{}
+	msg := opEmpty.ExtractMessage(false)
 	if msg == nil || msg.Payload != nil {
 		t.Error("Expected empty message for empty operation")
 	}
@@ -1153,7 +1171,7 @@ func TestExtractMessageFromOperation_EdgeCases(t *testing.T) {
 			"400": {Description: "Error"},
 		},
 	}
-	msg = extractMessageFromOperation(op, false)
+	msg = op.ExtractMessage(false)
 	if msg == nil || msg.Payload != nil {
 		t.Error("Expected empty message for op without 200 response")
 	}

@@ -21,19 +21,21 @@ type ValidationResult struct {
 	Warnings []string
 }
 
-// ValidateOpenAPI validates an OpenAPI specification.
+// Validate validates an OpenAPI specification.
 // It checks for required fields and common issues.
 //
 // Example:
 //
 //	spec, _ := Parse(jsonData)
-//	result := ValidateOpenAPI(spec)
-//	if !result.Valid {
-//	    for _, err := range result.Errors.Errors {
-//	        fmt.Printf("Error at %s: %s\n", err.Field, err.Message)
+//	if openapi, ok := spec.(*OpenAPI); ok {
+//	    result := openapi.Validate()
+//	    if !result.Valid {
+//	        for _, err := range result.Errors.Errors {
+//	            fmt.Printf("Error at %s: %s\n", err.Field, err.Message)
+//	        }
 //	    }
 //	}
-func ValidateOpenAPI(spec *OpenAPI) *ValidationResult {
+func (spec *OpenAPI) Validate() *ValidationResult {
 	result := &ValidationResult{
 		Valid:  true,
 		Format: "OpenAPI",
@@ -171,8 +173,8 @@ func validateOpenAPIServers(spec *OpenAPI, result *ValidationResult) {
 	}
 }
 
-// ValidateAsyncAPI validates an AsyncAPI 2.x specification.
-func ValidateAsyncAPI(spec *AsyncAPI) *ValidationResult {
+// Validate validates an AsyncAPI 2.x specification.
+func (spec *AsyncAPI) Validate() *ValidationResult {
 	result := &ValidationResult{
 		Valid:  true,
 		Format: "AsyncAPI",
@@ -212,45 +214,7 @@ func ValidateAsyncAPI(spec *AsyncAPI) *ValidationResult {
 	return result
 }
 
-// ValidateAsyncAPIV3 validates an AsyncAPI 3.x specification.
-func ValidateAsyncAPIV3(spec *AsyncAPIV3) *ValidationResult {
-	result := &ValidationResult{
-		Valid:  true,
-		Format: "AsyncAPI",
-		Errors: &ValidationErrors{},
-	}
 
-	if spec == nil {
-		result.Valid = false
-		result.Errors.Add("", "specification is nil")
-		return result
-	}
-
-	// Validate AsyncAPI version
-	if spec.AsyncAPI == "" {
-		result.Valid = false
-		result.Errors.Add("asyncapi", "asyncapi version is required")
-	} else {
-		result.Version = spec.AsyncAPI
-		result.Format = fmt.Sprintf("AsyncAPI %s", spec.AsyncAPI)
-		if !strings.HasPrefix(spec.AsyncAPI, "3.") {
-			result.Warnings = append(result.Warnings,
-				fmt.Sprintf("asyncapi version '%s' is not a 3.x version", spec.AsyncAPI))
-		}
-	}
-
-	// Validate info
-	if spec.Info.Title == "" {
-		result.Valid = false
-		result.Errors.Add("info.title", "title is required")
-	}
-	if spec.Info.Version == "" {
-		result.Valid = false
-		result.Errors.Add("info.version", "version is required")
-	}
-
-	return result
-}
 
 // ValidateAPIBlueprint validates an API Blueprint specification string.
 func ValidateAPIBlueprint(content string) *ValidationResult {
@@ -388,7 +352,7 @@ func validateJSONSpec(data []byte) *ValidationResult {
 			}
 		}
 		
-		spec, ok := s.(*OpenAPI)
+		spec, ok := s.AsOpenAPI()
 		if !ok {
 			return &ValidationResult{
 				Valid:  false,
@@ -399,7 +363,7 @@ func validateJSONSpec(data []byte) *ValidationResult {
 			}
 		}
 		
-		return ValidateOpenAPI(spec)
+		return spec.Validate()
 	}
 
 	if v, ok := raw["asyncapi"].(string); ok {
@@ -414,17 +378,11 @@ func validateJSONSpec(data []byte) *ValidationResult {
 			}
 		}
 
-		version := DetectAsyncAPIVersion(v)
-		if version == 3 {
-			if spec, ok := s.(*AsyncAPIV3); ok {
-				return ValidateAsyncAPIV3(spec)
-			}
-		} else {
-			if spec, ok := s.(*AsyncAPI); ok {
-				return ValidateAsyncAPI(spec)
-			}
+		// For unified AsyncAPI struct, we can use AsAsyncAPI for both versions
+		if spec, ok := s.AsAsyncAPI(); ok {
+			return spec.Validate()
 		}
-		
+
 		return &ValidationResult{
 			Valid:  false,
 			Format: fmt.Sprintf("AsyncAPI %s", v),

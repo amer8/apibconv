@@ -38,7 +38,7 @@ func TestDataStructuresGeneration(t *testing.T) {
 		Paths: map[string]PathItem{},
 	}
 
-	output, err := Format(spec)
+	output, err := spec.ToBlueprint()
 	if err != nil {
 		t.Fatalf("Format failed: %v", err)
 	}
@@ -73,7 +73,7 @@ func TestDataStructures_Empty(t *testing.T) {
 	}
 	// No components
 
-	output, err := Format(spec)
+	output, err := spec.ToBlueprint()
 	if err != nil {
 		t.Fatalf("Format failed: %v", err)
 	}
@@ -84,7 +84,7 @@ func TestDataStructures_Empty(t *testing.T) {
 
 	// Empty schemas
 	spec.Components = &Components{Schemas: map[string]*Schema{}}
-	output, err = Format(spec)
+	output, err = spec.ToBlueprint()
 	if err != nil {
 		t.Fatalf("Format failed: %v", err)
 	}
@@ -107,7 +107,7 @@ func TestDataStructures_Sorting(t *testing.T) {
 		Paths: map[string]PathItem{},
 	}
 
-	output, err := Format(spec)
+	output, err := spec.ToBlueprint()
 	if err != nil {
 		t.Fatalf("Format failed: %v", err)
 	}

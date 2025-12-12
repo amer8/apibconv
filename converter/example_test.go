@@ -7,9 +7,10 @@ import (
 	"github.com/amer8/apibconv/converter"
 )
 
-// Example demonstrates parsing OpenAPI JSON into a structure.
+// Example demonstrates parsing OpenAPI and AsyncAPI JSON into a structure.
 func ExampleParse() {
-	data := []byte(`{
+	// OpenAPI Example
+	openapiData := []byte(`{
 		"openapi": "3.0.0",
 		"info": {
 			"title": "Example API",
@@ -18,75 +19,110 @@ func ExampleParse() {
 		"paths": {}
 	}`)
 
-	s, err := converter.Parse(data)
+	s, err := converter.Parse(openapiData)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	spec := s.(*converter.OpenAPI)
+	if spec, ok := s.AsOpenAPI(); ok {
+		fmt.Printf("API Title: %s\n", spec.Info.Title)
+		fmt.Printf("API Version: %s\n", spec.Info.Version)
+	}
 
-	fmt.Printf("API Title: %s\n", spec.Info.Title)
-	fmt.Printf("API Version: %s\n", spec.Info.Version)
+	// AsyncAPI Example
+	asyncapiData := []byte(`{
+		"asyncapi": "2.6.0",
+		"info": {
+			"title": "Example AsyncAPI",
+			"version": "1.0.0"
+		},
+		"channels": {}
+	}`)
+
+	s2, err := converter.Parse(asyncapiData)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if spec, ok := s2.AsAsyncAPI(); ok {
+		fmt.Printf("AsyncAPI Title: %s\n", spec.Info.Title)
+		fmt.Printf("AsyncAPI Version: %s\n", spec.Info.Version)
+	}
+
+	// YAML Example
+	yamlData := []byte(`
+openapi: 3.0.0
+info:
+  title: YAML API
+  version: 1.0.0
+paths: {}
+`)
+
+	s3, err := converter.Parse(yamlData)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if spec, ok := s3.AsOpenAPI(); ok {
+		fmt.Printf("YAML API Title: %s\n", spec.Info.Title)
+	}
+
+	// API Blueprint Example
+	apibData := []byte(`FORMAT: 1A
+# My API Blueprint
+## Group Users
+## /users [GET]
++ Response 200 (text/plain)
+
+    Hello Users!
+`)
+
+	s4, err := converter.Parse(apibData)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if spec, ok := s4.AsAPIBlueprint(); ok {
+		fmt.Printf("API Blueprint Name: %s\n", spec.Name)
+	} else {
+		log.Fatal("Expected OpenAPI spec from API Blueprint")
+	}
+
 	// Output:
 	// API Title: Example API
 	// API Version: 1.0.0
-}
-
-// Example demonstrates converting an OpenAPI structure to API Blueprint.
-func ExampleOpenAPI_ToBlueprint() {
-	spec := &converter.OpenAPI{
-		OpenAPI: "3.0.0",
-		Info: converter.Info{
-			Title:       "Simple API",
-			Version:     "1.0.0",
-			Description: "A simple API example",
-		},
-		Servers: []converter.Server{
-			{URL: "https://api.example.com"},
-		},
-		Paths: map[string]converter.PathItem{
-			"/hello": {
-				Get: &converter.Operation{
-					Summary: "Say hello",
-					Responses: map[string]converter.Response{
-						"200": {
-							Description: "Success",
-						},
-					},
-				},
-			},
-		},
-	}
-
-	apiBlueprint, err := spec.ToBlueprint()
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println(apiBlueprint)
-	// Output will contain API Blueprint format
+	// AsyncAPI Title: Example AsyncAPI
+	// AsyncAPI Version: 1.0.0
+	// YAML API Title: YAML API
+	// API Blueprint Name: My API Blueprint
 }
 
 // Example demonstrates converting an OpenAPI structure to AsyncAPI 2.6.
 func ExampleOpenAPI_ToAsyncAPI() {
-	spec := &converter.OpenAPI{
-		OpenAPI: "3.0.0",
-		Info: converter.Info{
-			Title:   "My API",
-			Version: "1.0.0",
-		},
-		Servers: []converter.Server{
-			{URL: "https://api.example.com"},
-		},
-		Paths: map[string]converter.PathItem{
-			"/messages": {
-				Post: &converter.Operation{
-					Summary: "Send message",
-				},
-			},
-		},
+	yamlData := []byte(`
+openapi: 3.0.0
+info:
+  title: YAML API
+  version: 1.0.0
+servers:
+  - url: https://api.example.com
+paths:
+  /messages:
+    post:
+      summary: Send message
+`)
+
+	s3, err := converter.Parse(yamlData)
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	asyncSpec, err := spec.ToAsyncAPI(converter.ProtocolWS)
+	openAPISpec, ok := s3.AsOpenAPI()
+	if !ok {
+		log.Fatal("Expected OpenAPI spec")
+	}
+
+	asyncSpec, err := openAPISpec.ToAsyncAPI(converter.ProtocolWS)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -109,25 +145,30 @@ func ExampleOpenAPI_ToAsyncAPI() {
 
 // Example demonstrates converting an OpenAPI structure to AsyncAPI 3.0.
 func ExampleOpenAPI_ToAsyncAPIV3() {
-	spec := &converter.OpenAPI{
-		OpenAPI: "3.0.0",
-		Info: converter.Info{
-			Title:   "My API",
-			Version: "1.0.0",
-		},
-		Servers: []converter.Server{
-			{URL: "https://api.example.com"},
-		},
-		Paths: map[string]converter.PathItem{
-			"/messages": {
-				Post: &converter.Operation{
-					Summary: "Send message",
-				},
-			},
-		},
+	yamlData := []byte(`
+openapi: 3.0.0
+info:
+  title: YAML API
+  version: 1.0.0
+servers:
+  - url: https://api.example.com
+paths:
+  /messages:
+    post:
+      summary: Send message
+`)
+
+	s3, err := converter.Parse(yamlData)
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	asyncSpec, err := spec.ToAsyncAPIV3(converter.ProtocolKafka)
+	openAPISpec, ok := s3.AsOpenAPI()
+	if !ok {
+		log.Fatal("Expected OpenAPI spec")
+	}
+
+	asyncSpec, err := openAPISpec.ToAsyncAPIV3(converter.ProtocolKafka)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -258,4 +299,38 @@ func ExampleAsyncAPI_ToAsyncAPIV3() {
 	// AsyncAPI Version: 3.0.0
 	// Action: receive
 	// Summary: Receive events
+}
+
+// Example demonstrates using ProtocolAuto for automatic protocol handling.
+func ExampleProtocolAuto() {
+	spec := &converter.OpenAPI{
+		OpenAPI: "3.0.0",
+		Info: converter.Info{
+			Title:   "Auto Protocol API",
+			Version: "1.0.0",
+		},
+		Servers: []converter.Server{
+			{URL: "https://api.example.com"},
+		},
+		Paths: map[string]converter.PathItem{
+			"/notifications": {
+				Get: &converter.Operation{
+					Summary: "Subscribe to notifications",
+				},
+			},
+		},
+	}
+
+	// Use ProtocolAuto to infer or set a generic protocol
+	asyncSpec, err := spec.ToAsyncAPI(converter.ProtocolAuto)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if server, ok := asyncSpec.Servers["server0"]; ok {
+		fmt.Printf("Protocol: %s\n", server.Protocol)
+	}
+
+	// Output:
+	// Protocol: auto
 }

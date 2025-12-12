@@ -85,7 +85,7 @@ paths:
 	if err != nil {
 		t.Fatalf("Parse(YAML) error: %v", err)
 	}
-	spec, ok := s.(*OpenAPI)
+	spec, ok := s.AsOpenAPI()
 	if !ok {
 		t.Fatalf("Expected *OpenAPI")
 	}
@@ -122,7 +122,7 @@ channels:
         name: UserSignup
 `)
 
-	spec, err := ParseAsyncAPI(yaml)
+	spec, err := parseAsync(yaml)
 	if err != nil {
 		t.Fatalf("ParseAsyncAPI(YAML) error: %v", err)
 	}
@@ -151,7 +151,7 @@ operations:
       $ref: "#/channels/userSignup"
 `)
 
-	spec, version, err := ParseAsyncAPIAny(yaml)
+	spec, version, err := parseAsyncAPIAny(yaml)
 	if err != nil {
 		t.Fatalf("ParseAsyncAPIAny(YAML) error: %v", err)
 	}
@@ -160,12 +160,7 @@ operations:
 		t.Errorf("Expected version 3, got %d", version)
 	}
 
-	v3Spec, ok := spec.(*AsyncAPIV3)
-	if !ok {
-		t.Fatalf("Expected *AsyncAPIV3 type, got %T", spec)
-	}
-
-	if v3Spec.Info.Title != "Async V3 YAML" {
+	if spec.Info.Title != "Async V3 YAML" {
 		t.Errorf("Title mismatch")
 	}
 }

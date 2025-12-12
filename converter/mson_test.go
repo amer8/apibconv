@@ -11,9 +11,13 @@ func TestMSONParsing(t *testing.T) {
 		t.Skip("skipping test because examples/mson-example.apib is missing")
 	}
 
-	spec, err := ParseAPIBlueprint(data)
+	bp, err := ParseBlueprint(data)
 	if err != nil {
 		t.Fatalf("ParseAPIBlueprint failed: %v", err)
+	}
+	spec, err := bp.ToOpenAPI()
+	if err != nil {
+		t.Fatalf("ToOpenAPI failed: %v", err)
 	}
 
 	// Verify Components
@@ -67,9 +71,13 @@ func TestMSONParsing_Attributes(t *testing.T) {
 + parent (User, optional)
 `
 
-	spec, err := ParseAPIBlueprint([]byte(apib))
+	bp, err := ParseBlueprint([]byte(apib))
 	if err != nil {
 		t.Fatalf("ParseAPIBlueprint failed: %v", err)
+	}
+	spec, err := bp.ToOpenAPI()
+	if err != nil {
+		t.Fatalf("ToOpenAPI failed: %v", err)
 	}
 
 	schema := spec.Components.Schemas["ComplexObject"]
@@ -77,7 +85,29 @@ func TestMSONParsing_Attributes(t *testing.T) {
 		t.Fatal("ComplexObject schema not found")
 	}
 
-	// ID
+	t.Run("ID Property", func(t *testing.T) {
+		validateIDProperty(t, schema)
+	})
+
+	t.Run("Name Property", func(t *testing.T) {
+		validateNameProperty(t, schema)
+	})
+
+	t.Run("Tags Property", func(t *testing.T) {
+		validateTagsProperty(t, schema)
+	})
+
+	t.Run("Active Property", func(t *testing.T) {
+		validateActiveProperty(t, schema)
+	})
+
+	t.Run("Parent Property", func(t *testing.T) {
+		validateParentProperty(t, schema)
+	})
+}
+
+func validateIDProperty(t *testing.T, schema *Schema) {
+	t.Helper()
 	idProp := schema.Properties["id"]
 	if idProp.Type != "number" {
 		t.Errorf("Expected id type number, got %v", idProp.Type)
@@ -85,8 +115,10 @@ func TestMSONParsing_Attributes(t *testing.T) {
 	if !sliceContains(schema.Required, "id") {
 		t.Error("Expected id to be required")
 	}
+}
 
-	// Name
+func validateNameProperty(t *testing.T, schema *Schema) {
+	t.Helper()
 	nameProp := schema.Properties["name"]
 	if nameProp.Type != "string" {
 		t.Errorf("Expected name type string, got %v", nameProp.Type)
@@ -100,8 +132,10 @@ func TestMSONParsing_Attributes(t *testing.T) {
 	if sliceContains(schema.Required, "name") {
 		t.Error("Expected name to be optional")
 	}
+}
 
-	// Tags
+func validateTagsProperty(t *testing.T, schema *Schema) {
+	t.Helper()
 	tagsProp := schema.Properties["tags"]
 	if tagsProp.Type != "array" {
 		t.Errorf("Expected tags type array, got %v", tagsProp.Type)
@@ -109,8 +143,10 @@ func TestMSONParsing_Attributes(t *testing.T) {
 	if tagsProp.Items == nil || tagsProp.Items.Type != "string" {
 		t.Error("Expected tags items to be string")
 	}
+}
 
-	// Active
+func validateActiveProperty(t *testing.T, schema *Schema) {
+	t.Helper()
 	activeProp := schema.Properties["active"]
 	if activeProp.Type != "boolean" {
 		t.Errorf("Expected active type boolean, got %v", activeProp.Type)
@@ -118,8 +154,10 @@ func TestMSONParsing_Attributes(t *testing.T) {
 	if activeProp.Example != true {
 		t.Errorf("Expected active example true, got %v", activeProp.Example)
 	}
+}
 
-	// Parent (Ref)
+func validateParentProperty(t *testing.T, schema *Schema) {
+	t.Helper()
 	parentProp := schema.Properties["parent"]
 	if parentProp.Ref != "#/components/schemas/User" {
 		t.Errorf("Expected parent ref to User, got %s", parentProp.Ref)
@@ -138,9 +176,13 @@ func TestMSONParsing_InlineAttributes(t *testing.T) {
     + Attributes
         + count: 10 (number)
 `
-	spec, err := ParseAPIBlueprint([]byte(apib))
+	bp, err := ParseBlueprint([]byte(apib))
 	if err != nil {
 		t.Fatalf("ParseAPIBlueprint failed: %v", err)
+	}
+	spec, err := bp.ToOpenAPI()
+	if err != nil {
+		t.Fatalf("ToOpenAPI failed: %v", err)
 	}
 
 	op := spec.Paths["/test"].Post

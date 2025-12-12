@@ -93,11 +93,21 @@ func processExampleFile(t *testing.T, path string, content []byte, ext string) {
 	}
 }
 func testAPIBConversion(t *testing.T, content []byte) {
-	// 1. Parse API Blueprint to OpenAPI
-	// This implicitly validates the APIB parsing logic
-	spec, err := ToOpenAPI(content)
+	// 1. Parse API Blueprint
+	bp, err := ParseBlueprint(content)
 	if err != nil {
-		t.Fatalf("Failed to convert API Blueprint to OpenAPI: %v", err)
+		t.Fatalf("Failed to parse API Blueprint: %v", err)
+	}
+	
+	// Convert to OpenAPI
+	specObj, err := bp.ToOpenAPI()
+	if err != nil {
+		t.Fatalf("Failed to convert to OpenAPI: %v", err)
+	}
+
+	spec, err := json.Marshal(specObj)
+	if err != nil {
+		t.Fatalf("Failed to marshal spec: %v", err)
 	}
 
 	// 2. Validate the generated OpenAPI JSON
@@ -122,14 +132,18 @@ func testOpenAPIConversion(t *testing.T, content []byte) {
 	if err != nil {
 		t.Fatalf("Failed to parse OpenAPI: %v", err)
 	}
-	spec, ok := s.(*OpenAPI)
+	spec, ok := s.AsOpenAPI()
 	if !ok {
 		t.Fatalf("Expected *OpenAPI")
 	}
 
 	// 2. Convert to API Blueprint
 	var buf bytes.Buffer
-	err = Convert(bytes.NewReader(content), &buf)
+	specToConvert, err := Parse(content, FormatOpenAPI)
+	if err != nil {
+		t.Fatalf("Failed to parse OpenAPI for conversion: %v", err)
+	}
+	err = specToConvert.(*OpenAPI).WriteBlueprint(&buf)
 	if err != nil {
 		t.Fatalf("Failed to convert OpenAPI to API Blueprint: %v", err)
 	}
@@ -141,13 +155,13 @@ func testOpenAPIConversion(t *testing.T, content []byte) {
 
 	// 3. Round-trip (APIB -> OpenAPI)
 	// Note: Round-trip is lossy, so we can't compare exactly, but we can check if it parses back.
-	parsedSpec, err := ParseAPIBlueprint([]byte(apibOutput))
+	parsedSpec, err := ParseBlueprint([]byte(apibOutput))
 	if err != nil {
 		t.Fatalf("Failed to parse generated API Blueprint back to OpenAPI: %v", err)
 	}
 
-	if parsedSpec.Info.Title != spec.Info.Title {
-		t.Errorf("Title mismatch after round-trip. Got %q, want %q", parsedSpec.Info.Title, spec.Info.Title)
+	if parsedSpec.GetTitle() != spec.GetTitle() {
+		t.Errorf("Title mismatch: expected %q, got %q", "Test API", spec.GetTitle())
 	}
 }
 
@@ -156,10 +170,24 @@ func testAsyncAPIConversion(t *testing.T, content []byte, version string) {
 	var err error
 	var buf bytes.Buffer
 
+	var spec Spec
+
 	if strings.HasPrefix(version, "3.") {
-		err = ConvertAsyncAPIV3ToAPIBlueprint(bytes.NewReader(content), &buf)
+		s, e := parseAsyncV3(content)
+		spec = s
+		err = e
 	} else {
-		err = ConvertAsyncAPIToAPIBlueprint(bytes.NewReader(content), &buf)
+		s, e := parseAsync(content)
+		spec = s
+		err = e
+	}
+
+	if err == nil {
+		var bp string
+		bp, err = spec.ToBlueprint()
+		if err == nil {
+			buf.WriteString(bp)
+		}
 	}
 
 	if err != nil {
@@ -201,17 +229,30 @@ func TestWorkflow_AsyncAPI_To_OpenAPI(t *testing.T) {
 
 	// Step 1: AsyncAPI -> API Blueprint
 	var apibBuf bytes.Buffer
-	err := ConvertAsyncAPIToAPIBlueprint(strings.NewReader(asyncAPI), &apibBuf)
+	asyncSpec, err := parseAsync([]byte(asyncAPI))
+	if err != nil {
+		t.Fatalf("Step 1 Failed: Parse AsyncAPI: %v", err)
+	}
+	bp, err := asyncSpec.ToBlueprint()
 	if err != nil {
 		t.Fatalf("Step 1 Failed: AsyncAPI -> APIB: %v", err)
 	}
+	apibBuf.WriteString(bp)
 	apibOutput := apibBuf.String()
 
 	// Step 2: API Blueprint -> OpenAPI
 	var openapiBuf bytes.Buffer
-	err = ConvertToOpenAPI(strings.NewReader(apibOutput), &openapiBuf)
+	bpObj, err := ParseBlueprintReader(strings.NewReader(apibOutput))
 	if err != nil {
-		t.Fatalf("Step 2 Failed: APIB -> OpenAPI: %v", err)
+		t.Fatalf("Step 2 Failed: APIB parsing: %v", err)
+	}
+	specObj, err := bpObj.ToOpenAPI()
+	if err != nil {
+		t.Fatalf("Step 2 Failed: APIB -> OpenAPI conversion: %v", err)
+	}
+
+	if err := json.NewEncoder(&openapiBuf).Encode(specObj); err != nil {
+		t.Fatalf("Step 2 Failed: OpenAPI encoding: %v", err)
 	}
 
 	// Step 3: Verify OpenAPI structure
@@ -220,7 +261,7 @@ func TestWorkflow_AsyncAPI_To_OpenAPI(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Step 3 Failed: Parsing generated OpenAPI: %v", err)
 	}
-	spec, ok := s.(*OpenAPI)
+	spec, ok := s.AsOpenAPI()
 	if !ok {
 		t.Fatalf("Expected *OpenAPI")
 	}
@@ -261,13 +302,13 @@ HOST: kafka://events.example.com
 	if err != nil {
 		t.Fatalf("Failed to parse API Blueprint: %v", err)
 	}
-	spec, ok := s.(*OpenAPI)
+	bp, ok := s.AsAPIBlueprint()
 	if !ok {
-		t.Fatalf("Expected *OpenAPI, got %T", s)
+		t.Fatalf("Expected *APIBlueprint, got %T", s)
 	}
 
 	// 2. Convert to AsyncAPI 2.6 with Kafka protocol
-	asyncSpec, err := spec.ToAsyncAPI(ProtocolKafka)
+	asyncSpec, err := bp.ToAsyncAPI(ProtocolKafka)
 	if err != nil {
 		t.Fatalf("Failed to convert to AsyncAPI: %v", err)
 	}

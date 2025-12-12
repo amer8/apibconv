@@ -93,7 +93,7 @@ doc-all:
 	@go doc github.com/amer8/apibconv/converter.ToOpenAPI
 	@go doc github.com/amer8/apibconv/converter.ConvertToOpenAPI
 	@echo "\n=== Validation Functions ==="
-	@go doc github.com/amer8/apibconv/converter.ValidateOpenAPI
+	@go doc github.com/amer8/apibconv/converter.OpenAPI.Validate
 	@go doc github.com/amer8/apibconv/converter.ValidateBytes
 	@echo "\n=== YAML Functions ==="
 	@go doc github.com/amer8/apibconv/converter.MarshalYAML
