@@ -428,12 +428,12 @@ func BenchmarkConcurrent_Convert(b *testing.B) {
 		for pb.Next() {
 			reader := bytes.NewReader(jsonData)
 			data, _ := io.ReadAll(reader)
-				spec, err := parseAsync(data)
-				if err != nil {
-					b.Fatal(err)
-				}
-				// Convert to API Blueprint and discard output
-				_, err = spec.ToAPIBlueprint()
+			spec, err := parseOpenAPI(data)
+			if err != nil {
+				b.Fatal(err)
+			}
+			// Convert to API Blueprint and discard output
+			_, err = spec.ToAPIBlueprint()
 				if err != nil {
 					b.Fatal(err)
 				}

@@ -11,12 +11,6 @@ import (
 	"strings"
 )
 
-// BlueprintConvertible is an interface for types that can be converted to API Blueprint format.
-type BlueprintConvertible interface {
-	ToBlueprint() (string, error)
-	WriteBlueprint(w io.Writer) error
-}
-
 // OpenAPI represents a minimal OpenAPI 3.0 specification structure.
 //
 // This is the root object for an OpenAPI document, containing all the metadata,
@@ -391,6 +385,7 @@ func (spec *OpenAPI) ToAPIBlueprint() (*APIBlueprint, error) {
 	}
 	return bp, nil
 }
+
 // WriteTo writes the OpenAPI specification in API Blueprint format to the writer.
 func (spec *OpenAPI) WriteTo(w io.Writer) (int64, error) {
 	buf := getBuffer()
@@ -435,8 +430,8 @@ func (spec *OpenAPI) AsAsyncAPIV3() (*AsyncAPI, bool) {
 // For OpenAPI specs, it performs a best-effort conversion to the API Blueprint AST.
 func (spec *OpenAPI) AsAPIBlueprint() (*APIBlueprint, bool) {
 	bp := &APIBlueprint{
-		TitleField:  spec.Info.Title,
-		Description: spec.Info.Description,
+		TitleField:   spec.Info.Title,
+		Description:  spec.Info.Description,
 		VersionField: spec.Info.Version,
 		Metadata: map[string]string{
 			"FORMAT": "1A",
@@ -451,7 +446,7 @@ func (spec *OpenAPI) AsAPIBlueprint() (*APIBlueprint, bool) {
 
 	// Simple grouping by first path segment
 	groups := make(map[string]*ResourceGroup)
-	
+
 	// Sort paths for deterministic output
 	paths := make([]string, 0, len(spec.Paths))
 	for path := range spec.Paths {
@@ -461,7 +456,7 @@ func (spec *OpenAPI) AsAPIBlueprint() (*APIBlueprint, bool) {
 
 	for _, path := range paths {
 		pathItem := spec.Paths[path]
-		
+
 		// Determine group name
 		groupName := "Resources"
 		parts := strings.Split(strings.Trim(path, "/"), "/")
@@ -472,7 +467,7 @@ func (spec *OpenAPI) AsAPIBlueprint() (*APIBlueprint, bool) {
 		group, ok := groups[groupName]
 		if !ok {
 			group = &ResourceGroup{
-				Name: groupName,
+				Name:      groupName,
 				Resources: []*Resource{},
 			}
 			groups[groupName] = group
