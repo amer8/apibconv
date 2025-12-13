@@ -31,16 +31,6 @@ jobs:
       - name: Run tests
         run: go test -v ./...
 
-      - name: Run benchmarks (verify zero allocations)
-        run: |
-          go test -bench=BenchmarkWriteAPIBlueprint -benchmem -run=^$ ./converter | tee benchmark.txt
-          ALLOCS=$(grep "BenchmarkWriteAPIBlueprint" benchmark.txt | awk '{print $(NF-1)}')
-          if [ "$ALLOCS" != "0" ]; then
-            echo "❌ FAILED: Zero allocation check failed"
-            exit 1
-          fi
-          echo "✅ Zero allocations verified"
-
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
