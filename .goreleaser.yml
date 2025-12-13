@@ -26,7 +26,7 @@ builds:
     ldflags:
       - -s -w
       - -X main.version={{.Version}}
-    main: .
+    main: ./cmd/apibconv
     binary: apibconv
 
 archives:
@@ -85,13 +85,13 @@ release:
   header: |
     ## apibconv {{ .Tag }}
 
-    Convert between API Blueprint (*.apib), OpenAPI 3.0/3.1, and AsyncAPI 2.6/3.0 specifications.
+    Convert between API Blueprint (*.apib), OpenAPI 2.0/3.0/3.1, and AsyncAPI 2.x/3.0 specifications.
 
     ### Installation
 
     **Using Go**
     ```sh
-    go install github.com/amer8/apibconv@{{ .Tag }}
+    go install github.com/amer8/apibconv/cmd/apibconv@{{ .Tag }}
     ```
     
     **Using Docker**

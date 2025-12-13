@@ -1,0 +1,83 @@
+openapi: "3.0"
+info:
+  title: Task Management API
+  description: A comprehensive API for managing tasks, projects, developers, and notifications through webhook events.
+  version: 1.0.0
+servers:
+  - url: kafka.example.com:9092
+    description: kafka
+  - url: staging-kafka.example.com:9092
+    description: kafka
+  - url: webhooks.example.com
+    description: https
+paths:
+  developer/created:
+    get:
+      summary: Receive developer creation notifications
+      operationId: onDeveloperCreated
+      responses: {}
+  developer/deleted:
+    get:
+      summary: Receive developer deletion notifications
+      operationId: onDeveloperDeleted
+      responses: {}
+  developer/updated:
+    get:
+      summary: Receive developer update notifications
+      operationId: onDeveloperUpdated
+      responses: {}
+  project/created:
+    get:
+      summary: Receive project creation notifications
+      operationId: onProjectCreated
+      responses: {}
+  project/deleted:
+    get:
+      summary: Receive project deletion notifications
+      operationId: onProjectDeleted
+      responses: {}
+  project/member-added:
+    get:
+      summary: Receive member addition notifications
+      operationId: onProjectMemberAdded
+      responses: {}
+  project/member-removed:
+    get:
+      summary: Receive member removal notifications
+      operationId: onProjectMemberRemoved
+      responses: {}
+  project/updated:
+    get:
+      summary: Receive project update notifications
+      operationId: onProjectUpdated
+      responses: {}
+  task/assigned:
+    get:
+      summary: Receive task assignment notifications
+      operationId: onTaskAssigned
+      responses: {}
+  task/commented:
+    get:
+      summary: Receive task comment notifications
+      operationId: onTaskCommented
+      responses: {}
+  task/created:
+    get:
+      summary: Receive task creation notifications
+      operationId: onTaskCreated
+      responses: {}
+  task/deleted:
+    get:
+      summary: Receive task deletion notifications
+      operationId: onTaskDeleted
+      responses: {}
+  task/updated:
+    get:
+      summary: Receive task update notifications
+      operationId: onTaskUpdated
+      responses: {}
+  webhook/triggered:
+    post:
+      summary: Publish webhook trigger notifications
+      operationId: triggerWebhook
+      responses: {}

@@ -8,21 +8,20 @@
 [![Docker Image](https://ghcr-badge.egpl.dev/amer8/apibconv/latest_tag?label=latest&ignore=latest,0,0.1)](https://github.com/amer8/apibconv/pkgs/container/apibconv)
 [![License](https://img.shields.io/github/license/amer8/apibconv)](LICENSE)
 
-Convert between API Blueprint (*.apib), OpenAPI 3.0/3.1, and AsyncAPI 2.6/3.0 specifications.
+Convert between API Blueprint (*.apib), OpenAPI 2.0/3.0/3.1, and AsyncAPI 2.x/3.0 specifications.
 
 - [API Blueprint](https://apiblueprint.org/documentation/specification.html) and [MSON](https://apiblueprint.org/documentation/mson/specification.html)
-- [AsyncAPI v3.x](https://www.asyncapi.com/docs/reference/specification/v3.0.0)
-- [AsyncAPI v2.x](https://v2.asyncapi.com/docs/reference/specification/v2.6.0)
+- [AsyncAPI v3.0](https://www.asyncapi.com/docs/reference/specification/v3.0.0)
+- [AsyncAPI v2.6](https://v2.asyncapi.com/docs/reference/specification/v2.6.0)
 - [OpenAPI v3.1.x](https://swagger.io/specification/)
 - [OpenAPI v3.0.x](https://swagger.io/specification/v3/)
+- [OpenAPI v2.0 (Swagger)](https://swagger.io/specification/v2/)
 
 ## Installation
 
 ### Using Go
 
-```sh 
-go install github.com/amer8/apibconv@latest
-```
+go install github.com/amer8/apibconv/cmd/apibconv@latest```
 
 ### Using Docker
 
@@ -33,7 +32,7 @@ docker pull ghcr.io/amer8/apibconv:latest
 
 **Run directly**
 ```sh
-docker run --rm -v $(pwd):/data -w /data ghcr.io/amer8/apibconv api.apib -o openapi.json
+docker run --rm -v $(pwd):/data -w /data ghcr.io/amer8/apibconv -o openapi.json api.apib
 ```
 
 ### Download Binary
@@ -48,7 +47,7 @@ Download pre-built binaries from [GitHub Releases](https://github.com/amer8/apib
 The tool automatically detects the input format based on file extension and content. It supports both file arguments and stdin.
 
 ```sh
-Usage: apibconv [INPUT_FILE] [OPTIONS]
+Usage: apibconv [OPTIONS] [INPUT_FILE]
 
 Arguments:
   INPUT_FILE
@@ -86,10 +85,10 @@ OpenAPI Options:
       Version: 3.0, 3.1 (default: "3.0")
 
 Examples:
-  apibconv spec.apib -o output.json
-  apibconv spec.apib -o output.yaml --protocol ws
+  apibconv -o output.json spec.apib
+  apibconv -o output.yaml --protocol ws spec.apib
   apibconv -o output.json --to openapi --openapi-version 3.1 < spec.apib
-  apibconv spec.json --validate
+  apibconv --validate spec.json
 ```
 
 ### OpenAPI Support
@@ -99,7 +98,7 @@ The tool supports both OpenAPI 3.0 and 3.1:
 - **Versions Supported**:
   - OpenAPI 3.0 (default output)
   - OpenAPI 3.1
-  - Note: OpenAPI/Swagger 2.x is not supported
+  - OpenAPI 2.0 (Swagger) - Basic support for parsing and writing.
 - **OpenAPI 3.1**: Use `--openapi-version 3.1` flag for 3.1.0 output
 - **Input**: Automatically detects and handles both 3.0 and 3.1 input specs
 
@@ -128,158 +127,6 @@ The tool supports AsyncAPI 2.6 and 3.0 for event-driven APIs:
   - Publish/Send operations → POST operations (sending messages)
 
 
-## Examples
-
-The `examples/` directory contains paired specification files, demonstrating various conversions. Each subdirectory represents a base API or specification, with `.json`, `.yml` and `.apib` files showing the input and converted output.
-
-<details>
-<summary>Unified Parsing (OpenAPI, AsyncAPI, Blueprint)</summary>
-
-```go
-import "github.com/amer8/apibconv/converter"
-
-// OpenAPI (JSON)
-spec, _ := converter.Parse([]byte(`{"openapi": "3.0.0", ...}`))
-if openapiSpec, ok := spec.AsOpenAPI(); ok {
-    fmt.Println(openapiSpec.Info.Title)
-}
-
-// AsyncAPI (YAML)
-spec, _ := converter.Parse([]byte(`asyncapi: 2.6.0\n...`))
-if asyncapiSpec, ok := spec.AsAsyncAPI(0); ok {
-    fmt.Println(asyncapiSpec.Info.Title)
-}
-
-// API Blueprint
-spec, _ := converter.Parse([]byte(`FORMAT: 1A...`))
-// Access via API Blueprint AST
-if apibSpec, ok := spec.AsAPIBlueprint(); ok {
-    fmt.Println(apibSpec.Name)
-}
-```
-</details>
-
-<details>
-<summary>API Blueprint → OpenAPI</summary>
-
-```go
-import "github.com/amer8/apibconv/converter"
-
-apibContent := `FORMAT: 1A
-# My API
-...`
-
-// Parse API Blueprint
-spec, err := converter.Parse([]byte(apibContent))
-if err != nil {
-    log.Fatal(err)
-}
-
-// Access as API Blueprint AST
-apibSpec, ok := spec.AsAPIBlueprint()
-if !ok {
-    log.Fatal("Expected API Blueprint spec")
-}
-
-// Convert to OpenAPI 3.0 (default)
-openapiSpec, err := apibSpec.ToOpenAPI()
-if err != nil {
-    log.Fatal(err)
-}
-
-// Serialize to JSON
-fmt.Println(openapiSpec.String())
-```
-</details>
-
-<details>
-<summary>API Blueprint → AsyncAPI</summary>
-
-```go
-import "github.com/amer8/apibconv/converter"
-
-apibContent := `FORMAT: 1A
-# Events API
-...`
-
-// Parse API Blueprint
-spec, err := converter.Parse([]byte(apibContent))
-if err != nil {
-    log.Fatal(err)
-}
-
-// Access as API Blueprint AST
-apibSpec, ok := spec.AsAPIBlueprint()
-if !ok {
-    log.Fatal("Expected API Blueprint spec")
-}
-
-// Convert to AsyncAPI 2.6 with Kafka protocol
-asyncSpec, err := apibSpec.ToAsyncAPI(converter.ProtocolKafka, 2)
-if err != nil {
-    log.Fatal(err)
-}
-
-// Serialize to JSON
-fmt.Println(asyncSpec.String())
-```
-</details>
-
-<details>
-<summary>OpenAPI → API Blueprint</summary>
-
-```go
-import "github.com/amer8/apibconv/converter"
-
-openapiJSON := `{"openapi": "3.0.0", ...}`
-
-// Parse OpenAPI
-spec, err := converter.Parse([]byte(openapiJSON))
-if err != nil {
-    log.Fatal(err)
-}
-
-if openapiSpec, ok := spec.AsOpenAPI(); ok {
-    // Convert to API Blueprint
-    apibSpec, err := openapiSpec.ToBlueprint()
-    if err != nil {
-        log.Fatal(err)
-    }
-    fmt.Println(apibSpec)
-}
-```
-</details>
-
-
-<details>
-<summary>AsyncAPI → API Blueprint</summary>
-
-```go
-import "github.com/amer8/apibconv/converter"
-
-asyncapiJSON := `{
-  "asyncapi": "2.6.0",
-  ...
-}`
-
-// Parse AsyncAPI (auto-detects version)
-spec, err := converter.Parse([]byte(asyncapiJSON))
-if err != nil {
-    log.Fatal(err)
-}
-
-if asyncApiSpec, ok := spec.AsAsyncAPI(0); ok {
-    // Convert to API Blueprint
-    apibSpec, err := asyncApiSpec.ToAPIBlueprint()
-    if err != nil {
-        log.Fatal(err)
-    }
-    fmt.Println(apibSpec)
-}
-```
-</details>
-
-
 ## GitHub Actions Integration
 
 This tool is designed to integrate seamlessly into GitHub Actions workflows
@@ -288,7 +135,7 @@ This tool is designed to integrate seamlessly into GitHub Actions workflows
 - name: Convert OpenAPI to API Blueprint
   run: |
     go install github.com/amer8/apibconv@latest
-    apibconv openapi.json -o api-blueprint.apib
+    apibconv -o api-blueprint.apib openapi.json
 ```
 
 
