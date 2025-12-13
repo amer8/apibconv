@@ -1,0 +1,100 @@
+asyncapi: 2.0.0
+info:
+  title: Task Management API
+  version: 1.0.0
+  description: A comprehensive API for managing tasks, projects, developers, and notifications through webhook events.
+channels:
+  /developer/created:
+    subscribe:
+      operationId: onDeveloperCreated
+      summary: Receive developer creation notifications
+      message:
+        $ref: '#/components/messages/DeveloperCreated'
+  /developer/deleted:
+    subscribe:
+      operationId: onDeveloperDeleted
+      summary: Receive developer deletion notifications
+      message:
+        $ref: '#/components/messages/DeveloperDeleted'
+  /developer/updated:
+    subscribe:
+      operationId: onDeveloperUpdated
+      summary: Receive developer update notifications
+      message:
+        $ref: '#/components/messages/DeveloperUpdated'
+  /project/created:
+    subscribe:
+      operationId: onProjectCreated
+      summary: Receive project creation notifications
+      message:
+        $ref: '#/components/messages/ProjectCreated'
+  /project/deleted:
+    subscribe:
+      operationId: onProjectDeleted
+      summary: Receive project deletion notifications
+      message:
+        $ref: '#/components/messages/ProjectDeleted'
+  /project/member-added:
+    subscribe:
+      operationId: onProjectMemberAdded
+      summary: Receive member addition notifications
+      message:
+        $ref: '#/components/messages/ProjectMemberAdded'
+  /project/member-removed:
+    subscribe:
+      operationId: onProjectMemberRemoved
+      summary: Receive member removal notifications
+      message:
+        $ref: '#/components/messages/ProjectMemberRemoved'
+  /project/updated:
+    subscribe:
+      operationId: onProjectUpdated
+      summary: Receive project update notifications
+      message:
+        $ref: '#/components/messages/ProjectUpdated'
+  /task/assigned:
+    subscribe:
+      operationId: onTaskAssigned
+      summary: Receive task assignment notifications
+      message:
+        $ref: '#/components/messages/TaskAssigned'
+  /task/commented:
+    subscribe:
+      operationId: onTaskCommented
+      summary: Receive task comment notifications
+      message:
+        $ref: '#/components/messages/TaskCommented'
+  /task/created:
+    subscribe:
+      operationId: onTaskCreated
+      summary: Receive task creation notifications
+      message:
+        $ref: '#/components/messages/TaskCreated'
+  /task/deleted:
+    subscribe:
+      operationId: onTaskDeleted
+      summary: Receive task deletion notifications
+      message:
+        $ref: '#/components/messages/TaskDeleted'
+  /task/updated:
+    subscribe:
+      operationId: onTaskUpdated
+      summary: Receive task update notifications
+      message:
+        $ref: '#/components/messages/TaskUpdated'
+  /webhook/triggered:
+    publish:
+      operationId: triggerWebhook
+      summary: Publish webhook trigger notifications
+      message:
+        $ref: '#/components/messages/WebhookTriggered'
+servers:
+  server0:
+    url: kafka.example.com:9092
+    protocol: kafka
+  server1:
+    url: staging-kafka.example.com:9092
+    protocol: kafka
+  server2:
+    url: https://webhooks.example.com
+    protocol: kafka

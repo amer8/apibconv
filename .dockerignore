@@ -35,3 +35,4 @@ Thumbs.db
 
 # Examples (not needed in container)
 examples/
+test/

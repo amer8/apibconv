@@ -1,0 +1,1083 @@
+openapi: "3.1"
+info:
+  title: Task Management API
+  description: A comprehensive API for managing tasks, projects, developers, and notifications.
+  contact:
+    name: API Support
+    email: support@example.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  version: 1.0.0
+servers:
+  - url: https://api.example.com/v1
+paths:
+  /developers:
+    get:
+      tags:
+        - Developers
+      summary: List all developers
+      operationId: listDevelopers
+      parameters:
+        - name: role
+          in: query
+          schema:
+            type: string
+        - name: team
+          in: query
+          schema:
+            type: string
+        - name: active
+          in: query
+          schema:
+            type: boolean
+        - name: limit
+          in: query
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Developer'
+    post:
+      tags:
+        - Developers
+      summary: Create a new developer
+      operationId: createDeveloper
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeveloperCreate'
+        required: true
+      responses:
+        "201":
+          description: Developer created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Developer'
+  /developers/{developerId}:
+    get:
+      tags:
+        - Developers
+      summary: Get developer by ID
+      operationId: getDeveloper
+      parameters:
+        - name: developerId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Developer'
+        "404":
+          description: Developer not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags:
+        - Developers
+      summary: Delete a developer
+      operationId: deleteDeveloper
+      parameters:
+        - name: developerId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Developer deleted
+    patch:
+      tags:
+        - Developers
+      summary: Update a developer
+      operationId: updateDeveloper
+      parameters:
+        - name: developerId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeveloperUpdate'
+        required: true
+      responses:
+        "200":
+          description: Developer updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Developer'
+  /developers/{developerId}/tasks:
+    get:
+      tags:
+        - Developers
+      summary: List developer tasks
+      operationId: listDeveloperTasks
+      parameters:
+        - name: developerId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Task'
+  /projects:
+    get:
+      tags:
+        - Projects
+      summary: List all projects
+      operationId: listProjects
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: owner
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Project'
+    post:
+      tags:
+        - Projects
+      summary: Create a new project
+      operationId: createProject
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectCreate'
+        required: true
+      responses:
+        "201":
+          description: Project created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+  /projects/{projectId}:
+    get:
+      tags:
+        - Projects
+      summary: Get project by ID
+      operationId: getProject
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags:
+        - Projects
+      summary: Delete a project
+      operationId: deleteProject
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Project deleted
+    patch:
+      tags:
+        - Projects
+      summary: Update a project
+      operationId: updateProject
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectUpdate'
+        required: true
+      responses:
+        "200":
+          description: Project updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+  /projects/{projectId}/members:
+    get:
+      tags:
+        - Projects
+      summary: List project members
+      operationId: listProjectMembers
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Developer'
+    post:
+      tags:
+        - Projects
+      summary: Add a member
+      operationId: addProjectMember
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemberAdd'
+        required: true
+      responses:
+        "201":
+          description: Member added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Developer'
+  /projects/{projectId}/members/{developerId}:
+    delete:
+      tags:
+        - Projects
+      summary: Remove a member
+      operationId: removeProjectMember
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: developerId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Member removed
+  /tasks:
+    get:
+      tags:
+        - Tasks
+      summary: List all tasks
+      operationId: listTasks
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: assignee
+          in: query
+          schema:
+            type: string
+        - name: project
+          in: query
+          schema:
+            type: string
+        - name: priority
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Task'
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      tags:
+        - Tasks
+      summary: Create a new task
+      operationId: createTask
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskCreate'
+        required: true
+      responses:
+        "201":
+          description: Task created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /tasks/{taskId}:
+    get:
+      tags:
+        - Tasks
+      summary: Get task by ID
+      operationId: getTask
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        "404":
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags:
+        - Tasks
+      summary: Delete a task
+      operationId: deleteTask
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Task deleted
+        "404":
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    patch:
+      tags:
+        - Tasks
+      summary: Update a task
+      operationId: updateTask
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskUpdate'
+        required: true
+      responses:
+        "200":
+          description: Task updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        "404":
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /tasks/{taskId}/comments:
+    get:
+      tags:
+        - Tasks
+      summary: List task comments
+      operationId: listTaskComments
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Comment'
+    post:
+      tags:
+        - Tasks
+      summary: Add a comment
+      operationId: createComment
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommentCreate'
+        required: true
+      responses:
+        "201":
+          description: Comment created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+  /webhooks:
+    get:
+      tags:
+        - Webhooks
+      summary: List all webhooks
+      operationId: listWebhooks
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Webhook'
+    post:
+      tags:
+        - Webhooks
+      summary: Create a webhook
+      operationId: createWebhook
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookCreate'
+        required: true
+      responses:
+        "201":
+          description: Webhook created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Webhook'
+  /webhooks/{webhookId}:
+    get:
+      tags:
+        - Webhooks
+      summary: Get webhook by ID
+      operationId: getWebhook
+      parameters:
+        - name: webhookId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Webhook'
+        "404":
+          description: Webhook not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags:
+        - Webhooks
+      summary: Delete a webhook
+      operationId: deleteWebhook
+      parameters:
+        - name: webhookId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Webhook deleted
+    patch:
+      tags:
+        - Webhooks
+      summary: Update a webhook
+      operationId: updateWebhook
+      parameters:
+        - name: webhookId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookUpdate'
+        required: true
+      responses:
+        "200":
+          description: Webhook updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Webhook'
+components:
+  schemas:
+    Comment:
+      type: object
+      properties:
+        author_id:
+          type: string
+        content:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        id:
+          type: string
+        task_id:
+          type: string
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - task_id
+        - author_id
+        - content
+        - created_at
+        - updated_at
+    CommentCreate:
+      type: object
+      properties:
+        author_id:
+          type: string
+        content:
+          type: string
+      required:
+        - author_id
+        - content
+    Developer:
+      type: object
+      properties:
+        active:
+          type: boolean
+        avatar_url:
+          type: string
+          format: uri
+        created_at:
+          type: string
+          format: date-time
+        email:
+          type: string
+          format: email
+        full_name:
+          type: string
+        hire_date:
+          type: string
+          format: date-time
+        id:
+          type: string
+        role:
+          type: string
+          enum:
+            - junior
+            - mid
+            - senior
+            - lead
+            - principal
+        skills:
+          type: array
+          items:
+            type: string
+        team:
+          type: string
+        updated_at:
+          type: string
+          format: date-time
+        username:
+          type: string
+      required:
+        - id
+        - username
+        - email
+        - full_name
+        - role
+        - active
+        - created_at
+        - updated_at
+    DeveloperCreate:
+      type: object
+      properties:
+        avatar_url:
+          type: string
+          format: uri
+        email:
+          type: string
+          format: email
+        full_name:
+          type: string
+        hire_date:
+          type: string
+          format: date-time
+        role:
+          type: string
+          enum:
+            - junior
+            - mid
+            - senior
+            - lead
+            - principal
+        skills:
+          type: array
+          items:
+            type: string
+        team:
+          type: string
+        username:
+          type: string
+      required:
+        - username
+        - email
+        - full_name
+        - role
+    DeveloperUpdate:
+      type: object
+      properties:
+        active:
+          type: boolean
+        avatar_url:
+          type: string
+          format: uri
+        email:
+          type: string
+          format: email
+        full_name:
+          type: string
+        role:
+          type: string
+          enum:
+            - junior
+            - mid
+            - senior
+            - lead
+            - principal
+        skills:
+          type: array
+          items:
+            type: string
+        team:
+          type: string
+        username:
+          type: string
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+      required:
+        - code
+        - message
+    MemberAdd:
+      type: object
+      properties:
+        developer_id:
+          type: string
+      required:
+        - developer_id
+    Project:
+      type: object
+      properties:
+        budget:
+          type: number
+          format: double
+        created_at:
+          type: string
+          format: date-time
+        description:
+          type: string
+        end_date:
+          type: string
+          format: date-time
+        id:
+          type: string
+        member_count:
+          type: integer
+        name:
+          type: string
+        owner_id:
+          type: string
+        start_date:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum:
+            - planning
+            - active
+            - on_hold
+            - completed
+            - archived
+        task_count:
+          type: integer
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - status
+        - owner_id
+        - member_count
+        - task_count
+        - created_at
+        - updated_at
+    ProjectCreate:
+      type: object
+      properties:
+        budget:
+          type: number
+        description:
+          type: string
+        end_date:
+          type: string
+          format: date-time
+        name:
+          type: string
+        owner_id:
+          type: string
+        start_date:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum:
+            - planning
+            - active
+      required:
+        - name
+        - owner_id
+    ProjectUpdate:
+      type: object
+      properties:
+        budget:
+          type: number
+        description:
+          type: string
+        end_date:
+          type: string
+          format: date-time
+        name:
+          type: string
+        owner_id:
+          type: string
+        start_date:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum:
+            - planning
+            - active
+            - on_hold
+            - completed
+            - archived
+    Task:
+      type: object
+      properties:
+        actual_hours:
+          type: number
+          format: double
+        assignee_id:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        description:
+          type: string
+        due_date:
+          type: string
+          format: date-time
+        estimated_hours:
+          type: number
+          format: double
+        id:
+          type: string
+        priority:
+          type: string
+          enum:
+            - low
+            - medium
+            - high
+            - critical
+        project_id:
+          type: string
+        reporter_id:
+          type: string
+        status:
+          type: string
+          enum:
+            - open
+            - in_progress
+            - review
+            - completed
+            - closed
+        tags:
+          type: array
+          items:
+            type: string
+        title:
+          type: string
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - title
+        - status
+        - priority
+        - project_id
+        - reporter_id
+        - created_at
+        - updated_at
+    TaskCreate:
+      type: object
+      properties:
+        assignee_id:
+          type: string
+        description:
+          type: string
+        due_date:
+          type: string
+          format: date-time
+        estimated_hours:
+          type: number
+        priority:
+          type: string
+          enum:
+            - low
+            - medium
+            - high
+            - critical
+        project_id:
+          type: string
+        reporter_id:
+          type: string
+        status:
+          type: string
+          enum:
+            - open
+            - in_progress
+        tags:
+          type: array
+          items:
+            type: string
+        title:
+          type: string
+      required:
+        - title
+        - priority
+        - project_id
+        - reporter_id
+    TaskUpdate:
+      type: object
+      properties:
+        actual_hours:
+          type: number
+        assignee_id:
+          type: string
+        description:
+          type: string
+        due_date:
+          type: string
+          format: date-time
+        estimated_hours:
+          type: number
+        priority:
+          type: string
+          enum:
+            - low
+            - medium
+            - high
+            - critical
+        status:
+          type: string
+          enum:
+            - open
+            - in_progress
+            - review
+            - completed
+            - closed
+        tags:
+          type: array
+          items:
+            type: string
+        title:
+          type: string
+    Webhook:
+      type: object
+      properties:
+        active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        events:
+          type: array
+          items:
+            type: string
+        id:
+          type: string
+        name:
+          type: string
+        secret:
+          type: string
+        updated_at:
+          type: string
+          format: date-time
+        url:
+          type: string
+          format: uri
+      required:
+        - id
+        - name
+        - url
+        - events
+        - active
+        - created_at
+        - updated_at
+    WebhookCreate:
+      type: object
+      properties:
+        active:
+          type: boolean
+        events:
+          type: array
+          items:
+            type: string
+        name:
+          type: string
+        secret:
+          type: string
+        url:
+          type: string
+          format: uri
+      required:
+        - name
+        - url
+        - events
+    WebhookUpdate:
+      type: object
+      properties:
+        active:
+          type: boolean
+        events:
+          type: array
+          items:
+            type: string
+        name:
+          type: string
+        secret:
+          type: string
+        url:
+          type: string
+          format: uri

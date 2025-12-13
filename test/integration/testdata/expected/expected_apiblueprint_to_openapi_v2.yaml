@@ -1,0 +1,693 @@
+swagger: "2.0"
+info:
+  title: Task Management API
+  version: ""
+host: https://api.example.com
+paths:
+  /developers/{developerId}:
+    get:
+      tags:
+        - Developers
+      summary: Get developer details
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/definitions/Developer'
+                type: array
+    delete:
+      tags:
+        - Developers
+      summary: Delete a developer
+      responses:
+        "204":
+          content:
+            application/json:
+              example: |2+
+    patch:
+      tags:
+        - Developers
+      summary: Update a developer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/definitions/Developer'
+                type: array
+  /developers/{developerId}/tasks{?status}:
+    get:
+      tags:
+        - Developers
+      summary: List developer tasks
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/definitions/Task'
+                type: array
+  /developers{?role,team,active,limit,offset}:
+    get:
+      tags:
+        - Developers
+      summary: List all developers
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/definitions/Developer'
+                type: array
+    post:
+      tags:
+        - Developers
+      summary: Create a developer
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/definitions/Developer'
+                type: array
+  /projects/{projectId}:
+    get:
+      tags:
+        - Projects
+      summary: Get project details
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/definitions/Project'
+                type: array
+    delete:
+      tags:
+        - Projects
+      summary: Delete a project
+      responses:
+        "204":
+          content:
+            application/json:
+              example: |2+
+    patch:
+      tags:
+        - Projects
+      summary: Update a project
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/definitions/Project'
+                type: array
+  /projects/{projectId}/members:
+    get:
+      tags:
+        - Projects
+      summary: List project members
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/definitions/Developer'
+                type: array
+    post:
+      tags:
+        - Projects
+      summary: Add a member
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/definitions/Developer'
+                type: array
+  /projects{?status,owner,limit,offset}:
+    get:
+      tags:
+        - Projects
+      summary: List all projects
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/definitions/Project'
+                type: array
+    post:
+      tags:
+        - Projects
+      summary: Create a project
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/definitions/Project'
+                type: array
+  /tasks/{taskId}:
+    get:
+      tags:
+        - Tasks
+      summary: Get task details
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/definitions/Task'
+                type: array
+    delete:
+      tags:
+        - Tasks
+      summary: Delete a task
+      responses:
+        "204":
+          content:
+            application/json:
+              example: |2+
+    patch:
+      tags:
+        - Tasks
+      summary: Update a task
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/definitions/Task'
+                type: array
+  /tasks/{taskId}/comments:
+    get:
+      tags:
+        - Tasks
+      summary: List task comments
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/definitions/Comment'
+                type: array
+    post:
+      tags:
+        - Tasks
+      summary: Add a comment
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/definitions/Comment'
+                type: array
+  /tasks{?status,assignee,project,priority,limit,offset}:
+    get:
+      tags:
+        - Tasks
+      summary: List all tasks
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/definitions/Task'
+                type: array
+    post:
+      tags:
+        - Tasks
+      summary: Create a task
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/definitions/Task'
+                type: array
+  /webhooks:
+    get:
+      tags:
+        - Webhooks
+      summary: List all webhooks
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/definitions/Webhook'
+                type: array
+    post:
+      tags:
+        - Webhooks
+      summary: Create a webhook
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/definitions/Webhook'
+                type: array
+  DELETE /projects/{projectId}/members/{developerId}: {}
+definitions:
+  Comment:
+    type: object
+    properties:
+      author_id:
+        type: string
+      content:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      task_id:
+        type: string
+      updated_at:
+        type: string
+    required:
+      - id
+      - task_id
+      - author_id
+      - content
+      - created_at
+      - updated_at
+  CommentCreate:
+    type: object
+    properties:
+      author_id:
+        type: string
+      content:
+        type: string
+    required:
+      - author_id
+      - content
+  Developer:
+    type: object
+    properties:
+      active:
+        type: boolean
+      avatar_url:
+        type: string
+      created_at:
+        type: string
+      email:
+        type: string
+      full_name:
+        type: string
+      hire_date:
+        type: string
+      id:
+        type: string
+      junior:
+        type: string
+      lead:
+        type: string
+      mid:
+        type: string
+      principal:
+        type: string
+      role:
+        type: string
+      senior:
+        type: string
+      skills:
+        type: string
+      team:
+        type: string
+      updated_at:
+        type: string
+      username:
+        type: string
+    required:
+      - id
+      - username
+      - email
+      - full_name
+      - role
+      - active
+      - created_at
+      - updated_at
+  DeveloperCreate:
+    type: object
+    properties:
+      avatar_url:
+        type: string
+      email:
+        type: string
+      full_name:
+        type: string
+      hire_date:
+        type: string
+      junior:
+        type: string
+      lead:
+        type: string
+      mid:
+        type: string
+      principal:
+        type: string
+      role:
+        type: string
+      senior:
+        type: string
+      skills:
+        type: string
+      team:
+        type: string
+      username:
+        type: string
+    required:
+      - username
+      - email
+      - full_name
+      - role
+  DeveloperUpdate:
+    type: object
+    properties:
+      active:
+        type: boolean
+      avatar_url:
+        type: string
+      email:
+        type: string
+      full_name:
+        type: string
+      junior:
+        type: string
+      lead:
+        type: string
+      mid:
+        type: string
+      principal:
+        type: string
+      role:
+        type: string
+      senior:
+        type: string
+      skills:
+        type: string
+      team:
+        type: string
+      username:
+        type: string
+  MemberAdd:
+    type: object
+    properties:
+      developer_id:
+        type: string
+    required:
+      - developer_id
+  Project:
+    type: object
+    properties:
+      active:
+        type: string
+      archived:
+        type: string
+      budget:
+        type: number
+      completed:
+        type: string
+      created_at:
+        type: string
+      description:
+        type: string
+      end_date:
+        type: string
+      id:
+        type: string
+      member_count:
+        type: number
+      name:
+        type: string
+      on_hold:
+        type: string
+      owner_id:
+        type: string
+      planning:
+        type: string
+      start_date:
+        type: string
+      status:
+        type: string
+      task_count:
+        type: number
+      updated_at:
+        type: string
+    required:
+      - id
+      - name
+      - status
+      - owner_id
+      - member_count
+      - task_count
+      - created_at
+      - updated_at
+  ProjectCreate:
+    type: object
+    properties:
+      active:
+        type: string
+      budget:
+        type: number
+      description:
+        type: string
+      end_date:
+        type: string
+      name:
+        type: string
+      owner_id:
+        type: string
+      planning:
+        type: string
+      start_date:
+        type: string
+      status:
+        type: string
+    required:
+      - name
+      - owner_id
+  ProjectUpdate:
+    type: object
+    properties:
+      active:
+        type: string
+      archived:
+        type: string
+      budget:
+        type: number
+      completed:
+        type: string
+      description:
+        type: string
+      end_date:
+        type: string
+      name:
+        type: string
+      on_hold:
+        type: string
+      owner_id:
+        type: string
+      planning:
+        type: string
+      start_date:
+        type: string
+      status:
+        type: string
+  Task:
+    type: object
+    properties:
+      actual_hours:
+        type: number
+      assignee_id:
+        type: string
+      closed:
+        type: string
+      completed:
+        type: string
+      created_at:
+        type: string
+      critical:
+        type: string
+      description:
+        type: string
+      due_date:
+        type: string
+      estimated_hours:
+        type: number
+      high:
+        type: string
+      id:
+        type: string
+      in_progress:
+        type: string
+      low:
+        type: string
+      medium:
+        type: string
+      open:
+        type: string
+      priority:
+        type: string
+      project_id:
+        type: string
+      reporter_id:
+        type: string
+      review:
+        type: string
+      status:
+        type: string
+      tags:
+        type: string
+      title:
+        type: string
+      updated_at:
+        type: string
+    required:
+      - id
+      - title
+      - status
+      - priority
+      - project_id
+      - reporter_id
+      - created_at
+      - updated_at
+  TaskCreate:
+    type: object
+    properties:
+      assignee_id:
+        type: string
+      critical:
+        type: string
+      description:
+        type: string
+      due_date:
+        type: string
+      estimated_hours:
+        type: number
+      high:
+        type: string
+      in_progress:
+        type: string
+      low:
+        type: string
+      medium:
+        type: string
+      open:
+        type: string
+      priority:
+        type: string
+      project_id:
+        type: string
+      reporter_id:
+        type: string
+      status:
+        type: string
+      tags:
+        type: string
+      title:
+        type: string
+    required:
+      - title
+      - priority
+      - project_id
+      - reporter_id
+  TaskUpdate:
+    type: object
+    properties:
+      actual_hours:
+        type: number
+      assignee_id:
+        type: string
+      closed:
+        type: string
+      completed:
+        type: string
+      critical:
+        type: string
+      description:
+        type: string
+      due_date:
+        type: string
+      estimated_hours:
+        type: number
+      high:
+        type: string
+      in_progress:
+        type: string
+      low:
+        type: string
+      medium:
+        type: string
+      open:
+        type: string
+      priority:
+        type: string
+      review:
+        type: string
+      status:
+        type: string
+      tags:
+        type: string
+      title:
+        type: string
+  Webhook:
+    type: object
+    properties:
+      active:
+        type: boolean
+      created_at:
+        type: string
+      events:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      secret:
+        type: string
+      updated_at:
+        type: string
+      url:
+        type: string
+    required:
+      - id
+      - name
+      - url
+      - events
+      - active
+      - created_at
+      - updated_at
+  WebhookCreate:
+    type: object
+    properties:
+      active:
+        type: boolean
+      events:
+        type: string
+      name:
+        type: string
+      secret:
+        type: string
+      url:
+        type: string
+    required:
+      - name
+      - url
+      - events
+  WebhookUpdate:
+    type: object
+    properties:
+      active:
+        type: boolean
+      events:
+        type: string
+      name:
+        type: string
+      secret:
+        type: string
+      url:
+        type: string

@@ -1,0 +1,123 @@
+FORMAT: 1A
+HOST: kafka.example.com:9092
+
+# Task Management API
+A comprehensive API for managing tasks, projects, developers, and notifications through webhook events.
+
+# Group Resources
+
+## Resource [/developer/created]
+
+### Receive developer creation notifications [GET]
+
++ Response 200 (application/json)
+
+    OK
+
+## Resource [/developer/deleted]
+
+### Receive developer deletion notifications [GET]
+
++ Response 200 (application/json)
+
+    OK
+
+## Resource [/developer/updated]
+
+### Receive developer update notifications [GET]
+
++ Response 200 (application/json)
+
+    OK
+
+## Resource [/project/created]
+
+### Receive project creation notifications [GET]
+
++ Response 200 (application/json)
+
+    OK
+
+## Resource [/project/deleted]
+
+### Receive project deletion notifications [GET]
+
++ Response 200 (application/json)
+
+    OK
+
+## Resource [/project/member-added]
+
+### Receive member addition notifications [GET]
+
++ Response 200 (application/json)
+
+    OK
+
+## Resource [/project/member-removed]
+
+### Receive member removal notifications [GET]
+
++ Response 200 (application/json)
+
+    OK
+
+## Resource [/project/updated]
+
+### Receive project update notifications [GET]
+
++ Response 200 (application/json)
+
+    OK
+
+## Resource [/task/assigned]
+
+### Receive task assignment notifications [GET]
+
++ Response 200 (application/json)
+
+    OK
+
+## Resource [/task/commented]
+
+### Receive task comment notifications [GET]
+
++ Response 200 (application/json)
+
+    OK
+
+## Resource [/task/created]
+
+### Receive task creation notifications [GET]
+
++ Response 200 (application/json)
+
+    OK
+
+## Resource [/task/deleted]
+
+### Receive task deletion notifications [GET]
+
++ Response 200 (application/json)
+
+    OK
+
+## Resource [/task/updated]
+
+### Receive task update notifications [GET]
+
++ Response 200 (application/json)
+
+    OK
+
+## Resource [/webhook/triggered]
+
+### Publish webhook trigger notifications [POST]
+
++ Request
+    + Body (application/json)
+            + Attributes (array[#/components/messages/WebhookTriggered])
+
++ Response 200 (application/json)
+
+    OK
