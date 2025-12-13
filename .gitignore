@@ -34,7 +34,3 @@ dist/
 
 # OS
 .DS_Store
-Thumbs.db
-
-# Example outputs
-examples/*.apib

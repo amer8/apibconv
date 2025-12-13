@@ -1,0 +1,168 @@
+openapi: "3.0"
+info:
+  title: Task Management API
+  description: A comprehensive API for managing tasks, projects, developers, and notifications through webhook events.
+  version: 1.0.0
+servers:
+  - url: kafka.example.com:9092
+    description: kafka
+  - url: staging-kafka.example.com:9092
+    description: kafka
+  - url: https://webhooks.example.com
+    description: https
+paths:
+  /developer/created:
+    get:
+      summary: Receive developer creation notifications
+      operationId: onDeveloperCreated
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeveloperCreated'
+  /developer/deleted:
+    get:
+      summary: Receive developer deletion notifications
+      operationId: onDeveloperDeleted
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeveloperDeleted'
+  /developer/updated:
+    get:
+      summary: Receive developer update notifications
+      operationId: onDeveloperUpdated
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeveloperUpdated'
+  /project/created:
+    get:
+      summary: Receive project creation notifications
+      operationId: onProjectCreated
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectCreated'
+  /project/deleted:
+    get:
+      summary: Receive project deletion notifications
+      operationId: onProjectDeleted
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectDeleted'
+  /project/member-added:
+    get:
+      summary: Receive member addition notifications
+      operationId: onProjectMemberAdded
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectMemberAdded'
+  /project/member-removed:
+    get:
+      summary: Receive member removal notifications
+      operationId: onProjectMemberRemoved
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectMemberRemoved'
+  /project/updated:
+    get:
+      summary: Receive project update notifications
+      operationId: onProjectUpdated
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectUpdated'
+  /task/assigned:
+    get:
+      summary: Receive task assignment notifications
+      operationId: onTaskAssigned
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskAssigned'
+  /task/commented:
+    get:
+      summary: Receive task comment notifications
+      operationId: onTaskCommented
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskCommented'
+  /task/created:
+    get:
+      summary: Receive task creation notifications
+      operationId: onTaskCreated
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskCreated'
+  /task/deleted:
+    get:
+      summary: Receive task deletion notifications
+      operationId: onTaskDeleted
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskDeleted'
+  /task/updated:
+    get:
+      summary: Receive task update notifications
+      operationId: onTaskUpdated
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskUpdated'
+  /webhook/triggered:
+    post:
+      summary: Publish webhook trigger notifications
+      operationId: triggerWebhook
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookTriggered'
+      responses:
+        "200":
+          description: OK

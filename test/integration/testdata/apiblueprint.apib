@@ -1,0 +1,402 @@
+FORMAT: 1A
+HOST: https://api.example.com
+
+# Task Management API
+
+A comprehensive API for managing tasks, projects, developers, and notifications.
+
+# Group Tasks
+
+## Tasks Collection [/tasks{?status,assignee,project,priority,limit,offset}]
+
+### List all tasks [GET]
++ Parameters
+    + status: open (string, optional) - Filter by task status
+    + assignee: dev123 (string, optional) - Filter by assigned developer ID
+    + project: proj456 (string, optional) - Filter by project ID
+    + priority: high (string, optional) - Filter by priority level
+    + limit: 50 (number, optional) - Maximum number of results
+    + offset: 0 (number, optional) - Pagination offset
+
++ Response 200 (application/json)
+    + Attributes (array[Task])
+
+### Create a task [POST]
++ Request (application/json)
+    + Attributes (TaskCreate)
+
++ Response 201 (application/json)
+    + Attributes (Task)
+
+## Task Detail [/tasks/{taskId}]
++ Parameters
+    + taskId: task789 (string, required) - The unique task identifier
+
+### Get task details [GET]
++ Response 200 (application/json)
+    + Attributes (Task)
+
+### Update a task [PATCH]
++ Request (application/json)
+    + Attributes (TaskUpdate)
+
++ Response 200 (application/json)
+    + Attributes (Task)
+
+### Delete a task [DELETE]
++ Response 204
+
+## Task Comments [/tasks/{taskId}/comments]
++ Parameters
+    + taskId: task789 (string, required) - The unique task identifier
+
+### List task comments [GET]
++ Response 200 (application/json)
+    + Attributes (array[Comment])
+
+### Add a comment [POST]
++ Request (application/json)
+    + Attributes (CommentCreate)
+
++ Response 201 (application/json)
+    + Attributes (Comment)
+
+# Group Projects
+
+## Projects Collection [/projects{?status,owner,limit,offset}]
+
+### List all projects [GET]
++ Parameters
+    + status: active (string, optional) - Filter by project status
+    + owner: dev123 (string, optional) - Filter by project owner ID
+    + limit: 50 (number, optional) - Maximum number of results
+    + offset: 0 (number, optional) - Pagination offset
+
++ Response 200 (application/json)
+    + Attributes (array[Project])
+
+### Create a project [POST]
++ Request (application/json)
+    + Attributes (ProjectCreate)
+
++ Response 201 (application/json)
+    + Attributes (Project)
+
+## Project Detail [/projects/{projectId}]
++ Parameters
+    + projectId: proj456 (string, required) - The unique project identifier
+
+### Get project details [GET]
++ Response 200 (application/json)
+    + Attributes (Project)
+
+### Update a project [PATCH]
++ Request (application/json)
+    + Attributes (ProjectUpdate)
+
++ Response 200 (application/json)
+    + Attributes (Project)
+
+### Delete a project [DELETE]
++ Response 204
+
+## Project Members [/projects/{projectId}/members]
++ Parameters
+    + projectId: proj456 (string, required) - The unique project identifier
+
+### List project members [GET]
++ Response 200 (application/json)
+    + Attributes (array[Developer])
+
+### Add a member [POST]
++ Request (application/json)
+    + Attributes (MemberAdd)
+
++ Response 201 (application/json)
+    + Attributes (Developer)
+
+### Remove a member [DELETE /projects/{projectId}/members/{developerId}]
++ Parameters
+    + projectId: proj456 (string, required) - The unique project identifier
+    + developerId: dev123 (string, required) - The developer ID to remove
+
++ Response 204
+
+# Group Developers
+
+## Developers Collection [/developers{?role,team,active,limit,offset}]
+
+### List all developers [GET]
++ Parameters
+    + role: senior (string, optional) - Filter by developer role
+    + team: backend (string, optional) - Filter by team name
+    + active: true (boolean, optional) - Filter by active status
+    + limit: 50 (number, optional) - Maximum number of results
+    + offset: 0 (number, optional) - Pagination offset
+
++ Response 200 (application/json)
+    + Attributes (array[Developer])
+
+### Create a developer [POST]
++ Request (application/json)
+    + Attributes (DeveloperCreate)
+
++ Response 201 (application/json)
+    + Attributes (Developer)
+
+## Developer Detail [/developers/{developerId}]
++ Parameters
+    + developerId: dev123 (string, required) - The unique developer identifier
+
+### Get developer details [GET]
++ Response 200 (application/json)
+    + Attributes (Developer)
+
+### Update a developer [PATCH]
++ Request (application/json)
+    + Attributes (DeveloperUpdate)
+
++ Response 200 (application/json)
+    + Attributes (Developer)
+
+### Delete a developer [DELETE]
++ Response 204
+
+## Developer Tasks [/developers/{developerId}/tasks{?status}]
++ Parameters
+    + developerId: dev123 (string, required) - The unique developer identifier
+    + status: open (string, optional) - Filter by task status
+
+### List developer tasks [GET]
++ Response 200 (application/json)
+    + Attributes (array[Task])
+
+# Group Webhooks
+
+## Webhooks Collection [/webhooks]
+
+### List all webhooks [GET]
++ Response 200 (application/json)
+    + Attributes (array[Webhook])
+
+### Create a webhook [POST]
++ Request (application/json)
+    + Attributes (WebhookCreate)
+
++ Response 201 (application/json)
+    + Attributes (Webhook)
+
+## Webhook Detail [/webhooks/{webhookId}]
++ Parameters
+    + webhookId: hook123 (string, required) - The unique webhook identifier
+
+### Get webhook details [GET]
++ Response 200 (application/json)
+    + Attributes (Webhook)
+
+### Update a webhook [PATCH]
++ Request (application/json)
+    + Attributes (WebhookUpdate)
+
++ Response 200 (application/json)
+    + Attributes (Webhook)
+
+### Delete a webhook [DELETE]
++ Response 204
+
+# Data Structures
+
+## Task (object)
++ id: task789 (string, required)
++ title: Implement authentication (string, required)
++ description: Add JWT authentication to the API (string)
++ status: open (enum[string], required)
+    + open
+    + in_progress
+    + review
+    + completed
+    + closed
++ priority: high (enum[string], required)
+    + low
+    + medium
+    + high
+    + critical
++ assignee_id: dev123 (string)
++ project_id: proj456 (string, required)
++ reporter_id: dev456 (string, required)
++ estimated_hours: 8 (number)
++ actual_hours: 5.5 (number)
++ due_date: `2025-01-15T00:00:00Z` (string)
++ tags: authentication, security (array[string])
++ created_at: `2025-01-01T10:00:00Z` (string, required)
++ updated_at: `2025-01-05T14:30:00Z` (string, required)
+
+## TaskCreate (object)
++ title: Implement authentication (string, required)
++ description: Add JWT authentication to the API (string)
++ status: open (enum[string])
+    + open
+    + in_progress
++ priority: high (enum[string], required)
+    + low
+    + medium
+    + high
+    + critical
++ assignee_id: dev123 (string)
++ project_id: proj456 (string, required)
++ reporter_id: dev456 (string, required)
++ estimated_hours: 8 (number)
++ due_date: `2025-01-15T00:00:00Z` (string)
++ tags: authentication, security (array[string])
+
+## TaskUpdate (object)
++ title: Implement authentication (string)
++ description: Add JWT authentication to the API (string)
++ status: in_progress (enum[string])
+    + open
+    + in_progress
+    + review
+    + completed
+    + closed
++ priority: high (enum[string])
+    + low
+    + medium
+    + high
+    + critical
++ assignee_id: dev123 (string)
++ estimated_hours: 8 (number)
++ actual_hours: 5.5 (number)
++ due_date: `2025-01-15T00:00:00Z` (string)
++ tags: authentication, security (array[string])
+
+## Project (object)
++ id: proj456 (string, required)
++ name: API Redesign (string, required)
++ description: Complete API redesign project (string)
++ status: active (enum[string], required)
+    + planning
+    + active
+    + on_hold
+    + completed
+    + archived
++ owner_id: dev123 (string, required)
++ start_date: `2025-01-01T00:00:00Z` (string)
++ end_date: `2025-06-30T00:00:00Z` (string)
++ budget: 50000 (number)
++ member_count: 5 (number, required)
++ task_count: 23 (number, required)
++ created_at: `2025-01-01T10:00:00Z` (string, required)
++ updated_at: `2025-01-05T14:30:00Z` (string, required)
+
+## ProjectCreate (object)
++ name: API Redesign (string, required)
++ description: Complete API redesign project (string)
++ status: planning (enum[string])
+    + planning
+    + active
++ owner_id: dev123 (string, required)
++ start_date: `2025-01-01T00:00:00Z` (string)
++ end_date: `2025-06-30T00:00:00Z` (string)
++ budget: 50000 (number)
+
+## ProjectUpdate (object)
++ name: API Redesign (string)
++ description: Complete API redesign project (string)
++ status: active (enum[string])
+    + planning
+    + active
+    + on_hold
+    + completed
+    + archived
++ owner_id: dev123 (string)
++ start_date: `2025-01-01T00:00:00Z` (string)
++ end_date: `2025-06-30T00:00:00Z` (string)
++ budget: 50000 (number)
+
+## Developer (object)
++ id: dev123 (string, required)
++ username: johndoe (string, required)
++ email: john.doe@example.com (string, required)
++ full_name: John Doe (string, required)
++ role: senior (enum[string], required)
+    + junior
+    + mid
+    + senior
+    + lead
+    + principal
++ team: backend (string)
++ skills: Java, Python, Docker (array[string])
++ active: true (boolean, required)
++ hire_date: `2020-01-15T00:00:00Z` (string)
++ avatar_url: https://example.com/avatars/johndoe.jpg (string)
++ created_at: `2020-01-15T10:00:00Z` (string, required)
++ updated_at: `2025-01-05T14:30:00Z` (string, required)
+
+## DeveloperCreate (object)
++ username: johndoe (string, required)
++ email: john.doe@example.com (string, required)
++ full_name: John Doe (string, required)
++ role: senior (enum[string], required)
+    + junior
+    + mid
+    + senior
+    + lead
+    + principal
++ team: backend (string)
++ skills: Java, Python, Docker (array[string])
++ hire_date: `2020-01-15T00:00:00Z` (string)
++ avatar_url: https://example.com/avatars/johndoe.jpg (string)
+
+## DeveloperUpdate (object)
++ username: johndoe (string)
++ email: john.doe@example.com (string)
++ full_name: John Doe (string)
++ role: senior (enum[string])
+    + junior
+    + mid
+    + senior
+    + lead
+    + principal
++ team: backend (string)
++ skills: Java, Python, Docker (array[string])
++ active: true (boolean)
++ avatar_url: https://example.com/avatars/johndoe.jpg (string)
+
+## Comment (object)
++ id: comm001 (string, required)
++ task_id: task789 (string, required)
++ author_id: dev123 (string, required)
++ content: This needs more testing (string, required)
++ created_at: `2025-01-03T09:15:00Z` (string, required)
++ updated_at: `2025-01-03T09:15:00Z` (string, required)
+
+## CommentCreate (object)
++ author_id: dev123 (string, required)
++ content: This needs more testing (string, required)
+
+## MemberAdd (object)
++ developer_id: dev123 (string, required)
+
+## Webhook (object)
++ id: hook123 (string, required)
++ name: Task notifications (string, required)
++ url: https://example.com/webhooks/tasks (string, required)
++ events: task.created, task.updated (array[string], required)
++ active: true (boolean, required)
++ secret: wh_secret_abc123 (string)
++ created_at: `2025-01-01T10:00:00Z` (string, required)
++ updated_at: `2025-01-05T14:30:00Z` (string, required)
+
+## WebhookCreate (object)
++ name: Task notifications (string, required)
++ url: https://example.com/webhooks/tasks (string, required)
++ events: task.created, task.updated (array[string], required)
++ active: true (boolean)
++ secret: wh_secret_abc123 (string)
+
+## WebhookUpdate (object)
++ name: Task notifications (string)
++ url: https://example.com/webhooks/tasks (string)
++ events: task.created, task.updated (array[string])
++ active: true (boolean)
++ secret: wh_secret_abc123 (string)

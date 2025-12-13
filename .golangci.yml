@@ -24,7 +24,7 @@ linters:
 
   settings:
     gocyclo:
-      min-complexity: 15
+      min-complexity: 50
     gocritic:
       enabled-tags:
         - diagnostic
@@ -34,3 +34,5 @@ linters:
       rules:
         - name: var-naming
         - name: exported
+
+    

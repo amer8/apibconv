@@ -1,0 +1,492 @@
+FORMAT: 1A
+HOST: https://api.example.com/v1
+
+# Task Management API
+A comprehensive API for managing tasks, projects, developers, and notifications.
+
+# Group Developers
+
+## Resource [/developers]
+
+### List all developers [GET]
+
++ Parameters
+    + role (string)
+    + team (string)
+    + active (boolean)
+    + limit (integer)
+    + offset (integer)
+
++ Response 200 (application/json)
+
+    Successful response
+
+### Create a new developer [POST]
+
++ Request
+    + Body (application/json)
+            + Attributes (array[DeveloperCreate])
+
++ Response 201 (application/json)
+
+    Developer created
+
+## Resource [/developers/{developerId}]
+
+### Get developer by ID [GET]
+
++ Parameters
+    + developerId (string) (required)
+
++ Response 200 (application/json)
+
+    Successful response
+
++ Response 404 (application/json)
+
+    Developer not found
+
+### Delete a developer [DELETE]
+
++ Parameters
+    + developerId (string) (required)
+
++ Response 204 (application/json)
+
+    Developer deleted
+
+### Update a developer [PATCH]
+
++ Parameters
+    + developerId (string) (required)
+
++ Request
+    + Body (application/json)
+            + Attributes (array[DeveloperUpdate])
+
++ Response 200 (application/json)
+
+    Developer updated
+
+## Resource [/developers/{developerId}/tasks]
+
+### List developer tasks [GET]
+
++ Parameters
+    + developerId (string) (required)
+    + status (string)
+
++ Response 200 (application/json)
+
+    Successful response
+
+# Group Projects
+
+## Resource [/projects]
+
+### List all projects [GET]
+
++ Parameters
+    + status (string)
+    + owner (string)
+    + limit (integer)
+    + offset (integer)
+
++ Response 200 (application/json)
+
+    Successful response
+
+### Create a new project [POST]
+
++ Request
+    + Body (application/json)
+            + Attributes (array[ProjectCreate])
+
++ Response 201 (application/json)
+
+    Project created
+
+## Resource [/projects/{projectId}]
+
+### Get project by ID [GET]
+
++ Parameters
+    + projectId (string) (required)
+
++ Response 200 (application/json)
+
+    Successful response
+
++ Response 404 (application/json)
+
+    Project not found
+
+### Delete a project [DELETE]
+
++ Parameters
+    + projectId (string) (required)
+
++ Response 204 (application/json)
+
+    Project deleted
+
+### Update a project [PATCH]
+
++ Parameters
+    + projectId (string) (required)
+
++ Request
+    + Body (application/json)
+            + Attributes (array[ProjectUpdate])
+
++ Response 200 (application/json)
+
+    Project updated
+
+## Resource [/projects/{projectId}/members]
+
+### List project members [GET]
+
++ Parameters
+    + projectId (string) (required)
+
++ Response 200 (application/json)
+
+    Successful response
+
+### Add a member [POST]
+
++ Parameters
+    + projectId (string) (required)
+
++ Request
+    + Body (application/json)
+            + Attributes (array[MemberAdd])
+
++ Response 201 (application/json)
+
+    Member added
+
+## Resource [/projects/{projectId}/members/{developerId}]
+
+### Remove a member [DELETE]
+
++ Parameters
+    + projectId (string) (required)
+    + developerId (string) (required)
+
++ Response 204 (application/json)
+
+    Member removed
+
+# Group Tasks
+
+## Resource [/tasks]
+
+### List all tasks [GET]
+
++ Parameters
+    + status (string)
+    + assignee (string)
+    + project (string)
+    + priority (string)
+    + limit (integer)
+    + offset (integer)
+
++ Response 200 (application/json)
+
+    Successful response
+
++ Response 401 (application/json)
+
+    Unauthorized
+
+### Create a new task [POST]
+
++ Request
+    + Body (application/json)
+            + Attributes (array[TaskCreate])
+
++ Response 201 (application/json)
+
+    Task created
+
++ Response 400 (application/json)
+
+    Invalid input
+
+## Resource [/tasks/{taskId}]
+
+### Get task by ID [GET]
+
++ Parameters
+    + taskId (string) (required)
+
++ Response 200 (application/json)
+
+    Successful response
+
++ Response 404 (application/json)
+
+    Task not found
+
+### Delete a task [DELETE]
+
++ Parameters
+    + taskId (string) (required)
+
++ Response 204 (application/json)
+
+    Task deleted
+
++ Response 404 (application/json)
+
+    Task not found
+
+### Update a task [PATCH]
+
++ Parameters
+    + taskId (string) (required)
+
++ Request
+    + Body (application/json)
+            + Attributes (array[TaskUpdate])
+
++ Response 200 (application/json)
+
+    Task updated
+
++ Response 404 (application/json)
+
+    Task not found
+
+## Resource [/tasks/{taskId}/comments]
+
+### List task comments [GET]
+
++ Parameters
+    + taskId (string) (required)
+
++ Response 200 (application/json)
+
+    Successful response
+
+### Add a comment [POST]
+
++ Parameters
+    + taskId (string) (required)
+
++ Request
+    + Body (application/json)
+            + Attributes (array[CommentCreate])
+
++ Response 201 (application/json)
+
+    Comment created
+
+# Group Webhooks
+
+## Resource [/webhooks]
+
+### List all webhooks [GET]
+
++ Response 200 (application/json)
+
+    Successful response
+
+### Create a webhook [POST]
+
++ Request
+    + Body (application/json)
+            + Attributes (array[WebhookCreate])
+
++ Response 201 (application/json)
+
+    Webhook created
+
+## Resource [/webhooks/{webhookId}]
+
+### Get webhook by ID [GET]
+
++ Parameters
+    + webhookId (string) (required)
+
++ Response 200 (application/json)
+
+    Successful response
+
++ Response 404 (application/json)
+
+    Webhook not found
+
+### Delete a webhook [DELETE]
+
++ Parameters
+    + webhookId (string) (required)
+
++ Response 204 (application/json)
+
+    Webhook deleted
+
+### Update a webhook [PATCH]
+
++ Parameters
+    + webhookId (string) (required)
+
++ Request
+    + Body (application/json)
+            + Attributes (array[WebhookUpdate])
+
++ Response 200 (application/json)
+
+    Webhook updated
+
+## Data Structures
+
+### Comment (object)
+    + author_id (string) (required)
+    + content (string) (required)
+    + created_at (string) (required)
+    + id (string) (required)
+    + task_id (string) (required)
+    + updated_at (string) (required)
+
+### CommentCreate (object)
+    + author_id (string) (required)
+    + content (string) (required)
+
+### Developer (object)
+    + active (boolean) (required)
+    + avatar_url (string)
+    + created_at (string) (required)
+    + email (string) (required)
+    + full_name (string) (required)
+    + hire_date (string)
+    + id (string) (required)
+    + role (string) (required)
+    + skills (array)
+    + team (string)
+    + updated_at (string) (required)
+    + username (string) (required)
+
+### DeveloperCreate (object)
+    + avatar_url (string)
+    + email (string) (required)
+    + full_name (string) (required)
+    + hire_date (string)
+    + role (string) (required)
+    + skills (array)
+    + team (string)
+    + username (string) (required)
+
+### DeveloperUpdate (object)
+    + active (boolean)
+    + avatar_url (string)
+    + email (string)
+    + full_name (string)
+    + role (string)
+    + skills (array)
+    + team (string)
+    + username (string)
+
+### Error (object)
+    + code (integer) (required)
+    + message (string) (required)
+
+### MemberAdd (object)
+    + developer_id (string) (required)
+
+### Project (object)
+    + budget (number)
+    + created_at (string) (required)
+    + description (string)
+    + end_date (string)
+    + id (string) (required)
+    + member_count (integer) (required)
+    + name (string) (required)
+    + owner_id (string) (required)
+    + start_date (string)
+    + status (string) (required)
+    + task_count (integer) (required)
+    + updated_at (string) (required)
+
+### ProjectCreate (object)
+    + budget (number)
+    + description (string)
+    + end_date (string)
+    + name (string) (required)
+    + owner_id (string) (required)
+    + start_date (string)
+    + status (string)
+
+### ProjectUpdate (object)
+    + budget (number)
+    + description (string)
+    + end_date (string)
+    + name (string)
+    + owner_id (string)
+    + start_date (string)
+    + status (string)
+
+### Task (object)
+    + actual_hours (number)
+    + assignee_id (string)
+    + created_at (string) (required)
+    + description (string)
+    + due_date (string)
+    + estimated_hours (number)
+    + id (string) (required)
+    + priority (string) (required)
+    + project_id (string) (required)
+    + reporter_id (string) (required)
+    + status (string) (required)
+    + tags (array)
+    + title (string) (required)
+    + updated_at (string) (required)
+
+### TaskCreate (object)
+    + assignee_id (string)
+    + description (string)
+    + due_date (string)
+    + estimated_hours (number)
+    + priority (string) (required)
+    + project_id (string) (required)
+    + reporter_id (string) (required)
+    + status (string)
+    + tags (array)
+    + title (string) (required)
+
+### TaskUpdate (object)
+    + actual_hours (number)
+    + assignee_id (string)
+    + description (string)
+    + due_date (string)
+    + estimated_hours (number)
+    + priority (string)
+    + status (string)
+    + tags (array)
+    + title (string)
+
+### Webhook (object)
+    + active (boolean) (required)
+    + created_at (string) (required)
+    + events (array) (required)
+    + id (string) (required)
+    + name (string) (required)
+    + secret (string)
+    + updated_at (string) (required)
+    + url (string) (required)
+
+### WebhookCreate (object)
+    + active (boolean)
+    + events (array) (required)
+    + name (string) (required)
+    + secret (string)
+    + url (string) (required)
+
+### WebhookUpdate (object)
+    + active (boolean)
+    + events (array)
+    + name (string)
+    + secret (string)
+    + url (string)
