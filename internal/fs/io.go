@@ -40,16 +40,16 @@ func ReadAll(ctx context.Context, r io.Reader) ([]byte, error) {
 
 // ReadFile reads the entire file content into a byte slice.
 func ReadFile(path string) ([]byte, error) {
-	return os.ReadFile(path)
+	return os.ReadFile(filepath.Clean(path)) // #nosec G304
 }
 
 // WriteFile writes data to a file, creating any necessary parent directories.
 func WriteFile(path string, data []byte) error {
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return err
 	}
-	return os.WriteFile(path, data, 0o644)
+	return os.WriteFile(path, data, 0o600)
 }
 
 // CopyWithProgress copies from src to dst, invoking onProgress with total bytes written.
