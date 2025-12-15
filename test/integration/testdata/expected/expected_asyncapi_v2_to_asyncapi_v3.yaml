@@ -1,100 +1,143 @@
-asyncapi: 2.0.0
+asyncapi: 3.0.0
 info:
   title: Task Management API
   version: 1.0.0
   description: A comprehensive API for managing tasks, projects, developers, and notifications through webhook events.
 channels:
-  /developer/created:
-    subscribe:
-      operationId: onDeveloperCreated
-      summary: Receive developer creation notifications
-      message:
-        $ref: '#/components/messages/DeveloperCreated'
-  /developer/deleted:
-    subscribe:
-      operationId: onDeveloperDeleted
-      summary: Receive developer deletion notifications
-      message:
-        $ref: '#/components/messages/DeveloperDeleted'
-  /developer/updated:
-    subscribe:
-      operationId: onDeveloperUpdated
-      summary: Receive developer update notifications
-      message:
-        $ref: '#/components/messages/DeveloperUpdated'
-  /project/created:
-    subscribe:
-      operationId: onProjectCreated
-      summary: Receive project creation notifications
-      message:
-        $ref: '#/components/messages/ProjectCreated'
-  /project/deleted:
-    subscribe:
-      operationId: onProjectDeleted
-      summary: Receive project deletion notifications
-      message:
-        $ref: '#/components/messages/ProjectDeleted'
-  /project/member-added:
-    subscribe:
-      operationId: onProjectMemberAdded
-      summary: Receive member addition notifications
-      message:
-        $ref: '#/components/messages/ProjectMemberAdded'
-  /project/member-removed:
-    subscribe:
-      operationId: onProjectMemberRemoved
-      summary: Receive member removal notifications
-      message:
-        $ref: '#/components/messages/ProjectMemberRemoved'
-  /project/updated:
-    subscribe:
-      operationId: onProjectUpdated
-      summary: Receive project update notifications
-      message:
-        $ref: '#/components/messages/ProjectUpdated'
-  /task/assigned:
-    subscribe:
-      operationId: onTaskAssigned
-      summary: Receive task assignment notifications
-      message:
-        $ref: '#/components/messages/TaskAssigned'
-  /task/commented:
-    subscribe:
-      operationId: onTaskCommented
-      summary: Receive task comment notifications
-      message:
-        $ref: '#/components/messages/TaskCommented'
-  /task/created:
-    subscribe:
-      operationId: onTaskCreated
-      summary: Receive task creation notifications
-      message:
-        $ref: '#/components/messages/TaskCreated'
-  /task/deleted:
-    subscribe:
-      operationId: onTaskDeleted
-      summary: Receive task deletion notifications
-      message:
-        $ref: '#/components/messages/TaskDeleted'
-  /task/updated:
-    subscribe:
-      operationId: onTaskUpdated
-      summary: Receive task update notifications
-      message:
-        $ref: '#/components/messages/TaskUpdated'
-  /webhook/triggered:
-    publish:
-      operationId: triggerWebhook
-      summary: Publish webhook trigger notifications
-      message:
-        $ref: '#/components/messages/WebhookTriggered'
+  channel_/developer/created:
+    address: /developer/created
+  channel_/developer/deleted:
+    address: /developer/deleted
+  channel_/developer/updated:
+    address: /developer/updated
+  channel_/project/created:
+    address: /project/created
+  channel_/project/deleted:
+    address: /project/deleted
+  channel_/project/member-added:
+    address: /project/member-added
+  channel_/project/member-removed:
+    address: /project/member-removed
+  channel_/project/updated:
+    address: /project/updated
+  channel_/task/assigned:
+    address: /task/assigned
+  channel_/task/commented:
+    address: /task/commented
+  channel_/task/created:
+    address: /task/created
+  channel_/task/deleted:
+    address: /task/deleted
+  channel_/task/updated:
+    address: /task/updated
+  channel_/webhook/triggered:
+    address: /webhook/triggered
+operations:
+  onDeveloperCreated:
+    action: receive
+    channel: channel_/developer/created
+    summary: Receive developer creation notifications
+    operationId: onDeveloperCreated
+    messages:
+      - $ref: '#/components/messages/DeveloperCreated'
+  onDeveloperDeleted:
+    action: receive
+    channel: channel_/developer/deleted
+    summary: Receive developer deletion notifications
+    operationId: onDeveloperDeleted
+    messages:
+      - $ref: '#/components/messages/DeveloperDeleted'
+  onDeveloperUpdated:
+    action: receive
+    channel: channel_/developer/updated
+    summary: Receive developer update notifications
+    operationId: onDeveloperUpdated
+    messages:
+      - $ref: '#/components/messages/DeveloperUpdated'
+  onProjectCreated:
+    action: receive
+    channel: channel_/project/created
+    summary: Receive project creation notifications
+    operationId: onProjectCreated
+    messages:
+      - $ref: '#/components/messages/ProjectCreated'
+  onProjectDeleted:
+    action: receive
+    channel: channel_/project/deleted
+    summary: Receive project deletion notifications
+    operationId: onProjectDeleted
+    messages:
+      - $ref: '#/components/messages/ProjectDeleted'
+  onProjectMemberAdded:
+    action: receive
+    channel: channel_/project/member-added
+    summary: Receive member addition notifications
+    operationId: onProjectMemberAdded
+    messages:
+      - $ref: '#/components/messages/ProjectMemberAdded'
+  onProjectMemberRemoved:
+    action: receive
+    channel: channel_/project/member-removed
+    summary: Receive member removal notifications
+    operationId: onProjectMemberRemoved
+    messages:
+      - $ref: '#/components/messages/ProjectMemberRemoved'
+  onProjectUpdated:
+    action: receive
+    channel: channel_/project/updated
+    summary: Receive project update notifications
+    operationId: onProjectUpdated
+    messages:
+      - $ref: '#/components/messages/ProjectUpdated'
+  onTaskAssigned:
+    action: receive
+    channel: channel_/task/assigned
+    summary: Receive task assignment notifications
+    operationId: onTaskAssigned
+    messages:
+      - $ref: '#/components/messages/TaskAssigned'
+  onTaskCommented:
+    action: receive
+    channel: channel_/task/commented
+    summary: Receive task comment notifications
+    operationId: onTaskCommented
+    messages:
+      - $ref: '#/components/messages/TaskCommented'
+  onTaskCreated:
+    action: receive
+    channel: channel_/task/created
+    summary: Receive task creation notifications
+    operationId: onTaskCreated
+    messages:
+      - $ref: '#/components/messages/TaskCreated'
+  onTaskDeleted:
+    action: receive
+    channel: channel_/task/deleted
+    summary: Receive task deletion notifications
+    operationId: onTaskDeleted
+    messages:
+      - $ref: '#/components/messages/TaskDeleted'
+  onTaskUpdated:
+    action: receive
+    channel: channel_/task/updated
+    summary: Receive task update notifications
+    operationId: onTaskUpdated
+    messages:
+      - $ref: '#/components/messages/TaskUpdated'
+  triggerWebhook:
+    action: send
+    channel: channel_/webhook/triggered
+    summary: Publish webhook trigger notifications
+    operationId: triggerWebhook
+    messages:
+      - $ref: '#/components/messages/WebhookTriggered'
 servers:
   server0:
-    url: kafka.example.com:9092
+    host: kafka.example.com:9092
     protocol: kafka
   server1:
-    url: staging-kafka.example.com:9092
+    host: staging-kafka.example.com:9092
     protocol: kafka
   server2:
-    url: https://webhooks.example.com
+    host: https://webhooks.example.com
     protocol: kafka

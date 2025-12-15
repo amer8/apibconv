@@ -1,73 +1,118 @@
-asyncapi: 2.0.0
+asyncapi: 3.0.0
 info:
   title: Task Management API
   version: ""
 channels:
-  /developers/{developerId}:
-    subscribe:
-      summary: Get developer details
-      message:
-        $ref: '#/components/messages/Developer'
-  /developers/{developerId}/tasks{?status}:
-    subscribe:
-      summary: List developer tasks
-      message:
-        $ref: '#/components/messages/Task'
-  /developers{?role,team,active,limit,offset}:
-    publish:
-      summary: Create a developer
-    subscribe:
-      summary: List all developers
-      message:
-        $ref: '#/components/messages/Developer'
-  /projects/{projectId}:
-    subscribe:
-      summary: Get project details
-      message:
-        $ref: '#/components/messages/Project'
-  /projects/{projectId}/members:
-    publish:
-      summary: Add a member
-    subscribe:
-      summary: List project members
-      message:
-        $ref: '#/components/messages/Developer'
-  /projects{?status,owner,limit,offset}:
-    publish:
-      summary: Create a project
-    subscribe:
-      summary: List all projects
-      message:
-        $ref: '#/components/messages/Project'
-  /tasks/{taskId}:
-    subscribe:
-      summary: Get task details
-      message:
-        $ref: '#/components/messages/Task'
-  /tasks/{taskId}/comments:
-    publish:
-      summary: Add a comment
-    subscribe:
-      summary: List task comments
-      message:
-        $ref: '#/components/messages/Comment'
-  /tasks{?status,assignee,project,priority,limit,offset}:
-    publish:
-      summary: Create a task
-    subscribe:
-      summary: List all tasks
-      message:
-        $ref: '#/components/messages/Task'
-  /webhooks:
-    publish:
-      summary: Create a webhook
-    subscribe:
-      summary: List all webhooks
-      message:
-        $ref: '#/components/messages/Webhook'
+  channel_/developers/{developerId}:
+    address: /developers/{developerId}
+  channel_/developers/{developerId}/tasks{?status}:
+    address: /developers/{developerId}/tasks{?status}
+  channel_/developers{?role,team,active,limit,offset}:
+    address: /developers{?role,team,active,limit,offset}
+  channel_/projects/{projectId}:
+    address: /projects/{projectId}
+  channel_/projects/{projectId}/members:
+    address: /projects/{projectId}/members
+  channel_/projects{?status,owner,limit,offset}:
+    address: /projects{?status,owner,limit,offset}
+  channel_/tasks/{taskId}:
+    address: /tasks/{taskId}
+  channel_/tasks/{taskId}/comments:
+    address: /tasks/{taskId}/comments
+  channel_/tasks{?status,assignee,project,priority,limit,offset}:
+    address: /tasks{?status,assignee,project,priority,limit,offset}
+  channel_/webhooks:
+    address: /webhooks
+  channel_DELETE /projects/{projectId}/members/{developerId}:
+    address: DELETE /projects/{projectId}/members/{developerId}
+operations:
+  receive_channel_/developers/{developerId}:
+    action: receive
+    channel: channel_/developers/{developerId}
+    summary: Get developer details
+    messages:
+      - $ref: '#/components/messages/Developer'
+  receive_channel_/developers/{developerId}/tasks{?status}:
+    action: receive
+    channel: channel_/developers/{developerId}/tasks{?status}
+    summary: List developer tasks
+    messages:
+      - $ref: '#/components/messages/Task'
+  receive_channel_/developers{?role,team,active,limit,offset}:
+    action: receive
+    channel: channel_/developers{?role,team,active,limit,offset}
+    summary: List all developers
+    messages:
+      - $ref: '#/components/messages/Developer'
+  receive_channel_/projects/{projectId}:
+    action: receive
+    channel: channel_/projects/{projectId}
+    summary: Get project details
+    messages:
+      - $ref: '#/components/messages/Project'
+  receive_channel_/projects/{projectId}/members:
+    action: receive
+    channel: channel_/projects/{projectId}/members
+    summary: List project members
+    messages:
+      - $ref: '#/components/messages/Developer'
+  receive_channel_/projects{?status,owner,limit,offset}:
+    action: receive
+    channel: channel_/projects{?status,owner,limit,offset}
+    summary: List all projects
+    messages:
+      - $ref: '#/components/messages/Project'
+  receive_channel_/tasks/{taskId}:
+    action: receive
+    channel: channel_/tasks/{taskId}
+    summary: Get task details
+    messages:
+      - $ref: '#/components/messages/Task'
+  receive_channel_/tasks/{taskId}/comments:
+    action: receive
+    channel: channel_/tasks/{taskId}/comments
+    summary: List task comments
+    messages:
+      - $ref: '#/components/messages/Comment'
+  receive_channel_/tasks{?status,assignee,project,priority,limit,offset}:
+    action: receive
+    channel: channel_/tasks{?status,assignee,project,priority,limit,offset}
+    summary: List all tasks
+    messages:
+      - $ref: '#/components/messages/Task'
+  receive_channel_/webhooks:
+    action: receive
+    channel: channel_/webhooks
+    summary: List all webhooks
+    messages:
+      - $ref: '#/components/messages/Webhook'
+  send_channel_/developers{?role,team,active,limit,offset}:
+    action: send
+    channel: channel_/developers{?role,team,active,limit,offset}
+    summary: Create a developer
+  send_channel_/projects/{projectId}/members:
+    action: send
+    channel: channel_/projects/{projectId}/members
+    summary: Add a member
+  send_channel_/projects{?status,owner,limit,offset}:
+    action: send
+    channel: channel_/projects{?status,owner,limit,offset}
+    summary: Create a project
+  send_channel_/tasks/{taskId}/comments:
+    action: send
+    channel: channel_/tasks/{taskId}/comments
+    summary: Add a comment
+  send_channel_/tasks{?status,assignee,project,priority,limit,offset}:
+    action: send
+    channel: channel_/tasks{?status,assignee,project,priority,limit,offset}
+    summary: Create a task
+  send_channel_/webhooks:
+    action: send
+    channel: channel_/webhooks
+    summary: Create a webhook
 servers:
   server0:
-    url: https://api.example.com
+    host: https://api.example.com
     protocol: kafka
 components:
   messages:

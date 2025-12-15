@@ -134,6 +134,9 @@ func (r *Runner) Convert(ctx context.Context, cfg *Config) error {
 	if cfg.OpenAPIVersion != "" {
 		ctx = converter.WithOpenAPIVersion(ctx, cfg.OpenAPIVersion)
 	}
+	if cfg.AsyncAPIVersion != "" {
+		ctx = converter.WithAsyncAPIVersion(ctx, cfg.AsyncAPIVersion)
+	}
 
 	if cfg.Verbose {
 		r.conv.SetProgress(func(n int64) {
