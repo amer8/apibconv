@@ -108,9 +108,9 @@ This tool is designed to integrate seamlessly into GitHub Actions workflows
 
 This tool is designed for seamless integration with servers and CLI tools built in Go.
 
-- Basic [example](./examples/basic)
-- Advanced [example](./examples/advanced)
-- Plugin [example](./examples/plugin)
+- Basic [example](./examples/basic/main.go)
+- Advanced [example](./examples/advanced/main.go)
+- Plugin [example](./examples/plugin/main.go)
 
 ## Contributing
 
