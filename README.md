@@ -93,43 +93,7 @@ Examples:
   apibconv --validate spec.json
 ```
 
-### OpenAPI Support
-
-The tool supports both OpenAPI 3.0 and 3.1:
-
-- **Versions Supported**:
-  - OpenAPI 3.0 (default output)
-  - OpenAPI 3.1
-  - OpenAPI 2.0 (Swagger) - Basic support for parsing and writing.
-- **OpenAPI 3.1**: Use `--openapi-version 3.1` flag for 3.1.0 output
-- **Input**: Automatically detects and handles both 3.0 and 3.1 input specs
-
-**Key Differences**
-
-When converting to OpenAPI 3.1:
-- Nullable types use type arrays: `["string", "null"]` instead of `nullable: true`
-- Supports new fields: `webhooks`, `jsonSchemaDialect`, `license.identifier`
-- Full JSON Schema 2020-12 compatibility
-
-
-### AsyncAPI Support
-
-The tool supports AsyncAPI 2.6 and 3.0 for event-driven APIs:
-
-- **Versions Supported**:
-  - AsyncAPI 2.6 (default output)
-  - AsyncAPI 3.0
-  - Note: AsyncAPI 1.x is not supported
-- **Protocols**: WebSocket (`ws`, `wss`), MQTT (`mqtt`), Kafka (`kafka`), AMQP (`amqp`), HTTP (`http`, `https`), Auto (`auto`)
-- **Conversion Mappings**:
-  - **AsyncAPI 2.6**: Channels contain publish/subscribe operations
-  - **AsyncAPI 3.0**: Operations at root level with send/receive actions
-  - AsyncAPI channels → API Blueprint paths
-  - Subscribe/Receive operations → GET operations (receiving messages)
-  - Publish/Send operations → POST operations (sending messages)
-
-
-## GitHub Actions Integration
+### GitHub Actions
 
 This tool is designed to integrate seamlessly into GitHub Actions workflows
 
@@ -140,6 +104,13 @@ This tool is designed to integrate seamlessly into GitHub Actions workflows
     apibconv -o api-blueprint.apib openapi.json
 ```
 
+### Go projects
+
+This tool is designed for seamless integration with servers and CLI tools built in Go.
+
+- Basic [example](./examples/basic)
+- Advanced [example](./examples/advanced)
+- Plugin [example](./examples/plugin)
 
 ## Contributing
 
