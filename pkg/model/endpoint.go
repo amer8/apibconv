@@ -2,6 +2,7 @@ package model
 
 // PathItem represents an OpenAPI Path Item object.
 type PathItem struct {
+	Name        string // Original name/key if available (e.g. AsyncAPI channel name)
 	Summary     string
 	Description string
 	Get         *Operation

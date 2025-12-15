@@ -81,6 +81,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/definitions/Error"
+                }
+              }
+            }
           }
         }
       },
@@ -107,6 +117,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/definitions/Developer"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/definitions/Error"
                 }
               }
             }
@@ -173,6 +193,16 @@
         "responses": {
           "204": {
             "description": "Developer deleted"
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/definitions/Error"
+                }
+              }
+            }
           }
         }
       },
@@ -209,6 +239,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/definitions/Developer"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/definitions/Error"
                 }
               }
             }
@@ -250,6 +290,16 @@
                   "items": {
                     "$ref": "#/definitions/Task"
                   }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/definitions/Error"
                 }
               }
             }
@@ -316,6 +366,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/definitions/Error"
+                }
+              }
+            }
           }
         }
       },
@@ -342,6 +402,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/definitions/Project"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/definitions/Error"
                 }
               }
             }
@@ -408,6 +478,16 @@
         "responses": {
           "204": {
             "description": "Project deleted"
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/definitions/Error"
+                }
+              }
+            }
           }
         }
       },
@@ -447,6 +527,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/definitions/Error"
+                }
+              }
+            }
           }
         }
       }
@@ -478,6 +568,16 @@
                   "items": {
                     "$ref": "#/definitions/Developer"
                   }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/definitions/Error"
                 }
               }
             }
@@ -520,6 +620,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/definitions/Error"
+                }
+              }
+            }
           }
         }
       }
@@ -552,6 +662,16 @@
         "responses": {
           "204": {
             "description": "Member removed"
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/definitions/Error"
+                }
+              }
+            }
           }
         }
       }
@@ -840,6 +960,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/definitions/Error"
+                }
+              }
+            }
           }
         }
       },
@@ -879,6 +1009,16 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/definitions/Error"
+                }
+              }
+            }
           }
         }
       }
@@ -900,6 +1040,16 @@
                   "items": {
                     "$ref": "#/definitions/Webhook"
                   }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/definitions/Error"
                 }
               }
             }
@@ -929,6 +1079,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/definitions/Webhook"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/definitions/Error"
                 }
               }
             }
@@ -995,6 +1155,16 @@
         "responses": {
           "204": {
             "description": "Webhook deleted"
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/definitions/Error"
+                }
+              }
+            }
           }
         }
       },
@@ -1031,6 +1201,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/definitions/Webhook"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/definitions/Error"
                 }
               }
             }

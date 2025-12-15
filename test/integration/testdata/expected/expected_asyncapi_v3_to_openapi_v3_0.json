@@ -24,100 +24,284 @@
       "get": {
         "summary": "Receive developer creation notifications",
         "operationId": "onDeveloperCreated",
-        "responses": null
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "developer/deleted": {
       "get": {
         "summary": "Receive developer deletion notifications",
         "operationId": "onDeveloperDeleted",
-        "responses": null
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "developer/updated": {
       "get": {
         "summary": "Receive developer update notifications",
         "operationId": "onDeveloperUpdated",
-        "responses": null
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "project/created": {
       "get": {
         "summary": "Receive project creation notifications",
         "operationId": "onProjectCreated",
-        "responses": null
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "project/deleted": {
       "get": {
         "summary": "Receive project deletion notifications",
         "operationId": "onProjectDeleted",
-        "responses": null
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "project/member-added": {
       "get": {
         "summary": "Receive member addition notifications",
         "operationId": "onProjectMemberAdded",
-        "responses": null
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "project/member-removed": {
       "get": {
         "summary": "Receive member removal notifications",
         "operationId": "onProjectMemberRemoved",
-        "responses": null
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "project/updated": {
       "get": {
         "summary": "Receive project update notifications",
         "operationId": "onProjectUpdated",
-        "responses": null
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "task/assigned": {
       "get": {
         "summary": "Receive task assignment notifications",
         "operationId": "onTaskAssigned",
-        "responses": null
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "task/commented": {
       "get": {
         "summary": "Receive task comment notifications",
         "operationId": "onTaskCommented",
-        "responses": null
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "task/created": {
       "get": {
         "summary": "Receive task creation notifications",
         "operationId": "onTaskCreated",
-        "responses": null
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "task/deleted": {
       "get": {
         "summary": "Receive task deletion notifications",
         "operationId": "onTaskDeleted",
-        "responses": null
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "task/updated": {
       "get": {
         "summary": "Receive task update notifications",
         "operationId": "onTaskUpdated",
-        "responses": null
+        "responses": {
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "webhook/triggered": {
       "post": {
         "summary": "Publish webhook trigger notifications",
         "operationId": "triggerWebhook",
-        "responses": null
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebhookTriggered"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
       }
     }
   },
-  "components": {}
+  "components": {
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ]
+      }
+    }
+  }
 }

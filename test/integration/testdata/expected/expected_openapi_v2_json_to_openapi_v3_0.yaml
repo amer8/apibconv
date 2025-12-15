@@ -48,6 +48,12 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Developer'
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     post:
       tags:
         - Developers
@@ -66,6 +72,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Developer'
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /developers/{developerId}:
     get:
       tags:
@@ -105,6 +117,12 @@ paths:
       responses:
         "204":
           description: Developer deleted
+        "404":
+          description: Developer not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     patch:
       tags:
         - Developers
@@ -129,6 +147,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Developer'
+        "404":
+          description: Developer not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /developers/{developerId}/tasks:
     get:
       tags:
@@ -154,6 +178,12 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Task'
+        "404":
+          description: Developer not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /projects:
     get:
       tags:
@@ -186,6 +216,12 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Project'
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     post:
       tags:
         - Projects
@@ -204,6 +240,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Project'
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /projects/{projectId}:
     get:
       tags:
@@ -243,6 +285,12 @@ paths:
       responses:
         "204":
           description: Project deleted
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     patch:
       tags:
         - Projects
@@ -267,6 +315,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Project'
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /projects/{projectId}/members:
     get:
       tags:
@@ -288,6 +342,12 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Developer'
+        "404":
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     post:
       tags:
         - Projects
@@ -312,6 +372,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Developer'
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /projects/{projectId}/members/{developerId}:
     delete:
       tags:
@@ -332,6 +398,12 @@ paths:
       responses:
         "204":
           description: Member removed
+        "404":
+          description: Project or Developer not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /tasks:
     get:
       tags:
@@ -498,6 +570,12 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Comment'
+        "404":
+          description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     post:
       tags:
         - Tasks
@@ -522,6 +600,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Comment'
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /webhooks:
     get:
       tags:
@@ -537,6 +621,12 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Webhook'
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     post:
       tags:
         - Webhooks
@@ -555,6 +645,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Webhook'
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /webhooks/{webhookId}:
     get:
       tags:
@@ -594,6 +690,12 @@ paths:
       responses:
         "204":
           description: Webhook deleted
+        "404":
+          description: Webhook not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     patch:
       tags:
         - Webhooks
@@ -618,6 +720,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Webhook'
+        "404":
+          description: Webhook not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 components:
   schemas:
     Comment:

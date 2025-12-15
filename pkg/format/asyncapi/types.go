@@ -36,9 +36,10 @@ type AsyncAPI3 struct {
 
 // ServerV3 object represents a message broker or server in AsyncAPI 3.0.
 type ServerV3 struct {
-	Host     string                 `yaml:"host" json:"host"`
-	Protocol string                 `yaml:"protocol" json:"protocol"`
-	Bindings map[string]interface{} `yaml:"bindings,omitempty" json:"bindings,omitempty"` // Server Bindings
+	Host        string                 `yaml:"host" json:"host"`
+	Protocol    string                 `yaml:"protocol" json:"protocol"`
+	Description string                 `yaml:"description,omitempty" json:"description,omitempty"`
+	Bindings    map[string]interface{} `yaml:"bindings,omitempty" json:"bindings,omitempty"` // Server Bindings
 }
 
 // Channel3 represents a channel in AsyncAPI 3.0.
@@ -77,9 +78,10 @@ type Operation struct {
 
 // Server object represents a message broker or server.
 type Server struct {
-	URL      string `yaml:"url" json:"url"`
-	Protocol string `yaml:"protocol" json:"protocol"`	
-	Bindings map[string]interface{} `yaml:"bindings,omitempty" json:"bindings,omitempty"` // Server Bindings
+	URL         string                 `yaml:"url" json:"url"`
+	Protocol    string                 `yaml:"protocol" json:"protocol"`
+	Description string                 `yaml:"description,omitempty" json:"description,omitempty"`
+	Bindings    map[string]interface{} `yaml:"bindings,omitempty" json:"bindings,omitempty"` // Server Bindings
 }
 
 // Message object represents a message exchanged via a channel.

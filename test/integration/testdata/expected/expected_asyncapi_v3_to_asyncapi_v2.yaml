@@ -61,12 +61,15 @@ channels:
       operationId: triggerWebhook
       summary: Publish webhook trigger notifications
 servers:
-  server0:
+  production:
     url: kafka.example.com:9092
     protocol: kafka
-  server1:
+    description: Production Kafka broker
+  staging:
     url: staging-kafka.example.com:9092
     protocol: kafka
-  server2:
+    description: Staging Kafka broker
+  webhooks:
     url: webhooks.example.com
-    protocol: kafka
+    protocol: https
+    description: Webhook notification endpoint

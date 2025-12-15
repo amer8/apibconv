@@ -4,140 +4,157 @@ info:
   version: 1.0.0
   description: A comprehensive API for managing tasks, projects, developers, and notifications through webhook events.
 channels:
-  channel_/developer/created:
-    address: /developer/created
-  channel_/developer/deleted:
-    address: /developer/deleted
-  channel_/developer/updated:
-    address: /developer/updated
-  channel_/project/created:
-    address: /project/created
-  channel_/project/deleted:
-    address: /project/deleted
-  channel_/project/member-added:
-    address: /project/member-added
-  channel_/project/member-removed:
-    address: /project/member-removed
-  channel_/project/updated:
-    address: /project/updated
-  channel_/task/assigned:
-    address: /task/assigned
-  channel_/task/commented:
-    address: /task/commented
-  channel_/task/created:
-    address: /task/created
-  channel_/task/deleted:
-    address: /task/deleted
-  channel_/task/updated:
-    address: /task/updated
-  channel_/webhook/triggered:
-    address: /webhook/triggered
+  developerCreated:
+    address: developer/created
+  developerDeleted:
+    address: developer/deleted
+  developerUpdated:
+    address: developer/updated
+  projectCreated:
+    address: project/created
+  projectDeleted:
+    address: project/deleted
+  projectMemberAdded:
+    address: project/member-added
+  projectMemberRemoved:
+    address: project/member-removed
+  projectUpdated:
+    address: project/updated
+  taskAssigned:
+    address: task/assigned
+  taskCommented:
+    address: task/commented
+  taskCreated:
+    address: task/created
+  taskDeleted:
+    address: task/deleted
+  taskUpdated:
+    address: task/updated
+  webhookTriggered:
+    address: webhook/triggered
 operations:
   onDeveloperCreated:
     action: receive
-    channel: channel_/developer/created
+    channel:
+      $ref: '#/channels/developerCreated'
     summary: Receive developer creation notifications
     operationId: onDeveloperCreated
     messages:
       - $ref: '#/components/messages/DeveloperCreated'
   onDeveloperDeleted:
     action: receive
-    channel: channel_/developer/deleted
+    channel:
+      $ref: '#/channels/developerDeleted'
     summary: Receive developer deletion notifications
     operationId: onDeveloperDeleted
     messages:
       - $ref: '#/components/messages/DeveloperDeleted'
   onDeveloperUpdated:
     action: receive
-    channel: channel_/developer/updated
+    channel:
+      $ref: '#/channels/developerUpdated'
     summary: Receive developer update notifications
     operationId: onDeveloperUpdated
     messages:
       - $ref: '#/components/messages/DeveloperUpdated'
   onProjectCreated:
     action: receive
-    channel: channel_/project/created
+    channel:
+      $ref: '#/channels/projectCreated'
     summary: Receive project creation notifications
     operationId: onProjectCreated
     messages:
       - $ref: '#/components/messages/ProjectCreated'
   onProjectDeleted:
     action: receive
-    channel: channel_/project/deleted
+    channel:
+      $ref: '#/channels/projectDeleted'
     summary: Receive project deletion notifications
     operationId: onProjectDeleted
     messages:
       - $ref: '#/components/messages/ProjectDeleted'
   onProjectMemberAdded:
     action: receive
-    channel: channel_/project/member-added
+    channel:
+      $ref: '#/channels/projectMemberAdded'
     summary: Receive member addition notifications
     operationId: onProjectMemberAdded
     messages:
       - $ref: '#/components/messages/ProjectMemberAdded'
   onProjectMemberRemoved:
     action: receive
-    channel: channel_/project/member-removed
+    channel:
+      $ref: '#/channels/projectMemberRemoved'
     summary: Receive member removal notifications
     operationId: onProjectMemberRemoved
     messages:
       - $ref: '#/components/messages/ProjectMemberRemoved'
   onProjectUpdated:
     action: receive
-    channel: channel_/project/updated
+    channel:
+      $ref: '#/channels/projectUpdated'
     summary: Receive project update notifications
     operationId: onProjectUpdated
     messages:
       - $ref: '#/components/messages/ProjectUpdated'
   onTaskAssigned:
     action: receive
-    channel: channel_/task/assigned
+    channel:
+      $ref: '#/channels/taskAssigned'
     summary: Receive task assignment notifications
     operationId: onTaskAssigned
     messages:
       - $ref: '#/components/messages/TaskAssigned'
   onTaskCommented:
     action: receive
-    channel: channel_/task/commented
+    channel:
+      $ref: '#/channels/taskCommented'
     summary: Receive task comment notifications
     operationId: onTaskCommented
     messages:
       - $ref: '#/components/messages/TaskCommented'
   onTaskCreated:
     action: receive
-    channel: channel_/task/created
+    channel:
+      $ref: '#/channels/taskCreated'
     summary: Receive task creation notifications
     operationId: onTaskCreated
     messages:
       - $ref: '#/components/messages/TaskCreated'
   onTaskDeleted:
     action: receive
-    channel: channel_/task/deleted
+    channel:
+      $ref: '#/channels/taskDeleted'
     summary: Receive task deletion notifications
     operationId: onTaskDeleted
     messages:
       - $ref: '#/components/messages/TaskDeleted'
   onTaskUpdated:
     action: receive
-    channel: channel_/task/updated
+    channel:
+      $ref: '#/channels/taskUpdated'
     summary: Receive task update notifications
     operationId: onTaskUpdated
     messages:
       - $ref: '#/components/messages/TaskUpdated'
   triggerWebhook:
     action: send
-    channel: channel_/webhook/triggered
+    channel:
+      $ref: '#/channels/webhookTriggered'
     summary: Publish webhook trigger notifications
     operationId: triggerWebhook
     messages:
       - $ref: '#/components/messages/WebhookTriggered'
 servers:
-  server0:
+  production:
     host: kafka.example.com:9092
     protocol: kafka
-  server1:
+    description: Production Kafka broker
+  staging:
     host: staging-kafka.example.com:9092
     protocol: kafka
-  server2:
+    description: Staging Kafka broker
+  webhooks:
     host: https://webhooks.example.com
-    protocol: kafka
+    protocol: https
+    description: Webhook notification endpoint

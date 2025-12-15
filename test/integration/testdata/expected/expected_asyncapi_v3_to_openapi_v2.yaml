@@ -5,73 +5,168 @@ info:
   version: 1.0.0
 host: kafka.example.com:9092
 paths:
-  developer/created:
+  /developer/created:
     get:
       summary: Receive developer creation notifications
       operationId: onDeveloperCreated
-      responses: {}
-  developer/deleted:
+      responses:
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /developer/deleted:
     get:
       summary: Receive developer deletion notifications
       operationId: onDeveloperDeleted
-      responses: {}
-  developer/updated:
+      responses:
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /developer/updated:
     get:
       summary: Receive developer update notifications
       operationId: onDeveloperUpdated
-      responses: {}
-  project/created:
+      responses:
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /project/created:
     get:
       summary: Receive project creation notifications
       operationId: onProjectCreated
-      responses: {}
-  project/deleted:
+      responses:
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /project/deleted:
     get:
       summary: Receive project deletion notifications
       operationId: onProjectDeleted
-      responses: {}
-  project/member-added:
+      responses:
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /project/member-added:
     get:
       summary: Receive member addition notifications
       operationId: onProjectMemberAdded
-      responses: {}
-  project/member-removed:
+      responses:
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /project/member-removed:
     get:
       summary: Receive member removal notifications
       operationId: onProjectMemberRemoved
-      responses: {}
-  project/updated:
+      responses:
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /project/updated:
     get:
       summary: Receive project update notifications
       operationId: onProjectUpdated
-      responses: {}
-  task/assigned:
+      responses:
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /task/assigned:
     get:
       summary: Receive task assignment notifications
       operationId: onTaskAssigned
-      responses: {}
-  task/commented:
+      responses:
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /task/commented:
     get:
       summary: Receive task comment notifications
       operationId: onTaskCommented
-      responses: {}
-  task/created:
+      responses:
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /task/created:
     get:
       summary: Receive task creation notifications
       operationId: onTaskCreated
-      responses: {}
-  task/deleted:
+      responses:
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /task/deleted:
     get:
       summary: Receive task deletion notifications
       operationId: onTaskDeleted
-      responses: {}
-  task/updated:
+      responses:
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /task/updated:
     get:
       summary: Receive task update notifications
       operationId: onTaskUpdated
-      responses: {}
-  webhook/triggered:
+      responses:
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /webhook/triggered:
     post:
       summary: Publish webhook trigger notifications
       operationId: triggerWebhook
-      responses: {}
+      responses:
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+definitions:
+  Error:
+    type: object
+    properties:
+      code:
+        type: integer
+      message:
+        type: string
+    required:
+      - code
+      - message

@@ -4,6 +4,7 @@ info:
   version: ""
 host: https://api.example.com
 paths:
+  /DELETE /projects/{projectId}/members/{developerId}: {}
   /developers/{developerId}:
     get:
       tags:
@@ -16,6 +17,12 @@ paths:
               schema:
                 $ref: '#/definitions/Developer'
                 type: array
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     delete:
       tags:
         - Developers
@@ -25,6 +32,12 @@ paths:
           content:
             application/json:
               example: |2+
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     patch:
       tags:
         - Developers
@@ -36,6 +49,12 @@ paths:
               schema:
                 $ref: '#/definitions/Developer'
                 type: array
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /developers/{developerId}/tasks{?status}:
     get:
       tags:
@@ -48,6 +67,12 @@ paths:
               schema:
                 $ref: '#/definitions/Task'
                 type: array
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /developers{?role,team,active,limit,offset}:
     get:
       tags:
@@ -60,6 +85,12 @@ paths:
               schema:
                 $ref: '#/definitions/Developer'
                 type: array
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     post:
       tags:
         - Developers
@@ -71,6 +102,12 @@ paths:
               schema:
                 $ref: '#/definitions/Developer'
                 type: array
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /projects/{projectId}:
     get:
       tags:
@@ -83,6 +120,12 @@ paths:
               schema:
                 $ref: '#/definitions/Project'
                 type: array
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     delete:
       tags:
         - Projects
@@ -92,6 +135,12 @@ paths:
           content:
             application/json:
               example: |2+
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     patch:
       tags:
         - Projects
@@ -103,6 +152,12 @@ paths:
               schema:
                 $ref: '#/definitions/Project'
                 type: array
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /projects/{projectId}/members:
     get:
       tags:
@@ -115,6 +170,12 @@ paths:
               schema:
                 $ref: '#/definitions/Developer'
                 type: array
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     post:
       tags:
         - Projects
@@ -126,6 +187,12 @@ paths:
               schema:
                 $ref: '#/definitions/Developer'
                 type: array
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /projects{?status,owner,limit,offset}:
     get:
       tags:
@@ -138,6 +205,12 @@ paths:
               schema:
                 $ref: '#/definitions/Project'
                 type: array
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     post:
       tags:
         - Projects
@@ -149,6 +222,12 @@ paths:
               schema:
                 $ref: '#/definitions/Project'
                 type: array
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /tasks/{taskId}:
     get:
       tags:
@@ -161,6 +240,12 @@ paths:
               schema:
                 $ref: '#/definitions/Task'
                 type: array
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     delete:
       tags:
         - Tasks
@@ -170,6 +255,12 @@ paths:
           content:
             application/json:
               example: |2+
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     patch:
       tags:
         - Tasks
@@ -181,6 +272,12 @@ paths:
               schema:
                 $ref: '#/definitions/Task'
                 type: array
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /tasks/{taskId}/comments:
     get:
       tags:
@@ -193,6 +290,12 @@ paths:
               schema:
                 $ref: '#/definitions/Comment'
                 type: array
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     post:
       tags:
         - Tasks
@@ -204,6 +307,12 @@ paths:
               schema:
                 $ref: '#/definitions/Comment'
                 type: array
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /tasks{?status,assignee,project,priority,limit,offset}:
     get:
       tags:
@@ -216,6 +325,12 @@ paths:
               schema:
                 $ref: '#/definitions/Task'
                 type: array
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     post:
       tags:
         - Tasks
@@ -227,6 +342,12 @@ paths:
               schema:
                 $ref: '#/definitions/Task'
                 type: array
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /webhooks:
     get:
       tags:
@@ -239,6 +360,12 @@ paths:
               schema:
                 $ref: '#/definitions/Webhook'
                 type: array
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     post:
       tags:
         - Webhooks
@@ -250,7 +377,12 @@ paths:
               schema:
                 $ref: '#/definitions/Webhook'
                 type: array
-  DELETE /projects/{projectId}/members/{developerId}: {}
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 definitions:
   Comment:
     type: object
@@ -393,6 +525,16 @@ definitions:
         type: string
       username:
         type: string
+  Error:
+    type: object
+    properties:
+      code:
+        type: integer
+      message:
+        type: string
+    required:
+      - code
+      - message
   MemberAdd:
     type: object
     properties:

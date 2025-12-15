@@ -36,8 +36,10 @@ func (p *Parser) parseV3(data []byte) (*model.API, error) {
 	for _, name := range serverNames {
 		s := doc.Servers[name]
 		api.Servers = append(api.Servers, model.Server{
+			Name:        name,
 			URL:         s.Host,
-			Description: s.Protocol,
+			Protocol:    s.Protocol,
+			Description: s.Description,
 			Bindings:    s.Bindings,
 		})
 	}
@@ -72,9 +74,13 @@ func (p *Parser) parseV3(data []byte) (*model.API, error) {
 		case map[string]interface{}:
 			if ref, ok := v["$ref"].(string); ok {
 				// extract ID from ref (e.g. #/channels/myChannel -> myChannel)
-				parts := strings.Split(ref, "/")
-				if len(parts) > 0 {
-					chRef = parts[len(parts)-1]
+				if strings.HasPrefix(ref, "#/channels/") {
+					chRef = strings.TrimPrefix(ref, "#/channels/")
+				} else {
+					parts := strings.Split(ref, "/")
+					if len(parts) > 0 {
+						chRef = parts[len(parts)-1]
+					}
 				}
 			}
 		}
@@ -131,10 +137,15 @@ func (w *Writer) writeV3(api *model.API, wr io.Writer, targetProtocol string, js
 
 	// Servers
 	for i, s := range api.Servers {
-		name := fmt.Sprintf("server%d", i)
+		name := s.Name
+		if name == "" {
+			name = fmt.Sprintf("server%d", i)
+		}
 		var protocol string
 
 		switch {
+		case s.Protocol != "":
+			protocol = s.Protocol
 		case targetProtocol != "" && targetProtocol != "auto":
 			protocol = targetProtocol
 		case targetProtocol == "auto":
@@ -146,9 +157,10 @@ func (w *Writer) writeV3(api *model.API, wr io.Writer, targetProtocol string, js
 		}
 
 		doc.Servers[name] = ServerV3{
-			Host:     s.URL,
-			Protocol: protocol,
-			Bindings: s.Bindings,
+			Host:        s.URL,
+			Protocol:    protocol,
+			Description: s.Description,
+			Bindings:    s.Bindings,
 		}
 	}
 
@@ -190,8 +202,11 @@ func (w *Writer) writeV3(api *model.API, wr io.Writer, targetProtocol string, js
 
 	for _, path := range paths {
 		item := api.Paths[path]
-		// Generate Channel ID from path
-		channelID := "channel_" + path // Simple sanitization needed in real app
+		// Generate Channel ID
+		channelID := item.Name
+		if channelID == "" {
+			channelID = path
+		}
 
 		doc.Channels[channelID] = Channel3{
 			Address: path,
@@ -204,7 +219,7 @@ func (w *Writer) writeV3(api *model.API, wr io.Writer, targetProtocol string, js
 			}
 			op := Operation3{
 				Action:      "send",
-				Channel:     channelID,
+				Channel:     map[string]string{"$ref": "#/channels/" + channelID},
 				Summary:     item.Post.Summary,
 				Description: item.Post.Description,
 				OperationID: item.Post.OperationID,
@@ -245,7 +260,7 @@ func (w *Writer) writeV3(api *model.API, wr io.Writer, targetProtocol string, js
 			}
 			op := Operation3{
 				Action:      "receive",
-				Channel:     channelID,
+				Channel:     map[string]string{"$ref": "#/channels/" + channelID},
 				Summary:     item.Get.Summary,
 				Description: item.Get.Description,
 				OperationID: item.Get.OperationID,

@@ -1,12 +1,12 @@
 {
-  "asyncapi": "2.6",
+  "asyncapi": "2.6.0",
   "info": {
     "title": "Task Management API",
     "version": "1.0.0",
     "description": "A comprehensive API for managing tasks, projects, developers, and notifications through webhook events."
   },
   "channels": {
-    "/developer/created": {
+    "developer/created": {
       "subscribe": {
         "operationId": "onDeveloperCreated",
         "summary": "Receive developer creation notifications",
@@ -15,7 +15,7 @@
         }
       }
     },
-    "/developer/deleted": {
+    "developer/deleted": {
       "subscribe": {
         "operationId": "onDeveloperDeleted",
         "summary": "Receive developer deletion notifications",
@@ -24,7 +24,7 @@
         }
       }
     },
-    "/developer/updated": {
+    "developer/updated": {
       "subscribe": {
         "operationId": "onDeveloperUpdated",
         "summary": "Receive developer update notifications",
@@ -33,7 +33,7 @@
         }
       }
     },
-    "/project/created": {
+    "project/created": {
       "subscribe": {
         "operationId": "onProjectCreated",
         "summary": "Receive project creation notifications",
@@ -42,7 +42,7 @@
         }
       }
     },
-    "/project/deleted": {
+    "project/deleted": {
       "subscribe": {
         "operationId": "onProjectDeleted",
         "summary": "Receive project deletion notifications",
@@ -51,7 +51,7 @@
         }
       }
     },
-    "/project/member-added": {
+    "project/member-added": {
       "subscribe": {
         "operationId": "onProjectMemberAdded",
         "summary": "Receive member addition notifications",
@@ -60,7 +60,7 @@
         }
       }
     },
-    "/project/member-removed": {
+    "project/member-removed": {
       "subscribe": {
         "operationId": "onProjectMemberRemoved",
         "summary": "Receive member removal notifications",
@@ -69,7 +69,7 @@
         }
       }
     },
-    "/project/updated": {
+    "project/updated": {
       "subscribe": {
         "operationId": "onProjectUpdated",
         "summary": "Receive project update notifications",
@@ -78,7 +78,7 @@
         }
       }
     },
-    "/task/assigned": {
+    "task/assigned": {
       "subscribe": {
         "operationId": "onTaskAssigned",
         "summary": "Receive task assignment notifications",
@@ -87,7 +87,7 @@
         }
       }
     },
-    "/task/commented": {
+    "task/commented": {
       "subscribe": {
         "operationId": "onTaskCommented",
         "summary": "Receive task comment notifications",
@@ -96,7 +96,7 @@
         }
       }
     },
-    "/task/created": {
+    "task/created": {
       "subscribe": {
         "operationId": "onTaskCreated",
         "summary": "Receive task creation notifications",
@@ -105,7 +105,7 @@
         }
       }
     },
-    "/task/deleted": {
+    "task/deleted": {
       "subscribe": {
         "operationId": "onTaskDeleted",
         "summary": "Receive task deletion notifications",
@@ -114,7 +114,7 @@
         }
       }
     },
-    "/task/updated": {
+    "task/updated": {
       "subscribe": {
         "operationId": "onTaskUpdated",
         "summary": "Receive task update notifications",
@@ -123,7 +123,7 @@
         }
       }
     },
-    "/webhook/triggered": {
+    "webhook/triggered": {
       "publish": {
         "operationId": "triggerWebhook",
         "summary": "Publish webhook trigger notifications",
@@ -134,17 +134,183 @@
     }
   },
   "servers": {
-    "server0": {
+    "production": {
       "url": "kafka.example.com:9092",
-      "protocol": "kafka"
+      "protocol": "kafka",
+      "description": "Production Kafka broker",
+      "security": [
+        {
+          "saslScram": []
+        }
+      ]
     },
-    "server1": {
+    "staging": {
       "url": "staging-kafka.example.com:9092",
-      "protocol": "kafka"
+      "protocol": "kafka",
+      "description": "Staging Kafka broker"
     },
-    "server2": {
+    "webhooks": {
       "url": "https://webhooks.example.com",
-      "protocol": "https"
+      "protocol": "https",
+      "description": "Webhook notification endpoint"
+    }
+  },
+  "components": {
+    "messages": {
+      "DeveloperCreated": {
+        "payload": {
+          "$ref": "#/components/schemas/Developer"
+        }
+      },
+      "DeveloperDeleted": {
+        "payload": {
+          "$ref": "#/components/schemas/Developer"
+        }
+      },
+      "DeveloperUpdated": {
+        "payload": {
+          "$ref": "#/components/schemas/Developer"
+        }
+      },
+      "ProjectCreated": {
+        "payload": {
+          "$ref": "#/components/schemas/Project"
+        }
+      },
+      "ProjectDeleted": {
+        "payload": {
+          "$ref": "#/components/schemas/Project"
+        }
+      },
+      "ProjectMemberAdded": {
+        "payload": {
+          "$ref": "#/components/schemas/Developer"
+        }
+      },
+      "ProjectMemberRemoved": {
+        "payload": {
+          "$ref": "#/components/schemas/Developer"
+        }
+      },
+      "ProjectUpdated": {
+        "payload": {
+          "$ref": "#/components/schemas/Project"
+        }
+      },
+      "TaskAssigned": {
+        "payload": {
+          "$ref": "#/components/schemas/Task"
+        }
+      },
+      "TaskCommented": {
+        "payload": {
+          "$ref": "#/components/schemas/Comment"
+        }
+      },
+      "TaskCreated": {
+        "payload": {
+          "$ref": "#/components/schemas/Task"
+        }
+      },
+      "TaskDeleted": {
+        "payload": {
+          "$ref": "#/components/schemas/Task"
+        }
+      },
+      "TaskUpdated": {
+        "payload": {
+          "$ref": "#/components/schemas/Task"
+        }
+      },
+      "WebhookTriggered": {
+        "payload": {
+          "$ref": "#/components/schemas/Webhook"
+        }
+      }
+    },
+    "schemas": {
+      "Task": {
+        "type": "object",
+        "required": ["id", "title", "status", "priority", "project_id", "reporter_id", "created_at", "updated_at"],
+        "properties": {
+          "id": {"type": "string"},
+          "title": {"type": "string"},
+          "description": {"type": "string"},
+          "status": {"type": "string", "enum": ["open", "in_progress", "review", "completed", "closed"]},
+          "priority": {"type": "string", "enum": ["low", "medium", "high", "critical"]},
+          "assignee_id": {"type": "string"},
+          "project_id": {"type": "string"},
+          "reporter_id": {"type": "string"},
+          "estimated_hours": {"type": "number", "format": "double"},
+          "actual_hours": {"type": "number", "format": "double"},
+          "due_date": {"type": "string", "format": "date-time"},
+          "tags": {"type": "array", "items": {"type": "string"}},
+          "created_at": {"type": "string", "format": "date-time"},
+          "updated_at": {"type": "string", "format": "date-time"}
+        }
+      },
+      "Project": {
+        "type": "object",
+        "required": ["id", "name", "status", "owner_id", "member_count", "task_count", "created_at", "updated_at"],
+        "properties": {
+          "id": {"type": "string"},
+          "name": {"type": "string"},
+          "description": {"type": "string"},
+          "status": {"type": "string", "enum": ["planning", "active", "on_hold", "completed", "archived"]},
+          "owner_id": {"type": "string"},
+          "start_date": {"type": "string", "format": "date-time"},
+          "end_date": {"type": "string", "format": "date-time"},
+          "budget": {"type": "number", "format": "double"},
+          "member_count": {"type": "integer"},
+          "task_count": {"type": "integer"},
+          "created_at": {"type": "string", "format": "date-time"},
+          "updated_at": {"type": "string", "format": "date-time"}
+        }
+      },
+      "Developer": {
+        "type": "object",
+        "required": ["id", "username", "email", "full_name", "role", "active", "created_at", "updated_at"],
+        "properties": {
+          "id": {"type": "string"},
+          "username": {"type": "string"},
+          "email": {"type": "string", "format": "email"},
+          "full_name": {"type": "string"},
+          "role": {"type": "string", "enum": ["junior", "mid", "senior", "lead", "principal"]},
+          "team": {"type": "string"},
+          "skills": {"type": "array", "items": {"type": "string"}},
+          "active": {"type": "boolean"},
+          "hire_date": {"type": "string", "format": "date-time"},
+          "avatar_url": {"type": "string", "format": "uri"},
+          "created_at": {"type": "string", "format": "date-time"},
+          "updated_at": {"type": "string", "format": "date-time"}
+        }
+      },
+      "Comment": {
+        "type": "object",
+        "required": ["id", "task_id", "author_id", "content", "created_at", "updated_at"],
+        "properties": {
+          "id": {"type": "string"},
+          "task_id": {"type": "string"},
+          "author_id": {"type": "string"},
+          "content": {"type": "string"},
+          "created_at": {"type": "string", "format": "date-time"},
+          "updated_at": {"type": "string", "format": "date-time"}
+        }
+      },
+      "Webhook": {
+        "type": "object",
+        "required": ["id", "name", "url", "events", "active", "created_at", "updated_at"],
+        "properties": {
+          "id": {"type": "string"},
+          "name": {"type": "string"},
+          "url": {"type": "string", "format": "uri"},
+          "events": {"type": "array", "items": {"type": "string"}},
+          "active": {"type": "boolean"},
+          "secret": {"type": "string"},
+          "created_at": {"type": "string", "format": "date-time"},
+          "updated_at": {"type": "string", "format": "date-time"}
+        }
+      }
     }
   }
 }

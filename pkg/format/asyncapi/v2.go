@@ -36,8 +36,10 @@ func (p *Parser) parseV2(data []byte) (*model.API, error) {
 	for _, name := range serverNames {
 		s := doc.Servers[name]
 		api.Servers = append(api.Servers, model.Server{
+			Name:        name,
 			URL:         s.URL,
-			Description: s.Protocol,
+			Protocol:    s.Protocol,
+			Description: s.Description,
 			Bindings:    s.Bindings,
 		})
 	}
@@ -46,12 +48,14 @@ func (p *Parser) parseV2(data []byte) (*model.API, error) {
 	// TODO: map other components if needed
 
 	for path, ch := range doc.Channels {
-		// Normalize path
-		if !strings.HasPrefix(path, "/") {
-			path = "/" + path
-		}
+		originalName := path
+		
+		// Generate a nice name for the channel ID (camelCase)
+		channelID := p.toCamelCase(originalName)
 
-		pi := model.PathItem{}
+		pi := model.PathItem{
+			Name: channelID,
+		}
 		pi.Parameters = p.convertParameters(ch.Parameters)
 
 		if ch.Publish != nil {
@@ -161,6 +165,28 @@ func (p *Parser) convertSchemaPayload(payload interface{}) *model.Schema {
 	return &schema
 }
 
+func (p *Parser) toCamelCase(s string) string {
+	parts := strings.FieldsFunc(s, func(r rune) bool {
+		return r == '/' || r == '-' || r == '_'
+	})
+	
+	if len(parts) == 0 {
+		return s
+	}
+
+	var sb strings.Builder
+	for i, part := range parts {
+		if i == 0 {
+			sb.WriteString(part) // Keep first part as is (or lowercase?) - usually already lowercase
+		} else {
+			if len(part) > 0 {
+				sb.WriteString(strings.ToUpper(string(part[0])) + part[1:])
+			}
+		}
+	}
+	return sb.String()
+}
+
 
 // writeV2 implements AsyncAPI 2.x writing
 func (w *Writer) writeV2(api *model.API, wr io.Writer, targetProtocol string, jsonOutput bool) error {
@@ -177,24 +203,30 @@ func (w *Writer) writeV2(api *model.API, wr io.Writer, targetProtocol string, js
 
 	// Servers
 	for i, s := range api.Servers {
-		name := fmt.Sprintf("server%d", i)
+		name := s.Name
+		if name == "" {
+			name = fmt.Sprintf("server%d", i)
+		}
 		var protocol string
 
 		switch {
+		case s.Protocol != "":
+			protocol = s.Protocol
 		case targetProtocol != "" && targetProtocol != "auto":
 			protocol = targetProtocol
 		case targetProtocol == "auto":
 			protocol = detect.Protocol(s.URL)
-		case s.Description != "" && len(s.Description) < 10: // Check if description is a short string, likely a protocol
+		case s.Description != "" && len(s.Description) < 10: // Fallback legacy check
 			protocol = s.Description
 		default:
 			protocol = detect.Protocol(s.URL)
 		}
 
 		doc.Servers[name] = Server{
-			URL:      s.URL,
-			Protocol: protocol,
-			Bindings: s.Bindings,
+			URL:         s.URL,
+			Protocol:    protocol,
+			Description: s.Description,
+			Bindings:    s.Bindings,
 		}
 	}
 

@@ -21,6 +21,10 @@ A comprehensive API for managing tasks, projects, developers, and notifications.
 
     Successful response
 
++ Response 401 (application/json)
+
+    Unauthorized
+
 ### Create a new developer [POST]
 
 + Request
@@ -30,6 +34,10 @@ A comprehensive API for managing tasks, projects, developers, and notifications.
 + Response 201 (application/json)
 
     Developer created
+
++ Response 400 (application/json)
+
+    Invalid input
 
 ## Resource [/developers/{developerId}]
 
@@ -55,6 +63,10 @@ A comprehensive API for managing tasks, projects, developers, and notifications.
 
     Developer deleted
 
++ Response 404 (application/json)
+
+    Developer not found
+
 ### Update a developer [PATCH]
 
 + Parameters
@@ -68,6 +80,10 @@ A comprehensive API for managing tasks, projects, developers, and notifications.
 
     Developer updated
 
++ Response 404 (application/json)
+
+    Developer not found
+
 ## Resource [/developers/{developerId}/tasks]
 
 ### List developer tasks [GET]
@@ -79,6 +95,10 @@ A comprehensive API for managing tasks, projects, developers, and notifications.
 + Response 200 (application/json)
 
     Successful response
+
++ Response 404 (application/json)
+
+    Developer not found
 
 # Group Projects
 
@@ -96,6 +116,10 @@ A comprehensive API for managing tasks, projects, developers, and notifications.
 
     Successful response
 
++ Response 401 (application/json)
+
+    Unauthorized
+
 ### Create a new project [POST]
 
 + Request
@@ -105,6 +129,10 @@ A comprehensive API for managing tasks, projects, developers, and notifications.
 + Response 201 (application/json)
 
     Project created
+
++ Response 400 (application/json)
+
+    Invalid input
 
 ## Resource [/projects/{projectId}]
 
@@ -130,6 +158,10 @@ A comprehensive API for managing tasks, projects, developers, and notifications.
 
     Project deleted
 
++ Response 404 (application/json)
+
+    Project not found
+
 ### Update a project [PATCH]
 
 + Parameters
@@ -143,6 +175,10 @@ A comprehensive API for managing tasks, projects, developers, and notifications.
 
     Project updated
 
++ Response 404 (application/json)
+
+    Project not found
+
 ## Resource [/projects/{projectId}/members]
 
 ### List project members [GET]
@@ -153,6 +189,10 @@ A comprehensive API for managing tasks, projects, developers, and notifications.
 + Response 200 (application/json)
 
     Successful response
+
++ Response 404 (application/json)
+
+    Project not found
 
 ### Add a member [POST]
 
@@ -167,6 +207,10 @@ A comprehensive API for managing tasks, projects, developers, and notifications.
 
     Member added
 
++ Response 400 (application/json)
+
+    Invalid input
+
 ## Resource [/projects/{projectId}/members/{developerId}]
 
 ### Remove a member [DELETE]
@@ -178,6 +222,10 @@ A comprehensive API for managing tasks, projects, developers, and notifications.
 + Response 204 (application/json)
 
     Member removed
+
++ Response 404 (application/json)
+
+    Project or Developer not found
 
 # Group Tasks
 
@@ -271,6 +319,10 @@ A comprehensive API for managing tasks, projects, developers, and notifications.
 
     Successful response
 
++ Response 404 (application/json)
+
+    Task not found
+
 ### Add a comment [POST]
 
 + Parameters
@@ -284,6 +336,10 @@ A comprehensive API for managing tasks, projects, developers, and notifications.
 
     Comment created
 
++ Response 400 (application/json)
+
+    Invalid input
+
 # Group Webhooks
 
 ## Resource [/webhooks]
@@ -294,6 +350,10 @@ A comprehensive API for managing tasks, projects, developers, and notifications.
 
     Successful response
 
++ Response 401 (application/json)
+
+    Unauthorized
+
 ### Create a webhook [POST]
 
 + Request
@@ -303,6 +363,10 @@ A comprehensive API for managing tasks, projects, developers, and notifications.
 + Response 201 (application/json)
 
     Webhook created
+
++ Response 400 (application/json)
+
+    Invalid input
 
 ## Resource [/webhooks/{webhookId}]
 
@@ -328,6 +392,10 @@ A comprehensive API for managing tasks, projects, developers, and notifications.
 
     Webhook deleted
 
++ Response 404 (application/json)
+
+    Webhook not found
+
 ### Update a webhook [PATCH]
 
 + Parameters
@@ -340,6 +408,10 @@ A comprehensive API for managing tasks, projects, developers, and notifications.
 + Response 200 (application/json)
 
     Webhook updated
+
++ Response 404 (application/json)
+
+    Webhook not found
 
 ## Data Structures
 

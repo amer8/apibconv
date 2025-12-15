@@ -40,8 +40,10 @@ type License struct {
 
 // Server object represents a server for the API.
 type Server struct {
+	Name        string // Server name/ID (e.g. "production")
 	URL         string
 	Description string
+	Protocol    string // Protocol (e.g. "kafka", "https") - primarily for AsyncAPI
 	Variables   map[string]ServerVariable
 	Bindings    map[string]interface{} // Protocol-specific server bindings
 }

@@ -2,107 +2,576 @@
   "swagger": "2.0",
   "info": {
     "title": "Task Management API",
-    "description": "A comprehensive API for managing tasks, projects, developers, and notifications through webhook events.",
-    "version": "1.0.0"
+    "version": "1.0.0",
+    "description": "A comprehensive API for managing tasks, projects, developers, and notifications.",
+    "contact": {
+      "name": "API Support",
+      "email": "support@example.com"
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
   },
-  "host": "kafka.example.com:9092",
+  "host": "api.example.com",
+  "basePath": "/v1",
+  "schemes": ["https"],
+  "consumes": ["application/json"],
+  "produces": ["application/json"],
+  "securityDefinitions": {
+    "bearerAuth": {
+      "type": "apiKey",
+      "name": "Authorization",
+      "in": "header",
+      "description": "Bearer token authentication"
+    },
+    "apiKey": {
+      "type": "apiKey",
+      "name": "X-API-Key",
+      "in": "header"
+    }
+  },
+  "security": [{"bearerAuth": []}],
+  "tags": [
+    {"name": "Tasks", "description": "Task management operations"},
+    {"name": "Projects", "description": "Project management operations"},
+    {"name": "Developers", "description": "Developer management operations"},
+    {"name": "Webhooks", "description": "Webhook configuration operations"}
+  ],
   "paths": {
-    "developer/created": {
+    "/tasks": {
       "get": {
-        "summary": "Receive developer creation notifications",
-        "operationId": "onDeveloperCreated",
-        "responses": null
-      }
-    },
-    "developer/deleted": {
-      "get": {
-        "summary": "Receive developer deletion notifications",
-        "operationId": "onDeveloperDeleted",
-        "responses": null
-      }
-    },
-    "developer/updated": {
-      "get": {
-        "summary": "Receive developer update notifications",
-        "operationId": "onDeveloperUpdated",
-        "responses": null
-      }
-    },
-    "project/created": {
-      "get": {
-        "summary": "Receive project creation notifications",
-        "operationId": "onProjectCreated",
-        "responses": null
-      }
-    },
-    "project/deleted": {
-      "get": {
-        "summary": "Receive project deletion notifications",
-        "operationId": "onProjectDeleted",
-        "responses": null
-      }
-    },
-    "project/member-added": {
-      "get": {
-        "summary": "Receive member addition notifications",
-        "operationId": "onProjectMemberAdded",
-        "responses": null
-      }
-    },
-    "project/member-removed": {
-      "get": {
-        "summary": "Receive member removal notifications",
-        "operationId": "onProjectMemberRemoved",
-        "responses": null
-      }
-    },
-    "project/updated": {
-      "get": {
-        "summary": "Receive project update notifications",
-        "operationId": "onProjectUpdated",
-        "responses": null
-      }
-    },
-    "task/assigned": {
-      "get": {
-        "summary": "Receive task assignment notifications",
-        "operationId": "onTaskAssigned",
-        "responses": null
-      }
-    },
-    "task/commented": {
-      "get": {
-        "summary": "Receive task comment notifications",
-        "operationId": "onTaskCommented",
-        "responses": null
-      }
-    },
-    "task/created": {
-      "get": {
-        "summary": "Receive task creation notifications",
-        "operationId": "onTaskCreated",
-        "responses": null
-      }
-    },
-    "task/deleted": {
-      "get": {
-        "summary": "Receive task deletion notifications",
-        "operationId": "onTaskDeleted",
-        "responses": null
-      }
-    },
-    "task/updated": {
-      "get": {
-        "summary": "Receive task update notifications",
-        "operationId": "onTaskUpdated",
-        "responses": null
-      }
-    },
-    "webhook/triggered": {
+        "tags": ["Tasks"],
+        "summary": "List all tasks",
+        "operationId": "listTasks",
+        "parameters": [
+          {"name": "status", "in": "query", "type": "string", "enum": ["open", "in_progress", "review", "completed", "closed"]},
+          {"name": "assignee", "in": "query", "type": "string"},
+          {"name": "project", "in": "query", "type": "string"},
+          {"name": "priority", "in": "query", "type": "string", "enum": ["low", "medium", "high", "critical"]},
+          {"name": "limit", "in": "query", "type": "integer", "default": 50, "maximum": 100},
+          {"name": "offset", "in": "query", "type": "integer", "default": 0}
+        ],
+        "responses": {
+          "200": {"description": "Successful response", "schema": {"type": "array", "items": {"$ref": "#/definitions/Task"}}},
+          "401": {"description": "Unauthorized", "schema": {"$ref": "#/definitions/Error"}}
+        }
+      },
       "post": {
-        "summary": "Publish webhook trigger notifications",
-        "operationId": "triggerWebhook",
-        "responses": null
+        "tags": ["Tasks"],
+        "summary": "Create a new task",
+        "operationId": "createTask",
+        "parameters": [{"name": "body", "in": "body", "required": true, "schema": {"$ref": "#/definitions/TaskCreate"}}],
+        "responses": {
+          "201": {"description": "Task created", "schema": {"$ref": "#/definitions/Task"}},
+          "400": {"description": "Invalid input", "schema": {"$ref": "#/definitions/Error"}}
+        }
+      }
+    },
+    "/tasks/{taskId}": {
+      "get": {
+        "tags": ["Tasks"],
+        "summary": "Get task by ID",
+        "operationId": "getTask",
+        "parameters": [{"name": "taskId", "in": "path", "required": true, "type": "string"}],
+        "responses": {
+          "200": {"description": "Successful response", "schema": {"$ref": "#/definitions/Task"}},
+          "404": {"description": "Task not found", "schema": {"$ref": "#/definitions/Error"}}
+        }
+      },
+      "patch": {
+        "tags": ["Tasks"],
+        "summary": "Update a task",
+        "operationId": "updateTask",
+        "parameters": [
+          {"name": "taskId", "in": "path", "required": true, "type": "string"},
+          {"name": "body", "in": "body", "required": true, "schema": {"$ref": "#/definitions/TaskUpdate"}}
+        ],
+        "responses": {
+          "200": {"description": "Task updated", "schema": {"$ref": "#/definitions/Task"}},
+          "404": {"description": "Task not found", "schema": {"$ref": "#/definitions/Error"}}
+        }
+      },
+      "delete": {
+        "tags": ["Tasks"],
+        "summary": "Delete a task",
+        "operationId": "deleteTask",
+        "parameters": [{"name": "taskId", "in": "path", "required": true, "type": "string"}],
+        "responses": {
+          "204": {"description": "Task deleted"},
+          "404": {"description": "Task not found", "schema": {"$ref": "#/definitions/Error"}}
+        }
+      }
+    },
+    "/tasks/{taskId}/comments": {
+      "get": {
+        "tags": ["Tasks"],
+        "summary": "List task comments",
+        "operationId": "listTaskComments",
+        "parameters": [{"name": "taskId", "in": "path", "required": true, "type": "string"}],
+        "responses": {
+          "200": {"description": "Successful response", "schema": {"type": "array", "items": {"$ref": "#/definitions/Comment"}}},
+          "404": {"description": "Task not found", "schema": {"$ref": "#/definitions/Error"}}
+        }
+      },
+      "post": {
+        "tags": ["Tasks"],
+        "summary": "Add a comment",
+        "operationId": "createComment",
+        "parameters": [
+          {"name": "taskId", "in": "path", "required": true, "type": "string"},
+          {"name": "body", "in": "body", "required": true, "schema": {"$ref": "#/definitions/CommentCreate"}}
+        ],
+        "responses": {
+          "201": {"description": "Comment created", "schema": {"$ref": "#/definitions/Comment"}},
+          "400": {"description": "Invalid input", "schema": {"$ref": "#/definitions/Error"}}
+        }
+      }
+    },
+    "/projects": {
+      "get": {
+        "tags": ["Projects"],
+        "summary": "List all projects",
+        "operationId": "listProjects",
+        "parameters": [
+          {"name": "status", "in": "query", "type": "string", "enum": ["planning", "active", "on_hold", "completed", "archived"]},
+          {"name": "owner", "in": "query", "type": "string"},
+          {"name": "limit", "in": "query", "type": "integer", "default": 50},
+          {"name": "offset", "in": "query", "type": "integer", "default": 0}
+        ],
+        "responses": {
+          "200": {"description": "Successful response", "schema": {"type": "array", "items": {"$ref": "#/definitions/Project"}}},
+          "401": {"description": "Unauthorized", "schema": {"$ref": "#/definitions/Error"}}
+        }
+      },
+      "post": {
+        "tags": ["Projects"],
+        "summary": "Create a new project",
+        "operationId": "createProject",
+        "parameters": [{"name": "body", "in": "body", "required": true, "schema": {"$ref": "#/definitions/ProjectCreate"}}],
+        "responses": {
+          "201": {"description": "Project created", "schema": {"$ref": "#/definitions/Project"}},
+          "400": {"description": "Invalid input", "schema": {"$ref": "#/definitions/Error"}}
+        }
+      }
+    },
+    "/projects/{projectId}": {
+      "get": {
+        "tags": ["Projects"],
+        "summary": "Get project by ID",
+        "operationId": "getProject",
+        "parameters": [{"name": "projectId", "in": "path", "required": true, "type": "string"}],
+        "responses": {
+          "200": {"description": "Successful response", "schema": {"$ref": "#/definitions/Project"}},
+          "404": {"description": "Project not found", "schema": {"$ref": "#/definitions/Error"}}
+        }
+      },
+      "patch": {
+        "tags": ["Projects"],
+        "summary": "Update a project",
+        "operationId": "updateProject",
+        "parameters": [
+          {"name": "projectId", "in": "path", "required": true, "type": "string"},
+          {"name": "body", "in": "body", "required": true, "schema": {"$ref": "#/definitions/ProjectUpdate"}}
+        ],
+        "responses": {
+          "200": {"description": "Project updated", "schema": {"$ref": "#/definitions/Project"}},
+          "404": {"description": "Project not found", "schema": {"$ref": "#/definitions/Error"}}
+        }
+      },
+      "delete": {
+        "tags": ["Projects"],
+        "summary": "Delete a project",
+        "operationId": "deleteProject",
+        "parameters": [{"name": "projectId", "in": "path", "required": true, "type": "string"}],
+        "responses": {
+          "204": {"description": "Project deleted"},
+          "404": {"description": "Project not found", "schema": {"$ref": "#/definitions/Error"}}
+        }
+      }
+    },
+    "/projects/{projectId}/members": {
+      "get": {
+        "tags": ["Projects"],
+        "summary": "List project members",
+        "operationId": "listProjectMembers",
+        "parameters": [{"name": "projectId", "in": "path", "required": true, "type": "string"}],
+        "responses": {
+          "200": {"description": "Successful response", "schema": {"type": "array", "items": {"$ref": "#/definitions/Developer"}}},
+          "404": {"description": "Project not found", "schema": {"$ref": "#/definitions/Error"}}
+        }
+      },
+      "post": {
+        "tags": ["Projects"],
+        "summary": "Add a member",
+        "operationId": "addProjectMember",
+        "parameters": [
+          {"name": "projectId", "in": "path", "required": true, "type": "string"},
+          {"name": "body", "in": "body", "required": true, "schema": {"$ref": "#/definitions/MemberAdd"}}
+        ],
+        "responses": {
+          "201": {"description": "Member added", "schema": {"$ref": "#/definitions/Developer"}},
+          "400": {"description": "Invalid input", "schema": {"$ref": "#/definitions/Error"}}
+        }
+      }
+    },
+    "/projects/{projectId}/members/{developerId}": {
+      "delete": {
+        "tags": ["Projects"],
+        "summary": "Remove a member",
+        "operationId": "removeProjectMember",
+        "parameters": [
+          {"name": "projectId", "in": "path", "required": true, "type": "string"},
+          {"name": "developerId", "in": "path", "required": true, "type": "string"}
+        ],
+        "responses": {
+          "204": {"description": "Member removed"},
+          "404": {"description": "Project or Developer not found", "schema": {"$ref": "#/definitions/Error"}}
+        }
+      }
+    },
+    "/developers": {
+      "get": {
+        "tags": ["Developers"],
+        "summary": "List all developers",
+        "operationId": "listDevelopers",
+        "parameters": [
+          {"name": "role", "in": "query", "type": "string", "enum": ["junior", "mid", "senior", "lead", "principal"]},
+          {"name": "team", "in": "query", "type": "string"},
+          {"name": "active", "in": "query", "type": "boolean"},
+          {"name": "limit", "in": "query", "type": "integer", "default": 50},
+          {"name": "offset", "in": "query", "type": "integer", "default": 0}
+        ],
+        "responses": {
+          "200": {"description": "Successful response", "schema": {"type": "array", "items": {"$ref": "#/definitions/Developer"}}},
+          "401": {"description": "Unauthorized", "schema": {"$ref": "#/definitions/Error"}}
+        }
+      },
+      "post": {
+        "tags": ["Developers"],
+        "summary": "Create a new developer",
+        "operationId": "createDeveloper",
+        "parameters": [{"name": "body", "in": "body", "required": true, "schema": {"$ref": "#/definitions/DeveloperCreate"}}],
+        "responses": {
+          "201": {"description": "Developer created", "schema": {"$ref": "#/definitions/Developer"}},
+          "400": {"description": "Invalid input", "schema": {"$ref": "#/definitions/Error"}}
+        }
+      }
+    },
+    "/developers/{developerId}": {
+      "get": {
+        "tags": ["Developers"],
+        "summary": "Get developer by ID",
+        "operationId": "getDeveloper",
+        "parameters": [{"name": "developerId", "in": "path", "required": true, "type": "string"}],
+        "responses": {
+          "200": {"description": "Successful response", "schema": {"$ref": "#/definitions/Developer"}},
+          "404": {"description": "Developer not found", "schema": {"$ref": "#/definitions/Error"}}
+        }
+      },
+      "patch": {
+        "tags": ["Developers"],
+        "summary": "Update a developer",
+        "operationId": "updateDeveloper",
+        "parameters": [
+          {"name": "developerId", "in": "path", "required": true, "type": "string"},
+          {"name": "body", "in": "body", "required": true, "schema": {"$ref": "#/definitions/DeveloperUpdate"}}
+        ],
+        "responses": {
+          "200": {"description": "Developer updated", "schema": {"$ref": "#/definitions/Developer"}},
+          "404": {"description": "Developer not found", "schema": {"$ref": "#/definitions/Error"}}
+        }
+      },
+      "delete": {
+        "tags": ["Developers"],
+        "summary": "Delete a developer",
+        "operationId": "deleteDeveloper",
+        "parameters": [{"name": "developerId", "in": "path", "required": true, "type": "string"}],
+        "responses": {
+          "204": {"description": "Developer deleted"},
+          "404": {"description": "Developer not found", "schema": {"$ref": "#/definitions/Error"}}
+        }
+      }
+    },
+    "/developers/{developerId}/tasks": {
+      "get": {
+        "tags": ["Developers"],
+        "summary": "List developer tasks",
+        "operationId": "listDeveloperTasks",
+        "parameters": [
+          {"name": "developerId", "in": "path", "required": true, "type": "string"},
+          {"name": "status", "in": "query", "type": "string"}
+        ],
+        "responses": {
+          "200": {"description": "Successful response", "schema": {"type": "array", "items": {"$ref": "#/definitions/Task"}}},
+          "404": {"description": "Developer not found", "schema": {"$ref": "#/definitions/Error"}}
+        }
+      }
+    },
+    "/webhooks": {
+      "get": {
+        "tags": ["Webhooks"],
+        "summary": "List all webhooks",
+        "operationId": "listWebhooks",
+        "responses": {
+          "200": {"description": "Successful response", "schema": {"type": "array", "items": {"$ref": "#/definitions/Webhook"}}},
+          "401": {"description": "Unauthorized", "schema": {"$ref": "#/definitions/Error"}}
+        }
+      },
+      "post": {
+        "tags": ["Webhooks"],
+        "summary": "Create a webhook",
+        "operationId": "createWebhook",
+        "parameters": [{"name": "body", "in": "body", "required": true, "schema": {"$ref": "#/definitions/WebhookCreate"}}],
+        "responses": {
+          "201": {"description": "Webhook created", "schema": {"$ref": "#/definitions/Webhook"}},
+          "400": {"description": "Invalid input", "schema": {"$ref": "#/definitions/Error"}}
+        }
+      }
+    },
+    "/webhooks/{webhookId}": {
+      "get": {
+        "tags": ["Webhooks"],
+        "summary": "Get webhook by ID",
+        "operationId": "getWebhook",
+        "parameters": [{"name": "webhookId", "in": "path", "required": true, "type": "string"}],
+        "responses": {
+          "200": {"description": "Successful response", "schema": {"$ref": "#/definitions/Webhook"}},
+          "404": {"description": "Webhook not found", "schema": {"$ref": "#/definitions/Error"}}
+        }
+      },
+      "patch": {
+        "tags": ["Webhooks"],
+        "summary": "Update a webhook",
+        "operationId": "updateWebhook",
+        "parameters": [
+          {"name": "webhookId", "in": "path", "required": true, "type": "string"},
+          {"name": "body", "in": "body", "required": true, "schema": {"$ref": "#/definitions/WebhookUpdate"}}
+        ],
+        "responses": {
+          "200": {"description": "Webhook updated", "schema": {"$ref": "#/definitions/Webhook"}},
+          "404": {"description": "Webhook not found", "schema": {"$ref": "#/definitions/Error"}}
+        }
+      },
+      "delete": {
+        "tags": ["Webhooks"],
+        "summary": "Delete a webhook",
+        "operationId": "deleteWebhook",
+        "parameters": [{"name": "webhookId", "in": "path", "required": true, "type": "string"}],
+        "responses": {
+          "204": {"description": "Webhook deleted"},
+          "404": {"description": "Webhook not found", "schema": {"$ref": "#/definitions/Error"}}
+        }
+      }
+    }
+  },
+  "definitions": {
+    "Task": {
+      "type": "object",
+      "required": ["id", "title", "status", "priority", "project_id", "reporter_id", "created_at", "updated_at"],
+      "properties": {
+        "id": {"type": "string"},
+        "title": {"type": "string"},
+        "description": {"type": "string"},
+        "status": {"type": "string", "enum": ["open", "in_progress", "review", "completed", "closed"]},
+        "priority": {"type": "string", "enum": ["low", "medium", "high", "critical"]},
+        "assignee_id": {"type": "string"},
+        "project_id": {"type": "string"},
+        "reporter_id": {"type": "string"},
+        "estimated_hours": {"type": "number", "format": "double"},
+        "actual_hours": {"type": "number", "format": "double"},
+        "due_date": {"type": "string", "format": "date-time"},
+        "tags": {"type": "array", "items": {"type": "string"}},
+        "created_at": {"type": "string", "format": "date-time"},
+        "updated_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "TaskCreate": {
+      "type": "object",
+      "required": ["title", "priority", "project_id", "reporter_id"],
+      "properties": {
+        "title": {"type": "string"},
+        "description": {"type": "string"},
+        "status": {"type": "string", "enum": ["open", "in_progress"]},
+        "priority": {"type": "string", "enum": ["low", "medium", "high", "critical"]},
+        "assignee_id": {"type": "string"},
+        "project_id": {"type": "string"},
+        "reporter_id": {"type": "string"},
+        "estimated_hours": {"type": "number"},
+        "due_date": {"type": "string", "format": "date-time"},
+        "tags": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "TaskUpdate": {
+      "type": "object",
+      "properties": {
+        "title": {"type": "string"},
+        "description": {"type": "string"},
+        "status": {"type": "string", "enum": ["open", "in_progress", "review", "completed", "closed"]},
+        "priority": {"type": "string", "enum": ["low", "medium", "high", "critical"]},
+        "assignee_id": {"type": "string"},
+        "estimated_hours": {"type": "number"},
+        "actual_hours": {"type": "number"},
+        "due_date": {"type": "string", "format": "date-time"},
+        "tags": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "Project": {
+      "type": "object",
+      "required": ["id", "name", "status", "owner_id", "member_count", "task_count", "created_at", "updated_at"],
+      "properties": {
+        "id": {"type": "string"},
+        "name": {"type": "string"},
+        "description": {"type": "string"},
+        "status": {"type": "string", "enum": ["planning", "active", "on_hold", "completed", "archived"]},
+        "owner_id": {"type": "string"},
+        "start_date": {"type": "string", "format": "date-time"},
+        "end_date": {"type": "string", "format": "date-time"},
+        "budget": {"type": "number", "format": "double"},
+        "member_count": {"type": "integer"},
+        "task_count": {"type": "integer"},
+        "created_at": {"type": "string", "format": "date-time"},
+        "updated_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "ProjectCreate": {
+      "type": "object",
+      "required": ["name", "owner_id"],
+      "properties": {
+        "name": {"type": "string"},
+        "description": {"type": "string"},
+        "status": {"type": "string", "enum": ["planning", "active"]},
+        "owner_id": {"type": "string"},
+        "start_date": {"type": "string", "format": "date-time"},
+        "end_date": {"type": "string", "format": "date-time"},
+        "budget": {"type": "number"}
+      }
+    },
+    "ProjectUpdate": {
+      "type": "object",
+      "properties": {
+        "name": {"type": "string"},
+        "description": {"type": "string"},
+        "status": {"type": "string", "enum": ["planning", "active", "on_hold", "completed", "archived"]},
+        "owner_id": {"type": "string"},
+        "start_date": {"type": "string", "format": "date-time"},
+        "end_date": {"type": "string", "format": "date-time"},
+        "budget": {"type": "number"}
+      }
+    },
+    "Developer": {
+      "type": "object",
+      "required": ["id", "username", "email", "full_name", "role", "active", "created_at", "updated_at"],
+      "properties": {
+        "id": {"type": "string"},
+        "username": {"type": "string"},
+        "email": {"type": "string", "format": "email"},
+        "full_name": {"type": "string"},
+        "role": {"type": "string", "enum": ["junior", "mid", "senior", "lead", "principal"]},
+        "team": {"type": "string"},
+        "skills": {"type": "array", "items": {"type": "string"}},
+        "active": {"type": "boolean"},
+        "hire_date": {"type": "string", "format": "date-time"},
+        "avatar_url": {"type": "string", "format": "uri"},
+        "created_at": {"type": "string", "format": "date-time"},
+        "updated_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "DeveloperCreate": {
+      "type": "object",
+      "required": ["username", "email", "full_name", "role"],
+      "properties": {
+        "username": {"type": "string"},
+        "email": {"type": "string", "format": "email"},
+        "full_name": {"type": "string"},
+        "role": {"type": "string", "enum": ["junior", "mid", "senior", "lead", "principal"]},
+        "team": {"type": "string"},
+        "skills": {"type": "array", "items": {"type": "string"}},
+        "hire_date": {"type": "string", "format": "date-time"},
+        "avatar_url": {"type": "string", "format": "uri"}
+      }
+    },
+    "DeveloperUpdate": {
+      "type": "object",
+      "properties": {
+        "username": {"type": "string"},
+        "email": {"type": "string", "format": "email"},
+        "full_name": {"type": "string"},
+        "role": {"type": "string", "enum": ["junior", "mid", "senior", "lead", "principal"]},
+        "team": {"type": "string"},
+        "skills": {"type": "array", "items": {"type": "string"}},
+        "active": {"type": "boolean"},
+        "avatar_url": {"type": "string", "format": "uri"}
+      }
+    },
+    "Comment": {
+      "type": "object",
+      "required": ["id", "task_id", "author_id", "content", "created_at", "updated_at"],
+      "properties": {
+        "id": {"type": "string"},
+        "task_id": {"type": "string"},
+        "author_id": {"type": "string"},
+        "content": {"type": "string"},
+        "created_at": {"type": "string", "format": "date-time"},
+        "updated_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "CommentCreate": {
+      "type": "object",
+      "required": ["author_id", "content"],
+      "properties": {
+        "author_id": {"type": "string"},
+        "content": {"type": "string"}
+      }
+    },
+    "MemberAdd": {
+      "type": "object",
+      "required": ["developer_id"],
+      "properties": {
+        "developer_id": {"type": "string"}
+      }
+    },
+    "Webhook": {
+      "type": "object",
+      "required": ["id", "name", "url", "events", "active", "created_at", "updated_at"],
+      "properties": {
+        "id": {"type": "string"},
+        "name": {"type": "string"},
+        "url": {"type": "string", "format": "uri"},
+        "events": {"type": "array", "items": {"type": "string"}},
+        "active": {"type": "boolean"},
+        "secret": {"type": "string"},
+        "created_at": {"type": "string", "format": "date-time"},
+        "updated_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "WebhookCreate": {
+      "type": "object",
+      "required": ["name", "url", "events"],
+      "properties": {
+        "name": {"type": "string"},
+        "url": {"type": "string", "format": "uri"},
+        "events": {"type": "array", "items": {"type": "string"}},
+        "active": {"type": "boolean"},
+        "secret": {"type": "string"}
+      }
+    },
+    "WebhookUpdate": {
+      "type": "object",
+      "properties": {
+        "name": {"type": "string"},
+        "url": {"type": "string", "format": "uri"},
+        "events": {"type": "array", "items": {"type": "string"}},
+        "active": {"type": "boolean"},
+        "secret": {"type": "string"}
+      }
+    },
+    "Error": {
+      "type": "object",
+      "required": ["code", "message"],
+      "properties": {
+        "code": {"type": "integer"},
+        "message": {"type": "string"}
       }
     }
   }

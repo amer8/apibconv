@@ -16,6 +16,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/definitions/DeveloperCreated'
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /developer/deleted:
     get:
       summary: Receive developer deletion notifications
@@ -27,6 +33,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/definitions/DeveloperDeleted'
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /developer/updated:
     get:
       summary: Receive developer update notifications
@@ -38,6 +50,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/definitions/DeveloperUpdated'
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /project/created:
     get:
       summary: Receive project creation notifications
@@ -49,6 +67,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/definitions/ProjectCreated'
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /project/deleted:
     get:
       summary: Receive project deletion notifications
@@ -60,6 +84,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/definitions/ProjectDeleted'
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /project/member-added:
     get:
       summary: Receive member addition notifications
@@ -71,6 +101,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/definitions/ProjectMemberAdded'
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /project/member-removed:
     get:
       summary: Receive member removal notifications
@@ -82,6 +118,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/definitions/ProjectMemberRemoved'
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /project/updated:
     get:
       summary: Receive project update notifications
@@ -93,6 +135,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/definitions/ProjectUpdated'
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /task/assigned:
     get:
       summary: Receive task assignment notifications
@@ -104,6 +152,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/definitions/TaskAssigned'
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /task/commented:
     get:
       summary: Receive task comment notifications
@@ -115,6 +169,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/definitions/TaskCommented'
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /task/created:
     get:
       summary: Receive task creation notifications
@@ -126,6 +186,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/definitions/TaskCreated'
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /task/deleted:
     get:
       summary: Receive task deletion notifications
@@ -137,6 +203,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/definitions/TaskDeleted'
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /task/updated:
     get:
       summary: Receive task update notifications
@@ -148,6 +220,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/definitions/TaskUpdated'
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /webhook/triggered:
     post:
       summary: Publish webhook trigger notifications
@@ -160,3 +238,20 @@ paths:
       responses:
         "200":
           description: OK
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+definitions:
+  Error:
+    type: object
+    properties:
+      code:
+        type: integer
+      message:
+        type: string
+    required:
+      - code
+      - message

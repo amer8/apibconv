@@ -56,7 +56,14 @@ func (d *Detector) DetectFromBytes(data []byte) (format.Format, string, error) {
 func OpenAPI(data []byte) (isFormat bool, version string) {
 	s := string(data)
 	if strings.Contains(s, `"openapi"`) || strings.Contains(s, "openapi:") {
-		return true, "3.x"
+		// Simple version extraction
+		if strings.Contains(s, "3.1") {
+			return true, "3.1.x"
+		}
+		if strings.Contains(s, "3.0") {
+			return true, "3.0.x"
+		}
+		return true, "3.0.x" // Default to 3.0.x if 3.x found but specific version unclear
 	}
 	if strings.Contains(s, `"swagger"`) || strings.Contains(s, "swagger:") {
 		return true, "2.0"
@@ -74,7 +81,16 @@ func APIBlueprint(data []byte) bool {
 func AsyncAPI(data []byte) (isFormat bool, version string) {
 	s := string(data)
 	if strings.Contains(s, `"asyncapi"`) || strings.Contains(s, "asyncapi:") {
-		return true, "2.x"
+		if strings.Contains(s, "3.0") || strings.Contains(s, `"3.0`) {
+			return true, "3.0"
+		}
+		if strings.Contains(s, "2.6") || strings.Contains(s, `"2.6`) {
+			return true, "2.6"
+		}
+		if strings.Contains(s, "2.0") || strings.Contains(s, `"2.0`) {
+			return true, "2.0"
+		}
+		return true, "2.6" // Default to latest 2.x
 	}
 	return false, ""
 }

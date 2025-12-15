@@ -131,15 +131,31 @@ func (w *Writer) convertPathItemOperations(item *model.PathItem) PathItem {
 		Description: item.Description,
 		Parameters:  w.convertParameters(item.Parameters),
 	}
-	
-	if item.Get != nil { pi.Get = w.convertOperation(item.Get) }
-	if item.Post != nil { pi.Post = w.convertOperation(item.Post) }
-	if item.Put != nil { pi.Put = w.convertOperation(item.Put) }
-	if item.Delete != nil { pi.Delete = w.convertOperation(item.Delete) }
-	if item.Patch != nil { pi.Patch = w.convertOperation(item.Patch) }
-	if item.Head != nil { pi.Head = w.convertOperation(item.Head) }
-	if item.Options != nil { pi.Options = w.convertOperation(item.Options) }
-	if item.Trace != nil { pi.Trace = w.convertOperation(item.Trace) }
+
+	if item.Get != nil {
+		pi.Get = w.convertOperation(item.Get)
+	}
+	if item.Post != nil {
+		pi.Post = w.convertOperation(item.Post)
+	}
+	if item.Put != nil {
+		pi.Put = w.convertOperation(item.Put)
+	}
+	if item.Delete != nil {
+		pi.Delete = w.convertOperation(item.Delete)
+	}
+	if item.Patch != nil {
+		pi.Patch = w.convertOperation(item.Patch)
+	}
+	if item.Head != nil {
+		pi.Head = w.convertOperation(item.Head)
+	}
+	if item.Options != nil {
+		pi.Options = w.convertOperation(item.Options)
+	}
+	if item.Trace != nil {
+		pi.Trace = w.convertOperation(item.Trace)
+	}
 
 	return pi
 }
@@ -185,12 +201,27 @@ func (w *Writer) convertFromModel(api *model.API) *OpenAPI {
 		}
 		doc.Servers = append(doc.Servers, srv)
 	}
-	
+
 	// Components
 	if len(api.Components.Schemas) > 0 {
 		doc.Components.Schemas = make(map[string]*Schema)
 		for name, schema := range api.Components.Schemas {
 			doc.Components.Schemas[name] = w.convertSchema(schema)
+		}
+	}
+
+	// Ensure Error schema is present, as it's used by the default 404 response
+	if doc.Components.Schemas == nil {
+		doc.Components.Schemas = make(map[string]*Schema)
+	}
+	if _, ok := doc.Components.Schemas["Error"]; !ok {
+		doc.Components.Schemas["Error"] = &Schema{
+			Type:     "object",
+			Required: []string{"code", "message"},
+			Properties: map[string]*Schema{
+				"code":    {Type: "integer"},
+				"message": {Type: "string"},
+			},
 		}
 	}
 
@@ -205,7 +236,11 @@ func (w *Writer) convertFromModel(api *model.API) *OpenAPI {
 
 	for path := range api.Paths {
 		item := api.Paths[path]
-		doc.Paths[path] = w.convertPathItemOperations(&item)
+		key := path
+		if !strings.HasPrefix(key, "/") {
+			key = "/" + key
+		}
+		doc.Paths[key] = w.convertPathItemOperations(&item)
 	}
 
 	return doc
@@ -235,10 +270,28 @@ func (w *Writer) convertOperation(op *model.Operation) *Operation {
 		}
 	}
 
+	res.Responses = make(map[string]Response)
+	found4xx := false
 	if len(op.Responses) > 0 {
-		res.Responses = make(map[string]Response)
 		for status, resp := range op.Responses {
+			if len(status) == 3 && status[0] == '4' {
+				found4xx = true
+			}
 			res.Responses[status] = w.convertResponse(resp)
+		}
+	}
+
+	// Add a default 404 response if no 4XX response is present.
+	if !found4xx {
+		res.Responses["404"] = Response{
+			Description: "Not Found",
+			Content: map[string]MediaType{
+				"application/json": {
+					Schema: &Schema{
+						Ref: "#/components/schemas/Error",
+					},
+				},
+			},
 		}
 	}
 
@@ -283,7 +336,7 @@ func (w *Writer) convertResponse(resp model.Response) Response {
 	for ct, mt := range resp.Content {
 		res.Content[ct] = w.convertMediaType(mt)
 	}
-	
+
 	for name, h := range resp.Headers {
 		header := Header{
 			Description: h.Description,
@@ -407,7 +460,7 @@ func (w *Writer) convertV2(api *model.API) (interface{}, error) {
 	if len(api.Servers) > 0 {
 		// Just take the first one for now as V2 is more restrictive
 		// TODO: Parse URL to split into host/basePath/scheme
-		doc.Host = api.Servers[0].URL 
+		doc.Host = api.Servers[0].URL
 	}
 
 	// Components -> Definitions
@@ -418,12 +471,27 @@ func (w *Writer) convertV2(api *model.API) (interface{}, error) {
 		}
 	}
 
+	// Ensure Error definition is present, as it's used by the default 404 response
+	if doc.Definitions == nil {
+		doc.Definitions = make(map[string]*Schema)
+	}
+	if _, ok := doc.Definitions["Error"]; !ok {
+		doc.Definitions["Error"] = &Schema{
+			Type:     "object",
+			Required: []string{"code", "message"},
+			Properties: map[string]*Schema{
+				"code":    {Type: "integer"},
+				"message": {Type: "string"},
+			},
+		}
+	}
+
 	for path := range api.Paths {
 		item := api.Paths[path] // Access by key to avoid rangeValCopy
 		pi := PathItemV2{
 			Parameters: w.convertParameters(item.Parameters),
 		}
-		
+
 		convertOp := func(op *model.Operation) *Operation {
 			if op == nil {
 				return nil
@@ -432,15 +500,33 @@ func (w *Writer) convertV2(api *model.API) (interface{}, error) {
 			return res
 		}
 
-		if item.Get != nil { pi.Get = convertOp(item.Get) }
-		if item.Post != nil { pi.Post = convertOp(item.Post) }
-		if item.Put != nil { pi.Put = convertOp(item.Put) }
-		if item.Delete != nil { pi.Delete = convertOp(item.Delete) }
-		if item.Patch != nil { pi.Patch = convertOp(item.Patch) }
-		if item.Head != nil { pi.Head = convertOp(item.Head) }
-		if item.Options != nil { pi.Options = convertOp(item.Options) }
+		if item.Get != nil {
+			pi.Get = convertOp(item.Get)
+		}
+		if item.Post != nil {
+			pi.Post = convertOp(item.Post)
+		}
+		if item.Put != nil {
+			pi.Put = convertOp(item.Put)
+		}
+		if item.Delete != nil {
+			pi.Delete = convertOp(item.Delete)
+		}
+		if item.Patch != nil {
+			pi.Patch = convertOp(item.Patch)
+		}
+		if item.Head != nil {
+			pi.Head = convertOp(item.Head)
+		}
+		if item.Options != nil {
+			pi.Options = convertOp(item.Options)
+		}
 
-		doc.Paths[path] = pi
+		key := path
+		if !strings.HasPrefix(key, "/") {
+			key = "/" + key
+		}
+		doc.Paths[key] = pi
 	}
 
 	return doc, nil

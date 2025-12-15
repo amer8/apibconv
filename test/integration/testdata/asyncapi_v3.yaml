@@ -15,7 +15,7 @@ servers:
     protocol: kafka
     description: Production Kafka broker
     security:
-      - saslScram: []
+      - $ref: '#/components/securitySchemes/saslScram'
   staging:
     host: 'staging-kafka.example.com:9092'
     protocol: kafka
@@ -29,8 +29,8 @@ channels:
     address: task/created
     description: Channel for task creation events
     servers:
-      - production
-      - staging
+      - $ref: '#/servers/production'
+      - $ref: '#/servers/staging'
     messages:
       TaskCreated:
         $ref: '#/components/messages/TaskCreated'
@@ -38,8 +38,8 @@ channels:
     address: task/updated
     description: Channel for task update events
     servers:
-      - production
-      - staging
+      - $ref: '#/servers/production'
+      - $ref: '#/servers/staging'
     messages:
       TaskUpdated:
         $ref: '#/components/messages/TaskUpdated'
@@ -47,8 +47,8 @@ channels:
     address: task/deleted
     description: Channel for task deletion events
     servers:
-      - production
-      - staging
+      - $ref: '#/servers/production'
+      - $ref: '#/servers/staging'
     messages:
       TaskDeleted:
         $ref: '#/components/messages/TaskDeleted'
@@ -56,8 +56,8 @@ channels:
     address: task/assigned
     description: Channel for task assignment events
     servers:
-      - production
-      - staging
+      - $ref: '#/servers/production'
+      - $ref: '#/servers/staging'
     messages:
       TaskAssigned:
         $ref: '#/components/messages/TaskAssigned'
@@ -65,8 +65,8 @@ channels:
     address: task/commented
     description: Channel for task comment events
     servers:
-      - production
-      - staging
+      - $ref: '#/servers/production'
+      - $ref: '#/servers/staging'
     messages:
       TaskCommented:
         $ref: '#/components/messages/TaskCommented'
@@ -74,8 +74,8 @@ channels:
     address: project/created
     description: Channel for project creation events
     servers:
-      - production
-      - staging
+      - $ref: '#/servers/production'
+      - $ref: '#/servers/staging'
     messages:
       ProjectCreated:
         $ref: '#/components/messages/ProjectCreated'
@@ -83,8 +83,8 @@ channels:
     address: project/updated
     description: Channel for project update events
     servers:
-      - production
-      - staging
+      - $ref: '#/servers/production'
+      - $ref: '#/servers/staging'
     messages:
       ProjectUpdated:
         $ref: '#/components/messages/ProjectUpdated'
@@ -92,8 +92,8 @@ channels:
     address: project/deleted
     description: Channel for project deletion events
     servers:
-      - production
-      - staging
+      - $ref: '#/servers/production'
+      - $ref: '#/servers/staging'
     messages:
       ProjectDeleted:
         $ref: '#/components/messages/ProjectDeleted'
@@ -101,8 +101,8 @@ channels:
     address: project/member-added
     description: Channel for project member addition events
     servers:
-      - production
-      - staging
+      - $ref: '#/servers/production'
+      - $ref: '#/servers/staging'
     messages:
       ProjectMemberAdded:
         $ref: '#/components/messages/ProjectMemberAdded'
@@ -110,8 +110,8 @@ channels:
     address: project/member-removed
     description: Channel for project member removal events
     servers:
-      - production
-      - staging
+      - $ref: '#/servers/production'
+      - $ref: '#/servers/staging'
     messages:
       ProjectMemberRemoved:
         $ref: '#/components/messages/ProjectMemberRemoved'
@@ -119,8 +119,8 @@ channels:
     address: developer/created
     description: Channel for developer creation events
     servers:
-      - production
-      - staging
+      - $ref: '#/servers/production'
+      - $ref: '#/servers/staging'
     messages:
       DeveloperCreated:
         $ref: '#/components/messages/DeveloperCreated'
@@ -128,8 +128,8 @@ channels:
     address: developer/updated
     description: Channel for developer update events
     servers:
-      - production
-      - staging
+      - $ref: '#/servers/production'
+      - $ref: '#/servers/staging'
     messages:
       DeveloperUpdated:
         $ref: '#/components/messages/DeveloperUpdated'
@@ -137,8 +137,8 @@ channels:
     address: developer/deleted
     description: Channel for developer deletion events
     servers:
-      - production
-      - staging
+      - $ref: '#/servers/production'
+      - $ref: '#/servers/staging'
     messages:
       DeveloperDeleted:
         $ref: '#/components/messages/DeveloperDeleted'
@@ -146,7 +146,7 @@ channels:
     address: webhook/triggered
     description: Channel for webhook trigger events
     servers:
-      - webhooks
+      - $ref: '#/servers/webhooks'
     messages:
       WebhookTriggered:
         $ref: '#/components/messages/WebhookTriggered'
@@ -224,8 +224,8 @@ operations:
 components:
   securitySchemes:
     saslScram:
-      type: scramSha256
-      description: SASL/SCRAM authentication
+      type: userPassword 
+      description: SASL/SCRAM authentication (username/password-like flow over Kafka)
   messages:
     TaskCreated:
       name: TaskCreated

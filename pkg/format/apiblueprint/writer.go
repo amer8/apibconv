@@ -91,7 +91,11 @@ func (w *Writer) Write(ctx context.Context, api *model.API, wr io.Writer) error 
 		builder.WriteString(fmt.Sprintf("\n# Group %s\n", group))
 		for _, path := range groups[group] {
 			item := api.Paths[path]
-			builder.WriteString(w.writeResource(path, &item))
+			displayPath := path
+			if !strings.HasPrefix(displayPath, "/") {
+				displayPath = "/" + displayPath
+			}
+			builder.WriteString(w.writeResource(displayPath, &item))
 		}
 	}
 

@@ -4,104 +4,115 @@ info:
   version: 1.0.0
   description: A comprehensive API for managing tasks, projects, developers, and notifications.
 channels:
-  channel_/developers:
+  /developers:
     address: /developers
-  channel_/developers/{developerId}:
+  /developers/{developerId}:
     address: /developers/{developerId}
-  channel_/developers/{developerId}/tasks:
+  /developers/{developerId}/tasks:
     address: /developers/{developerId}/tasks
-  channel_/projects:
+  /projects:
     address: /projects
-  channel_/projects/{projectId}:
+  /projects/{projectId}:
     address: /projects/{projectId}
-  channel_/projects/{projectId}/members:
+  /projects/{projectId}/members:
     address: /projects/{projectId}/members
-  channel_/projects/{projectId}/members/{developerId}:
+  /projects/{projectId}/members/{developerId}:
     address: /projects/{projectId}/members/{developerId}
-  channel_/tasks:
+  /tasks:
     address: /tasks
-  channel_/tasks/{taskId}:
+  /tasks/{taskId}:
     address: /tasks/{taskId}
-  channel_/tasks/{taskId}/comments:
+  /tasks/{taskId}/comments:
     address: /tasks/{taskId}/comments
-  channel_/webhooks:
+  /webhooks:
     address: /webhooks
-  channel_/webhooks/{webhookId}:
+  /webhooks/{webhookId}:
     address: /webhooks/{webhookId}
 operations:
   addProjectMember:
     action: send
-    channel: channel_/projects/{projectId}/members
+    channel:
+      $ref: '#/channels//projects/{projectId}/members'
     summary: Add a member
     operationId: addProjectMember
     messages:
       - $ref: '#/components/messages/MemberAdd'
   createComment:
     action: send
-    channel: channel_/tasks/{taskId}/comments
+    channel:
+      $ref: '#/channels//tasks/{taskId}/comments'
     summary: Add a comment
     operationId: createComment
     messages:
       - $ref: '#/components/messages/CommentCreate'
   createDeveloper:
     action: send
-    channel: channel_/developers
+    channel:
+      $ref: '#/channels//developers'
     summary: Create a new developer
     operationId: createDeveloper
     messages:
       - $ref: '#/components/messages/DeveloperCreate'
   createProject:
     action: send
-    channel: channel_/projects
+    channel:
+      $ref: '#/channels//projects'
     summary: Create a new project
     operationId: createProject
     messages:
       - $ref: '#/components/messages/ProjectCreate'
   createTask:
     action: send
-    channel: channel_/tasks
+    channel:
+      $ref: '#/channels//tasks'
     summary: Create a new task
     operationId: createTask
     messages:
       - $ref: '#/components/messages/TaskCreate'
   createWebhook:
     action: send
-    channel: channel_/webhooks
+    channel:
+      $ref: '#/channels//webhooks'
     summary: Create a webhook
     operationId: createWebhook
     messages:
       - $ref: '#/components/messages/WebhookCreate'
   getDeveloper:
     action: receive
-    channel: channel_/developers/{developerId}
+    channel:
+      $ref: '#/channels//developers/{developerId}'
     summary: Get developer by ID
     operationId: getDeveloper
     messages:
       - $ref: '#/components/messages/Developer'
   getProject:
     action: receive
-    channel: channel_/projects/{projectId}
+    channel:
+      $ref: '#/channels//projects/{projectId}'
     summary: Get project by ID
     operationId: getProject
     messages:
       - $ref: '#/components/messages/Project'
   getTask:
     action: receive
-    channel: channel_/tasks/{taskId}
+    channel:
+      $ref: '#/channels//tasks/{taskId}'
     summary: Get task by ID
     operationId: getTask
     messages:
       - $ref: '#/components/messages/Task'
   getWebhook:
     action: receive
-    channel: channel_/webhooks/{webhookId}
+    channel:
+      $ref: '#/channels//webhooks/{webhookId}'
     summary: Get webhook by ID
     operationId: getWebhook
     messages:
       - $ref: '#/components/messages/Webhook'
   listDeveloperTasks:
     action: receive
-    channel: channel_/developers/{developerId}/tasks
+    channel:
+      $ref: '#/channels//developers/{developerId}/tasks'
     summary: List developer tasks
     operationId: listDeveloperTasks
     messages:
@@ -111,7 +122,8 @@ operations:
           type: array
   listDevelopers:
     action: receive
-    channel: channel_/developers
+    channel:
+      $ref: '#/channels//developers'
     summary: List all developers
     operationId: listDevelopers
     messages:
@@ -121,7 +133,8 @@ operations:
           type: array
   listProjectMembers:
     action: receive
-    channel: channel_/projects/{projectId}/members
+    channel:
+      $ref: '#/channels//projects/{projectId}/members'
     summary: List project members
     operationId: listProjectMembers
     messages:
@@ -131,7 +144,8 @@ operations:
           type: array
   listProjects:
     action: receive
-    channel: channel_/projects
+    channel:
+      $ref: '#/channels//projects'
     summary: List all projects
     operationId: listProjects
     messages:
@@ -141,7 +155,8 @@ operations:
           type: array
   listTaskComments:
     action: receive
-    channel: channel_/tasks/{taskId}/comments
+    channel:
+      $ref: '#/channels//tasks/{taskId}/comments'
     summary: List task comments
     operationId: listTaskComments
     messages:
@@ -151,7 +166,8 @@ operations:
           type: array
   listTasks:
     action: receive
-    channel: channel_/tasks
+    channel:
+      $ref: '#/channels//tasks'
     summary: List all tasks
     operationId: listTasks
     messages:
@@ -161,7 +177,8 @@ operations:
           type: array
   listWebhooks:
     action: receive
-    channel: channel_/webhooks
+    channel:
+      $ref: '#/channels//webhooks'
     summary: List all webhooks
     operationId: listWebhooks
     messages:
@@ -173,9 +190,11 @@ servers:
   server0:
     host: https://api.example.com/v1
     protocol: kafka
+    description: Production server
   server1:
     host: https://staging-api.example.com/v1
     protocol: kafka
+    description: Staging server
 components:
   messages:
     Comment:

@@ -55,6 +55,12 @@ paths:
                 type: array
                 items:
                   $ref: '#/definitions/Developer'
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     post:
       tags:
         - Developers
@@ -73,6 +79,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/definitions/Developer'
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /developers/{developerId}:
     get:
       tags:
@@ -112,6 +124,12 @@ paths:
       responses:
         "204":
           description: Developer deleted
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     patch:
       tags:
         - Developers
@@ -136,6 +154,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/definitions/Developer'
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /developers/{developerId}/tasks:
     get:
       tags:
@@ -161,6 +185,12 @@ paths:
                 type: array
                 items:
                   $ref: '#/definitions/Task'
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /projects:
     get:
       tags:
@@ -201,6 +231,12 @@ paths:
                 type: array
                 items:
                   $ref: '#/definitions/Project'
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     post:
       tags:
         - Projects
@@ -219,6 +255,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/definitions/Project'
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /projects/{projectId}:
     get:
       tags:
@@ -258,6 +300,12 @@ paths:
       responses:
         "204":
           description: Project deleted
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     patch:
       tags:
         - Projects
@@ -282,6 +330,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/definitions/Project'
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /projects/{projectId}/members:
     get:
       tags:
@@ -303,6 +357,12 @@ paths:
                 type: array
                 items:
                   $ref: '#/definitions/Developer'
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     post:
       tags:
         - Projects
@@ -327,6 +387,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/definitions/Developer'
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /projects/{projectId}/members/{developerId}:
     delete:
       tags:
@@ -347,6 +413,12 @@ paths:
       responses:
         "204":
           description: Member removed
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /tasks:
     get:
       tags:
@@ -526,6 +598,12 @@ paths:
                 type: array
                 items:
                   $ref: '#/definitions/Comment'
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     post:
       tags:
         - Tasks
@@ -550,6 +628,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/definitions/Comment'
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /webhooks:
     get:
       tags:
@@ -565,6 +649,12 @@ paths:
                 type: array
                 items:
                   $ref: '#/definitions/Webhook'
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     post:
       tags:
         - Webhooks
@@ -583,6 +673,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/definitions/Webhook'
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /webhooks/{webhookId}:
     get:
       tags:
@@ -622,6 +718,12 @@ paths:
       responses:
         "204":
           description: Webhook deleted
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     patch:
       tags:
         - Webhooks
@@ -646,6 +748,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/definitions/Webhook'
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 definitions:
   Comment:
     type: object
