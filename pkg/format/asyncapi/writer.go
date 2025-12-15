@@ -49,9 +49,15 @@ func (w *Writer) Write(ctx context.Context, api *model.API, wr io.Writer) error 
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+
+	// Check context for overrides
+	if v := converter.AsyncAPIVersionFromContext(ctx); v != "" {
+		w.version = v
+	}
+
 	// Check if protocol is overridden in context
 	targetProtocol := converter.GetProtocol(ctx)
-	
+
 	// Check encoding in context
 	encoding := converter.GetEncoding(ctx)
 	jsonOutput := w.json
@@ -77,4 +83,3 @@ func (w *Writer) Format() format.Format {
 func (w *Writer) Version() string {
 	return w.version
 }
-
