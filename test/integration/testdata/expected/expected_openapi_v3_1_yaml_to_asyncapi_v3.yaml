@@ -1,132 +1,180 @@
-asyncapi: "3.0"
+asyncapi: 3.0.0
 info:
   title: Task Management API
   version: 1.0.0
   description: A comprehensive API for managing tasks, projects, developers, and notifications.
 channels:
-  /developers:
-    publish:
-      operationId: createDeveloper
-      summary: Create a new developer
-      message:
-        $ref: '#/components/messages/DeveloperCreate'
-    subscribe:
-      operationId: listDevelopers
-      summary: List all developers
-      message:
-        payload:
-          items:
-            $ref: '#/components/schemas/Developer'
-          type: array
-  /developers/{developerId}:
-    subscribe:
-      operationId: getDeveloper
-      summary: Get developer by ID
-      message:
-        $ref: '#/components/messages/Developer'
-  /developers/{developerId}/tasks:
-    subscribe:
-      operationId: listDeveloperTasks
-      summary: List developer tasks
-      message:
-        payload:
+  channel_/developers:
+    address: /developers
+  channel_/developers/{developerId}:
+    address: /developers/{developerId}
+  channel_/developers/{developerId}/tasks:
+    address: /developers/{developerId}/tasks
+  channel_/projects:
+    address: /projects
+  channel_/projects/{projectId}:
+    address: /projects/{projectId}
+  channel_/projects/{projectId}/members:
+    address: /projects/{projectId}/members
+  channel_/projects/{projectId}/members/{developerId}:
+    address: /projects/{projectId}/members/{developerId}
+  channel_/tasks:
+    address: /tasks
+  channel_/tasks/{taskId}:
+    address: /tasks/{taskId}
+  channel_/tasks/{taskId}/comments:
+    address: /tasks/{taskId}/comments
+  channel_/webhooks:
+    address: /webhooks
+  channel_/webhooks/{webhookId}:
+    address: /webhooks/{webhookId}
+operations:
+  addProjectMember:
+    action: send
+    channel: channel_/projects/{projectId}/members
+    summary: Add a member
+    operationId: addProjectMember
+    messages:
+      - $ref: '#/components/messages/MemberAdd'
+  createComment:
+    action: send
+    channel: channel_/tasks/{taskId}/comments
+    summary: Add a comment
+    operationId: createComment
+    messages:
+      - $ref: '#/components/messages/CommentCreate'
+  createDeveloper:
+    action: send
+    channel: channel_/developers
+    summary: Create a new developer
+    operationId: createDeveloper
+    messages:
+      - $ref: '#/components/messages/DeveloperCreate'
+  createProject:
+    action: send
+    channel: channel_/projects
+    summary: Create a new project
+    operationId: createProject
+    messages:
+      - $ref: '#/components/messages/ProjectCreate'
+  createTask:
+    action: send
+    channel: channel_/tasks
+    summary: Create a new task
+    operationId: createTask
+    messages:
+      - $ref: '#/components/messages/TaskCreate'
+  createWebhook:
+    action: send
+    channel: channel_/webhooks
+    summary: Create a webhook
+    operationId: createWebhook
+    messages:
+      - $ref: '#/components/messages/WebhookCreate'
+  getDeveloper:
+    action: receive
+    channel: channel_/developers/{developerId}
+    summary: Get developer by ID
+    operationId: getDeveloper
+    messages:
+      - $ref: '#/components/messages/Developer'
+  getProject:
+    action: receive
+    channel: channel_/projects/{projectId}
+    summary: Get project by ID
+    operationId: getProject
+    messages:
+      - $ref: '#/components/messages/Project'
+  getTask:
+    action: receive
+    channel: channel_/tasks/{taskId}
+    summary: Get task by ID
+    operationId: getTask
+    messages:
+      - $ref: '#/components/messages/Task'
+  getWebhook:
+    action: receive
+    channel: channel_/webhooks/{webhookId}
+    summary: Get webhook by ID
+    operationId: getWebhook
+    messages:
+      - $ref: '#/components/messages/Webhook'
+  listDeveloperTasks:
+    action: receive
+    channel: channel_/developers/{developerId}/tasks
+    summary: List developer tasks
+    operationId: listDeveloperTasks
+    messages:
+      - payload:
           items:
             $ref: '#/components/schemas/Task'
           type: array
-  /projects:
-    publish:
-      operationId: createProject
-      summary: Create a new project
-      message:
-        $ref: '#/components/messages/ProjectCreate'
-    subscribe:
-      operationId: listProjects
-      summary: List all projects
-      message:
-        payload:
+  listDevelopers:
+    action: receive
+    channel: channel_/developers
+    summary: List all developers
+    operationId: listDevelopers
+    messages:
+      - payload:
+          items:
+            $ref: '#/components/schemas/Developer'
+          type: array
+  listProjectMembers:
+    action: receive
+    channel: channel_/projects/{projectId}/members
+    summary: List project members
+    operationId: listProjectMembers
+    messages:
+      - payload:
+          items:
+            $ref: '#/components/schemas/Developer'
+          type: array
+  listProjects:
+    action: receive
+    channel: channel_/projects
+    summary: List all projects
+    operationId: listProjects
+    messages:
+      - payload:
           items:
             $ref: '#/components/schemas/Project'
           type: array
-  /projects/{projectId}:
-    subscribe:
-      operationId: getProject
-      summary: Get project by ID
-      message:
-        $ref: '#/components/messages/Project'
-  /projects/{projectId}/members:
-    publish:
-      operationId: addProjectMember
-      summary: Add a member
-      message:
-        $ref: '#/components/messages/MemberAdd'
-    subscribe:
-      operationId: listProjectMembers
-      summary: List project members
-      message:
-        payload:
-          items:
-            $ref: '#/components/schemas/Developer'
-          type: array
-  /tasks:
-    publish:
-      operationId: createTask
-      summary: Create a new task
-      message:
-        $ref: '#/components/messages/TaskCreate'
-    subscribe:
-      operationId: listTasks
-      summary: List all tasks
-      message:
-        payload:
-          items:
-            $ref: '#/components/schemas/Task'
-          type: array
-  /tasks/{taskId}:
-    subscribe:
-      operationId: getTask
-      summary: Get task by ID
-      message:
-        $ref: '#/components/messages/Task'
-  /tasks/{taskId}/comments:
-    publish:
-      operationId: createComment
-      summary: Add a comment
-      message:
-        $ref: '#/components/messages/CommentCreate'
-    subscribe:
-      operationId: listTaskComments
-      summary: List task comments
-      message:
-        payload:
+  listTaskComments:
+    action: receive
+    channel: channel_/tasks/{taskId}/comments
+    summary: List task comments
+    operationId: listTaskComments
+    messages:
+      - payload:
           items:
             $ref: '#/components/schemas/Comment'
           type: array
-  /webhooks:
-    publish:
-      operationId: createWebhook
-      summary: Create a webhook
-      message:
-        $ref: '#/components/messages/WebhookCreate'
-    subscribe:
-      operationId: listWebhooks
-      summary: List all webhooks
-      message:
-        payload:
+  listTasks:
+    action: receive
+    channel: channel_/tasks
+    summary: List all tasks
+    operationId: listTasks
+    messages:
+      - payload:
+          items:
+            $ref: '#/components/schemas/Task'
+          type: array
+  listWebhooks:
+    action: receive
+    channel: channel_/webhooks
+    summary: List all webhooks
+    operationId: listWebhooks
+    messages:
+      - payload:
           items:
             $ref: '#/components/schemas/Webhook'
           type: array
-  /webhooks/{webhookId}:
-    subscribe:
-      operationId: getWebhook
-      summary: Get webhook by ID
-      message:
-        $ref: '#/components/messages/Webhook'
 servers:
   server0:
-    url: https://api.example.com/v1
+    host: https://api.example.com/v1
     protocol: kafka
   server1:
-    url: https://staging-api.example.com/v1
+    host: https://staging-api.example.com/v1
     protocol: kafka
 components:
   messages:
