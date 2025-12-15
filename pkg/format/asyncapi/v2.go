@@ -178,10 +178,8 @@ func (p *Parser) toCamelCase(s string) string {
 	for i, part := range parts {
 		if i == 0 {
 			sb.WriteString(part) // Keep first part as is (or lowercase?) - usually already lowercase
-		} else {
-			if len(part) > 0 {
-				sb.WriteString(strings.ToUpper(string(part[0])) + part[1:])
-			}
+		} else if part != "" {
+			sb.WriteString(strings.ToUpper(string(part[0])) + part[1:])
 		}
 	}
 	return sb.String()
