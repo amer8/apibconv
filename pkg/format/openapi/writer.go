@@ -74,6 +74,15 @@ func (w *Writer) Write(ctx context.Context, api *model.API, wr io.Writer) error 
 	if v := converter.OpenAPIVersionFromContext(ctx); v != "" {
 		w.version = v
 	}
+
+	// Normalize version string
+	switch w.version {
+	case "3.0":
+		w.version = "3.0.0"
+	case "3.1":
+		w.version = "3.1.0"
+	}
+
 	encoding := converter.GetEncoding(ctx)
 	if encoding == "" {
 		if w.yaml {
