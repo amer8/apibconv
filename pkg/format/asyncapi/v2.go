@@ -43,13 +43,11 @@ func (p *Parser) parseV2(data []byte) (*model.API, error) {
 			Bindings:    s.Bindings,
 		})
 	}
-	
-	// Convert Components
-	// TODO: map other components if needed
 
+	// Convert Components
 	for path, ch := range doc.Channels {
 		originalName := path
-		
+
 		// Generate a nice name for the channel ID (camelCase)
 		channelID := p.toCamelCase(originalName)
 
@@ -65,7 +63,7 @@ func (p *Parser) parseV2(data []byte) (*model.API, error) {
 				Description: ch.Publish.Description,
 				Bindings:    ch.Publish.Bindings,
 			}
-			
+
 			// Map Message to RequestBody
 			if ch.Publish.Message != nil {
 				op.RequestBody = &model.RequestBody{
@@ -76,12 +74,12 @@ func (p *Parser) parseV2(data []byte) (*model.API, error) {
 					},
 				}
 			}
-			
+
 			// Add default response for Publish
 			op.Responses = model.Responses{
 				"200": model.Response{Description: "OK"},
 			}
-			
+
 			pi.Post = op
 		}
 
@@ -123,7 +121,7 @@ func (p *Parser) convertParameters(params map[string]Parameter) []model.Paramete
 			Description: param.Description,
 			Required:    true, // Path params are always required
 		}
-		
+
 		if param.Schema != nil {
 			s := p.convertSchemaPayload(param.Schema)
 			mp.Schema = s
@@ -137,17 +135,17 @@ func (p *Parser) convertSchema(msg *Message) *model.Schema {
 	if msg == nil {
 		return nil
 	}
-	
+
 	// If message itself is a ref
 	if msg.Ref != "" {
 		return &model.Schema{Ref: msg.Ref}
 	}
-	
+
 	// If payload is present
 	if msg.Payload != nil {
 		return p.convertSchemaPayload(msg.Payload)
 	}
-	
+
 	return nil
 }
 
@@ -157,7 +155,7 @@ func (p *Parser) convertSchemaPayload(payload interface{}) *model.Schema {
 	if err != nil {
 		return nil
 	}
-	
+
 	var schema model.Schema
 	if err := json.Unmarshal(data, &schema); err != nil {
 		return nil
@@ -169,7 +167,7 @@ func (p *Parser) toCamelCase(s string) string {
 	parts := strings.FieldsFunc(s, func(r rune) bool {
 		return r == '/' || r == '-' || r == '_'
 	})
-	
+
 	if len(parts) == 0 {
 		return s
 	}
@@ -184,7 +182,6 @@ func (p *Parser) toCamelCase(s string) string {
 	}
 	return sb.String()
 }
-
 
 // writeV2 implements AsyncAPI 2.x writing
 func (w *Writer) writeV2(api *model.API, wr io.Writer, targetProtocol string, jsonOutput bool) error {

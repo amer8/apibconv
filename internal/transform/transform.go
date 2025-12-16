@@ -41,14 +41,6 @@ func (c *ChainTransformer) Add(t Transformer) {
 	c.transformers = append(c.transformers, t)
 }
 
-// RemoveUnusedSchemas removes schemas from Components that are not referenced in the API.
-// Note: Implementation is currently a placeholder.
-func RemoveUnusedSchemas(api *model.API) error {
-	// TODO: Implementation would require traversing all references in paths, operations, parameters, etc.
-	// This is a complex operation deferred for future optimization.
-	return nil
-}
-
 // NormalizeOperationIDs ensures all operations have an OperationID, generating one from the path if missing.
 func NormalizeOperationIDs(api *model.API) error {
 	for path := range api.Paths {

@@ -46,7 +46,7 @@ func (w *Writer) Write(ctx context.Context, api *model.API, wr io.Writer) error 
 
 	// Group paths by Tag
 	groups := make(map[string][]string) // tag -> paths
-	
+
 	// Collect and sort all paths
 	paths := make([]string, 0, len(api.Paths))
 	for k := range api.Paths {
@@ -57,7 +57,7 @@ func (w *Writer) Write(ctx context.Context, api *model.API, wr io.Writer) error 
 	for _, path := range paths {
 		item := api.Paths[path]
 		tag := "Resources"
-		
+
 		// Heuristic: check first available operation for a tag
 		var op *model.Operation
 		switch {
@@ -72,11 +72,11 @@ func (w *Writer) Write(ctx context.Context, api *model.API, wr io.Writer) error 
 		case item.Patch != nil:
 			op = item.Patch
 		}
-		
+
 		if op != nil && len(op.Tags) > 0 {
 			tag = op.Tags[0]
 		}
-		
+
 		groups[tag] = append(groups[tag], path)
 	}
 
@@ -182,14 +182,16 @@ func (w *Writer) writeAction(method string, op *model.Operation) string {
 		for _, param := range op.Parameters {
 			// Parameter Name (type, format) - Description (required)
 			paramLine := fmt.Sprintf("    + %s", param.Name)
-			
+
 			if param.Schema != nil {
 				typeInfo := ""
 				if param.Schema.Type != "" {
 					typeInfo = string(param.Schema.Type)
 				}
 				if param.Schema.Format != "" {
-					if typeInfo != "" { typeInfo += ", " }
+					if typeInfo != "" {
+						typeInfo += ", "
+					}
 					typeInfo += param.Schema.Format
 				}
 				if typeInfo != "" {
@@ -200,7 +202,7 @@ func (w *Writer) writeAction(method string, op *model.Operation) string {
 			if param.Required {
 				paramLine += " (required)"
 			}
-			
+
 			if param.Description != "" {
 				paramLine += fmt.Sprintf(" - %s", param.Description)
 			}
@@ -227,10 +229,10 @@ func (w *Writer) writeAction(method string, op *model.Operation) string {
 	}
 
 	// Responses
-		// Sort responses
-		codes := make([]string, 0, len(op.Responses))
-				for k := range op.Responses {
-				codes = append(codes, k)
+	// Sort responses
+	codes := make([]string, 0, len(op.Responses))
+	for k := range op.Responses {
+		codes = append(codes, k)
 	}
 	sort.Strings(codes)
 
@@ -251,7 +253,6 @@ func (w *Writer) writeAction(method string, op *model.Operation) string {
 		// Write response body example if available
 		if mt, ok := resp.Content[ct]; ok && mt.Example != nil {
 			sb.WriteString("\n        ") // Indentation for body
-			// TODO: Simple string conversion for now. Ideally should be pretty-printed JSON.
 			sb.WriteString(fmt.Sprintf("%v", mt.Example))
 			sb.WriteString("\n")
 		}
@@ -319,8 +320,10 @@ func (w *Writer) writeMSONSchema(schema *model.Schema, indentLevel int) string {
 		for _, propName := range propNames {
 			propSchema := schema.Properties[propName]
 			propType := string(propSchema.Type)
-			if propType == "" { propType = "string" } // Default to string if type is unknown
-			
+			if propType == "" {
+				propType = "string"
+			} // Default to string if type is unknown
+
 			// Check if property is required
 			isRequired := false
 			for _, reqProp := range schema.Required {
@@ -329,9 +332,11 @@ func (w *Writer) writeMSONSchema(schema *model.Schema, indentLevel int) string {
 					break
 				}
 			}
-			
+
 			requiredStr := ""
-			if isRequired { requiredStr = " (required)" }
+			if isRequired {
+				requiredStr = " (required)"
+			}
 
 			line := fmt.Sprintf("%s+ %s (%s)%s\n", indent, propName, propType, requiredStr)
 			sb.WriteString(line)

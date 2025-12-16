@@ -149,7 +149,6 @@ type Schema struct {
 	AnyOf []*Schema `yaml:"anyOf,omitempty" json:"anyOf,omitempty"`
 	OneOf []*Schema `yaml:"oneOf,omitempty" json:"oneOf,omitempty"`
 	Not   *Schema   `yaml:"not,omitempty" json:"not,omitempty"`
-	// TODO: ... other constraints
 }
 
 // Components holds a set of reusable objects.
