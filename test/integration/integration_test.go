@@ -25,8 +25,7 @@ func TestConversions(t *testing.T) {
 		toOpenAPIVersion  string
 		toProtocol        string
 	}{
-		// OpenAPI v3 to others
-		// OpenAPI v2.0
+		// OpenAPI v2.0 to others
 		{
 			name:         "OpenAPI v2.0 (json) to API Blueprint",
 			inputFile:    "openapi_v2.json",
@@ -35,13 +34,22 @@ func TestConversions(t *testing.T) {
 			toFormat:     format.FormatAPIBlueprint,
 		},
 		{
-			name:         "OpenAPI v2.0 (json) to AsyncAPI v2.6",
+			name:         "OpenAPI v2.0 (json) to AsyncAPI v2.6 (kafka)",
 			inputFile:    "openapi_v2.json",
 			expectedFile: "expected/expected_openapi_v2_json_to_asyncapi_v2.yaml",
 			fromFormat:   format.FormatOpenAPI,
 			toFormat:     format.FormatAsyncAPI,
 			toAsyncAPIVersion: "2.6",
 			toProtocol: "kafka",
+		},
+		{
+			name:         "OpenAPI v2.0 (json) to AsyncAPI v2.6 (amqp)",
+			inputFile:    "openapi_v2.json",
+			expectedFile: "expected/expected_openapi_v2_json_to_asyncapi_v2_amqp.yaml",
+			fromFormat:   format.FormatOpenAPI,
+			toFormat:     format.FormatAsyncAPI,
+			toAsyncAPIVersion: "2.6",
+			toProtocol: "amqp",
 		},
 		{
 			name:         "OpenAPI v2.0 (json) to AsyncAPI v3.0",
@@ -118,7 +126,7 @@ func TestConversions(t *testing.T) {
 			toFormat:     format.FormatAPIBlueprint,
 		},
 		{
-			name:         "OpenAPI v3.0 (json) to AsyncAPI v2.6",
+			name:         "OpenAPI v3.0 (json) to AsyncAPI v2.6 (kafka)",
 			inputFile:    "openapi_v3_0.json",
 			expectedFile: "expected/expected_openapi_v3_0_json_to_asyncapi_v2.yaml",
 			fromFormat:   format.FormatOpenAPI,
@@ -127,7 +135,16 @@ func TestConversions(t *testing.T) {
 			toProtocol: "kafka",
 		},
 		{
-			name:         "OpenAPI v3.0 (json) to AsyncAPI v3.0",
+			name:         "OpenAPI v3.0 (json) to AsyncAPI v2.6 (http)",
+			inputFile:    "openapi_v3_0.json",
+			expectedFile: "expected/expected_openapi_v3_0_json_to_asyncapi_v2_http.yaml",
+			fromFormat:   format.FormatOpenAPI,
+			toFormat:     format.FormatAsyncAPI,
+			toAsyncAPIVersion: "2.6",
+			toProtocol: "http",
+		},
+		{
+			name:         "OpenAPI v3.0 (json) to AsyncAPI v3.0 (kafka)",
 			inputFile:    "openapi_v3_0.json",
 			expectedFile: "expected/expected_openapi_v3_0_json_to_asyncapi_v3.yaml",
 			fromFormat:   format.FormatOpenAPI,
@@ -136,12 +153,13 @@ func TestConversions(t *testing.T) {
 			toProtocol: "kafka",
 		},
 		{
-			name:         "OpenAPI v3.0 (json) to OpenAPI v2.0",
+			name:         "OpenAPI v3.0 (json) to AsyncAPI v3.0 (http)",
 			inputFile:    "openapi_v3_0.json",
-			expectedFile: "expected/expected_openapi_v3_0_json_to_openapi_v2.yaml",
+			expectedFile: "expected/expected_openapi_v3_0_json_to_asyncapi_v3_http.yaml",
 			fromFormat:   format.FormatOpenAPI,
-			toFormat:     format.FormatOpenAPI,
-			toOpenAPIVersion: "2.0",
+			toFormat:     format.FormatAsyncAPI,
+			toAsyncAPIVersion: "3.0",
+			toProtocol: "http",
 		},
 		{
 			name:         "OpenAPI v3.0 (json) to OpenAPI v3.1",
@@ -168,7 +186,7 @@ func TestConversions(t *testing.T) {
 			toProtocol: "kafka",
 		},
 		{
-			name:         "OpenAPI v3.0 (yaml) to AsyncAPI v3.0",
+			name:         "OpenAPI v3.0 (yaml) to AsyncAPI v3.0 (kafka)",
 			inputFile:    "openapi_v3_0.yaml",
 			expectedFile: "expected/expected_openapi_v3_0_yaml_to_asyncapi_v3.yaml",
 			fromFormat:   format.FormatOpenAPI,
@@ -177,12 +195,13 @@ func TestConversions(t *testing.T) {
 			toProtocol: "kafka",
 		},
 		{
-			name:         "OpenAPI v3.0 (yaml) to OpenAPI v2.0",
+			name:         "OpenAPI v3.0 (yaml) to AsyncAPI v3.0 (mqtt)",
 			inputFile:    "openapi_v3_0.yaml",
-			expectedFile: "expected/expected_openapi_v3_0_yaml_to_openapi_v2.yaml",
+			expectedFile: "expected/expected_openapi_v3_0_yaml_to_asyncapi_v3_mqtt.yaml",
 			fromFormat:   format.FormatOpenAPI,
-			toFormat:     format.FormatOpenAPI,
-			toOpenAPIVersion: "2.0",
+			toFormat:     format.FormatAsyncAPI,
+			toAsyncAPIVersion: "3.0",
+			toProtocol: "mqtt",
 		},
 		{
 			name:         "OpenAPI v3.0 (yaml) to OpenAPI v3.1",
@@ -219,22 +238,6 @@ func TestConversions(t *testing.T) {
 			toProtocol: "kafka",
 		},
 		{
-			name:         "OpenAPI v3.1 (json) to OpenAPI v2.0",
-			inputFile:    "openapi_v3_1.json",
-			expectedFile: "expected/expected_openapi_v3_1_json_to_openapi_v2.yaml",
-			fromFormat:   format.FormatOpenAPI,
-			toFormat:     format.FormatOpenAPI,
-			toOpenAPIVersion: "2.0",
-		},
-		{
-			name:         "OpenAPI v3.1 (json) to OpenAPI v3.0",
-			inputFile:    "openapi_v3_1.json",
-			expectedFile: "expected/expected_openapi_v3_1_json_to_openapi_v3_0.yaml",
-			fromFormat:   format.FormatOpenAPI,
-			toFormat:     format.FormatOpenAPI,
-			toOpenAPIVersion: "3.0",
-		},
-		{
 			name:         "OpenAPI v3.1 (yaml) to API Blueprint",
 			inputFile:    "openapi_v3_1.yaml",
 			expectedFile: "expected/expected_openapi_v3_1_yaml_to_apiblueprint.apib",
@@ -259,22 +262,6 @@ func TestConversions(t *testing.T) {
 			toAsyncAPIVersion: "3.0",
 			toProtocol: "kafka",
 		},
-		{
-			name:         "OpenAPI v3.1 (yaml) to OpenAPI v2.0",
-			inputFile:    "openapi_v3_1.yaml",
-			expectedFile: "expected/expected_openapi_v3_1_yaml_to_openapi_v2.yaml",
-			fromFormat:   format.FormatOpenAPI,
-			toFormat:     format.FormatOpenAPI,
-			toOpenAPIVersion: "2.0",
-		},
-		{
-			name:         "OpenAPI v3.1 (yaml) to OpenAPI v3.0",
-			inputFile:    "openapi_v3_1.yaml",
-			expectedFile: "expected/expected_openapi_v3_1_yaml_to_openapi_v3_0.yaml",
-			fromFormat:   format.FormatOpenAPI,
-			toFormat:     format.FormatOpenAPI,
-			toOpenAPIVersion: "3.0",
-		},
 		// AsyncAPI v2.x
 		{
 			name:         "AsyncAPI v2.x (yaml) to API Blueprint",
@@ -282,14 +269,6 @@ func TestConversions(t *testing.T) {
 			expectedFile: "expected/expected_asyncapi_v2_to_apiblueprint.apib",
 			fromFormat:   format.FormatAsyncAPI,
 			toFormat:     format.FormatAPIBlueprint,
-		},
-		{
-			name:         "AsyncAPI v2.x (yaml) to OpenAPI v2.0",
-			inputFile:    "asyncapi_v2.yaml",
-			expectedFile: "expected/expected_asyncapi_v2_to_openapi_v2.yaml",
-			fromFormat:   format.FormatAsyncAPI,
-			toFormat:     format.FormatOpenAPI,
-			toOpenAPIVersion: "2.0",
 		},
 		{
 			name:         "AsyncAPI v2.x (yaml) to OpenAPI v3.0",
@@ -322,14 +301,6 @@ func TestConversions(t *testing.T) {
 			expectedFile: "expected/expected_asyncapi_v2_to_apiblueprint.apib",
 			fromFormat:   format.FormatAsyncAPI,
 			toFormat:     format.FormatAPIBlueprint,
-		},
-		{
-			name:         "AsyncAPI v2.x (json) to OpenAPI v2.0",
-			inputFile:    "asyncapi_v2.json",
-			expectedFile: "expected/expected_asyncapi_v2_to_openapi_v2.yaml",
-			fromFormat:   format.FormatAsyncAPI,
-			toFormat:     format.FormatOpenAPI,
-			toOpenAPIVersion: "2.0",
 		},
 		{
 			name:         "AsyncAPI v2.x (json) to OpenAPI v3.0",
@@ -365,14 +336,6 @@ func TestConversions(t *testing.T) {
 			toFormat:     format.FormatAPIBlueprint,
 		},
 		{
-			name:         "AsyncAPI v3.0 (yaml) to OpenAPI v2.0",
-			inputFile:    "asyncapi_v3.yaml",
-			expectedFile: "expected/expected_asyncapi_v3_to_openapi_v2.yaml",
-			fromFormat:   format.FormatAsyncAPI,
-			toFormat:     format.FormatOpenAPI,
-			toOpenAPIVersion: "2.0",
-		},
-		{
 			name:         "AsyncAPI v3.0 (yaml) to OpenAPI v3.0",
 			inputFile:    "asyncapi_v3.yaml",
 			expectedFile: "expected/expected_asyncapi_v3_to_openapi_v3_0.yaml",
@@ -388,24 +351,7 @@ func TestConversions(t *testing.T) {
 			toFormat:     format.FormatOpenAPI,
 			toOpenAPIVersion: "3.1",
 		},
-		{
-			name:         "AsyncAPI v3.0 (yaml) to AsyncAPI v2.6",
-			inputFile:    "asyncapi_v3.yaml",
-			expectedFile: "expected/expected_asyncapi_v3_to_asyncapi_v2.yaml",
-			fromFormat:   format.FormatAsyncAPI,
-			toFormat:     format.FormatAsyncAPI,
-			toAsyncAPIVersion: "2.6",
-			toProtocol: "kafka",
-		},
 		// API Blueprint
-		{
-			name:         "API Blueprint (apib) to OpenAPI v2.0",
-			inputFile:    "apiblueprint.apib",
-			expectedFile: "expected/expected_apiblueprint_to_openapi_v2.yaml",
-			fromFormat:   format.FormatAPIBlueprint,
-			toFormat:     format.FormatOpenAPI,
-			toOpenAPIVersion: "2.0",
-		},
 		{
 			name:         "API Blueprint (apib) to OpenAPI v3.0",
 			inputFile:    "apiblueprint.apib",
@@ -423,7 +369,7 @@ func TestConversions(t *testing.T) {
 			toOpenAPIVersion: "3.1",
 		},
 		{
-			name:         "API Blueprint (apib) to AsyncAPI v2.6",
+			name:         "API Blueprint (apib) to AsyncAPI v2.6 (kafka)",
 			inputFile:    "apiblueprint.apib",
 			expectedFile: "expected/expected_apiblueprint_to_asyncapi_v2.yaml",
 			fromFormat:   format.FormatAPIBlueprint,
@@ -432,13 +378,31 @@ func TestConversions(t *testing.T) {
 			toProtocol: "kafka",
 		},
 		{
-			name:         "API Blueprint (apib) to AsyncAPI v3.0",
+			name:         "API Blueprint (apib) to AsyncAPI v2.6 (ws)",
+			inputFile:    "apiblueprint.apib",
+			expectedFile: "expected/expected_apiblueprint_to_asyncapi_v2_ws.yaml",
+			fromFormat:   format.FormatAPIBlueprint,
+			toFormat:     format.FormatAsyncAPI,
+			toAsyncAPIVersion: "2.6",
+			toProtocol: "ws",
+		},
+		{
+			name:         "API Blueprint (apib) to AsyncAPI v3.0 (kafka)",
 			inputFile:    "apiblueprint.apib",
 			expectedFile: "expected/expected_apiblueprint_to_asyncapi_v3.yaml",
 			fromFormat:   format.FormatAPIBlueprint,
 			toFormat:     format.FormatAsyncAPI,
 			toAsyncAPIVersion: "3.0",
 			toProtocol: "kafka",
+		},
+		{
+			name:         "API Blueprint (apib) to AsyncAPI v3.0 (wss)",
+			inputFile:    "apiblueprint.apib",
+			expectedFile: "expected/expected_apiblueprint_to_asyncapi_v3_wss.yaml",
+			fromFormat:   format.FormatAPIBlueprint,
+			toFormat:     format.FormatAsyncAPI,
+			toAsyncAPIVersion: "3.0",
+			toProtocol: "wss",
 		},
 	}
 

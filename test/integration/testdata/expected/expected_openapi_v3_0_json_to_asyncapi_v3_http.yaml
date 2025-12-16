@@ -1,0 +1,741 @@
+asyncapi: 3.0.0
+info:
+  title: Task Management API
+  version: 1.0.0
+  description: A comprehensive API for managing tasks, projects, developers, and notifications.
+channels:
+  /developers:
+    address: /developers
+  /developers/{developerId}:
+    address: /developers/{developerId}
+  /developers/{developerId}/tasks:
+    address: /developers/{developerId}/tasks
+  /projects:
+    address: /projects
+  /projects/{projectId}:
+    address: /projects/{projectId}
+  /projects/{projectId}/members:
+    address: /projects/{projectId}/members
+  /projects/{projectId}/members/{developerId}:
+    address: /projects/{projectId}/members/{developerId}
+  /tasks:
+    address: /tasks
+  /tasks/{taskId}:
+    address: /tasks/{taskId}
+  /tasks/{taskId}/comments:
+    address: /tasks/{taskId}/comments
+  /webhooks:
+    address: /webhooks
+  /webhooks/{webhookId}:
+    address: /webhooks/{webhookId}
+operations:
+  addProjectMember:
+    action: send
+    channel:
+      $ref: '#/channels//projects/{projectId}/members'
+    summary: Add a member
+    operationId: addProjectMember
+    messages:
+      - $ref: '#/components/messages/MemberAdd'
+  createComment:
+    action: send
+    channel:
+      $ref: '#/channels//tasks/{taskId}/comments'
+    summary: Add a comment
+    operationId: createComment
+    messages:
+      - $ref: '#/components/messages/CommentCreate'
+  createDeveloper:
+    action: send
+    channel:
+      $ref: '#/channels//developers'
+    summary: Create a new developer
+    operationId: createDeveloper
+    messages:
+      - $ref: '#/components/messages/DeveloperCreate'
+  createProject:
+    action: send
+    channel:
+      $ref: '#/channels//projects'
+    summary: Create a new project
+    operationId: createProject
+    messages:
+      - $ref: '#/components/messages/ProjectCreate'
+  createTask:
+    action: send
+    channel:
+      $ref: '#/channels//tasks'
+    summary: Create a new task
+    operationId: createTask
+    messages:
+      - $ref: '#/components/messages/TaskCreate'
+  createWebhook:
+    action: send
+    channel:
+      $ref: '#/channels//webhooks'
+    summary: Create a webhook
+    operationId: createWebhook
+    messages:
+      - $ref: '#/components/messages/WebhookCreate'
+  getDeveloper:
+    action: receive
+    channel:
+      $ref: '#/channels//developers/{developerId}'
+    summary: Get developer by ID
+    operationId: getDeveloper
+    messages:
+      - $ref: '#/components/messages/Developer'
+  getProject:
+    action: receive
+    channel:
+      $ref: '#/channels//projects/{projectId}'
+    summary: Get project by ID
+    operationId: getProject
+    messages:
+      - $ref: '#/components/messages/Project'
+  getTask:
+    action: receive
+    channel:
+      $ref: '#/channels//tasks/{taskId}'
+    summary: Get task by ID
+    operationId: getTask
+    messages:
+      - $ref: '#/components/messages/Task'
+  getWebhook:
+    action: receive
+    channel:
+      $ref: '#/channels//webhooks/{webhookId}'
+    summary: Get webhook by ID
+    operationId: getWebhook
+    messages:
+      - $ref: '#/components/messages/Webhook'
+  listDeveloperTasks:
+    action: receive
+    channel:
+      $ref: '#/channels//developers/{developerId}/tasks'
+    summary: List developer tasks
+    operationId: listDeveloperTasks
+    messages:
+      - payload:
+          items:
+            $ref: '#/components/schemas/Task'
+          type: array
+  listDevelopers:
+    action: receive
+    channel:
+      $ref: '#/channels//developers'
+    summary: List all developers
+    operationId: listDevelopers
+    messages:
+      - payload:
+          items:
+            $ref: '#/components/schemas/Developer'
+          type: array
+  listProjectMembers:
+    action: receive
+    channel:
+      $ref: '#/channels//projects/{projectId}/members'
+    summary: List project members
+    operationId: listProjectMembers
+    messages:
+      - payload:
+          items:
+            $ref: '#/components/schemas/Developer'
+          type: array
+  listProjects:
+    action: receive
+    channel:
+      $ref: '#/channels//projects'
+    summary: List all projects
+    operationId: listProjects
+    messages:
+      - payload:
+          items:
+            $ref: '#/components/schemas/Project'
+          type: array
+  listTaskComments:
+    action: receive
+    channel:
+      $ref: '#/channels//tasks/{taskId}/comments'
+    summary: List task comments
+    operationId: listTaskComments
+    messages:
+      - payload:
+          items:
+            $ref: '#/components/schemas/Comment'
+          type: array
+  listTasks:
+    action: receive
+    channel:
+      $ref: '#/channels//tasks'
+    summary: List all tasks
+    operationId: listTasks
+    messages:
+      - payload:
+          items:
+            $ref: '#/components/schemas/Task'
+          type: array
+  listWebhooks:
+    action: receive
+    channel:
+      $ref: '#/channels//webhooks'
+    summary: List all webhooks
+    operationId: listWebhooks
+    messages:
+      - payload:
+          items:
+            $ref: '#/components/schemas/Webhook'
+          type: array
+servers:
+  server0:
+    host: https://api.example.com/v1
+    protocol: http
+    description: Production server
+  server1:
+    host: https://staging-api.example.com/v1
+    protocol: http
+    description: Staging server
+components:
+  messages:
+    Comment:
+      name: Comment
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/Comment'
+    CommentCreate:
+      name: CommentCreate
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/CommentCreate'
+    Developer:
+      name: Developer
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/Developer'
+    DeveloperCreate:
+      name: DeveloperCreate
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/DeveloperCreate'
+    DeveloperUpdate:
+      name: DeveloperUpdate
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/DeveloperUpdate'
+    Error:
+      name: Error
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/Error'
+    MemberAdd:
+      name: MemberAdd
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/MemberAdd'
+    Project:
+      name: Project
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/Project'
+    ProjectCreate:
+      name: ProjectCreate
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/ProjectCreate'
+    ProjectUpdate:
+      name: ProjectUpdate
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/ProjectUpdate'
+    Task:
+      name: Task
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/Task'
+    TaskCreate:
+      name: TaskCreate
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/TaskCreate'
+    TaskUpdate:
+      name: TaskUpdate
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/TaskUpdate'
+    Webhook:
+      name: Webhook
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/Webhook'
+    WebhookCreate:
+      name: WebhookCreate
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/WebhookCreate'
+    WebhookUpdate:
+      name: WebhookUpdate
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/WebhookUpdate'
+  schemas:
+    Comment:
+      properties:
+        author_id:
+          type: string
+        content:
+          type: string
+        created_at:
+          format: date-time
+          type: string
+        id:
+          type: string
+        task_id:
+          type: string
+        updated_at:
+          format: date-time
+          type: string
+      required:
+        - id
+        - task_id
+        - author_id
+        - content
+        - created_at
+        - updated_at
+      type: object
+    CommentCreate:
+      properties:
+        author_id:
+          type: string
+        content:
+          type: string
+      required:
+        - author_id
+        - content
+      type: object
+    Developer:
+      properties:
+        active:
+          type: boolean
+        avatar_url:
+          format: uri
+          type: string
+        created_at:
+          format: date-time
+          type: string
+        email:
+          format: email
+          type: string
+        full_name:
+          type: string
+        hire_date:
+          format: date-time
+          type: string
+        id:
+          type: string
+        role:
+          enum:
+            - junior
+            - mid
+            - senior
+            - lead
+            - principal
+          type: string
+        skills:
+          items:
+            type: string
+          type: array
+        team:
+          type: string
+        updated_at:
+          format: date-time
+          type: string
+        username:
+          type: string
+      required:
+        - id
+        - username
+        - email
+        - full_name
+        - role
+        - active
+        - created_at
+        - updated_at
+      type: object
+    DeveloperCreate:
+      properties:
+        avatar_url:
+          format: uri
+          type: string
+        email:
+          format: email
+          type: string
+        full_name:
+          type: string
+        hire_date:
+          format: date-time
+          type: string
+        role:
+          enum:
+            - junior
+            - mid
+            - senior
+            - lead
+            - principal
+          type: string
+        skills:
+          items:
+            type: string
+          type: array
+        team:
+          type: string
+        username:
+          type: string
+      required:
+        - username
+        - email
+        - full_name
+        - role
+      type: object
+    DeveloperUpdate:
+      properties:
+        active:
+          type: boolean
+        avatar_url:
+          format: uri
+          type: string
+        email:
+          format: email
+          type: string
+        full_name:
+          type: string
+        role:
+          enum:
+            - junior
+            - mid
+            - senior
+            - lead
+            - principal
+          type: string
+        skills:
+          items:
+            type: string
+          type: array
+        team:
+          type: string
+        username:
+          type: string
+      type: object
+    Error:
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+      required:
+        - code
+        - message
+      type: object
+    MemberAdd:
+      properties:
+        developer_id:
+          type: string
+      required:
+        - developer_id
+      type: object
+    Project:
+      properties:
+        budget:
+          format: double
+          type: number
+        created_at:
+          format: date-time
+          type: string
+        description:
+          type: string
+        end_date:
+          format: date-time
+          type: string
+        id:
+          type: string
+        member_count:
+          type: integer
+        name:
+          type: string
+        owner_id:
+          type: string
+        start_date:
+          format: date-time
+          type: string
+        status:
+          enum:
+            - planning
+            - active
+            - on_hold
+            - completed
+            - archived
+          type: string
+        task_count:
+          type: integer
+        updated_at:
+          format: date-time
+          type: string
+      required:
+        - id
+        - name
+        - status
+        - owner_id
+        - member_count
+        - task_count
+        - created_at
+        - updated_at
+      type: object
+    ProjectCreate:
+      properties:
+        budget:
+          type: number
+        description:
+          type: string
+        end_date:
+          format: date-time
+          type: string
+        name:
+          type: string
+        owner_id:
+          type: string
+        start_date:
+          format: date-time
+          type: string
+        status:
+          enum:
+            - planning
+            - active
+          type: string
+      required:
+        - name
+        - owner_id
+      type: object
+    ProjectUpdate:
+      properties:
+        budget:
+          type: number
+        description:
+          type: string
+        end_date:
+          format: date-time
+          type: string
+        name:
+          type: string
+        owner_id:
+          type: string
+        start_date:
+          format: date-time
+          type: string
+        status:
+          enum:
+            - planning
+            - active
+            - on_hold
+            - completed
+            - archived
+          type: string
+      type: object
+    Task:
+      properties:
+        actual_hours:
+          format: double
+          type: number
+        assignee_id:
+          type: string
+        created_at:
+          format: date-time
+          type: string
+        description:
+          type: string
+        due_date:
+          format: date-time
+          type: string
+        estimated_hours:
+          format: double
+          type: number
+        id:
+          type: string
+        priority:
+          enum:
+            - low
+            - medium
+            - high
+            - critical
+          type: string
+        project_id:
+          type: string
+        reporter_id:
+          type: string
+        status:
+          enum:
+            - open
+            - in_progress
+            - review
+            - completed
+            - closed
+          type: string
+        tags:
+          items:
+            type: string
+          type: array
+        title:
+          type: string
+        updated_at:
+          format: date-time
+          type: string
+      required:
+        - id
+        - title
+        - status
+        - priority
+        - project_id
+        - reporter_id
+        - created_at
+        - updated_at
+      type: object
+    TaskCreate:
+      properties:
+        assignee_id:
+          type: string
+        description:
+          type: string
+        due_date:
+          format: date-time
+          type: string
+        estimated_hours:
+          type: number
+        priority:
+          enum:
+            - low
+            - medium
+            - high
+            - critical
+          type: string
+        project_id:
+          type: string
+        reporter_id:
+          type: string
+        status:
+          enum:
+            - open
+            - in_progress
+          type: string
+        tags:
+          items:
+            type: string
+          type: array
+        title:
+          type: string
+      required:
+        - title
+        - priority
+        - project_id
+        - reporter_id
+      type: object
+    TaskUpdate:
+      properties:
+        actual_hours:
+          type: number
+        assignee_id:
+          type: string
+        description:
+          type: string
+        due_date:
+          format: date-time
+          type: string
+        estimated_hours:
+          type: number
+        priority:
+          enum:
+            - low
+            - medium
+            - high
+            - critical
+          type: string
+        status:
+          enum:
+            - open
+            - in_progress
+            - review
+            - completed
+            - closed
+          type: string
+        tags:
+          items:
+            type: string
+          type: array
+        title:
+          type: string
+      type: object
+    Webhook:
+      properties:
+        active:
+          type: boolean
+        created_at:
+          format: date-time
+          type: string
+        events:
+          items:
+            type: string
+          type: array
+        id:
+          type: string
+        name:
+          type: string
+        secret:
+          type: string
+        updated_at:
+          format: date-time
+          type: string
+        url:
+          format: uri
+          type: string
+      required:
+        - id
+        - name
+        - url
+        - events
+        - active
+        - created_at
+        - updated_at
+      type: object
+    WebhookCreate:
+      properties:
+        active:
+          type: boolean
+        events:
+          items:
+            type: string
+          type: array
+        name:
+          type: string
+        secret:
+          type: string
+        url:
+          format: uri
+          type: string
+      required:
+        - name
+        - url
+        - events
+      type: object
+    WebhookUpdate:
+      properties:
+        active:
+          type: boolean
+        events:
+          items:
+            type: string
+          type: array
+        name:
+          type: string
+        secret:
+          type: string
+        url:
+          format: uri
+          type: string
+      type: object
