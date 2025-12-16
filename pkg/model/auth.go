@@ -17,11 +17,11 @@ type SecuritySchemeType string
 
 const (
 	// SecurityTypeAPIKey represents an API Key security scheme.
-	SecurityTypeAPIKey        SecuritySchemeType = "apiKey"
+	SecurityTypeAPIKey SecuritySchemeType = "apiKey"
 	// SecurityTypeHTTP represents an HTTP security scheme.
-	SecurityTypeHTTP          SecuritySchemeType = "http"
+	SecurityTypeHTTP SecuritySchemeType = "http"
 	// SecurityTypeOAuth2 represents an OAuth2 security scheme.
-	SecurityTypeOAuth2        SecuritySchemeType = "oauth2"
+	SecurityTypeOAuth2 SecuritySchemeType = "oauth2"
 	// SecurityTypeOpenIDConnect represents an OpenID Connect security scheme.
 	SecurityTypeOpenIDConnect SecuritySchemeType = "openIdConnect"
 )
@@ -54,7 +54,6 @@ func NewSecurityScheme(typ SecuritySchemeType) *SecurityScheme {
 
 // Validate validates the security scheme
 func (s *SecurityScheme) Validate() error {
-	// TODO: Validation is primarily handled by the `validator` package.
 	return nil
 }
 

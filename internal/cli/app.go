@@ -4,6 +4,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/amer8/apibconv/pkg/converter"
 )
@@ -34,6 +35,13 @@ func (a *App) Run(ctx context.Context, args []string) error {
 	cfg, err := ConfigFromFlags(flags, posArgs)
 	if err != nil {
 		return err
+	}
+
+	// Check if we are waiting for stdin in a terminal environment
+	if cfg.InputPath == "" && (cfg.Mode == ModeConvert || cfg.Mode == ModeValidate) {
+		if isStdinTerminal() {
+			return a.printUsage()
+		}
 	}
 
 	// 3. Execute based on Mode
@@ -238,4 +246,10 @@ Protocol Specification (AsyncAPI):
 func (a *App) printVersion() error {
 	fmt.Println("apibconv v1.0.0")
 	return nil
+}
+
+// isStdinTerminal checks if stdin is a terminal
+func isStdinTerminal() bool {
+	stat, _ := os.Stdin.Stat()
+	return (stat.Mode() & os.ModeCharDevice) != 0
 }

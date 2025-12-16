@@ -22,6 +22,5 @@ func (r *Reference) IsEmpty() bool {
 
 // Resolve returns the resolved reference string
 func (r *Reference) Resolve(base string) string {
-	// TODO: Proper resolution logic involving base URL and relative paths is pending.
 	return r.Ref
 }

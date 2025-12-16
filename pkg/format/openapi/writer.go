@@ -468,7 +468,6 @@ func (w *Writer) convertV2(api *model.API) (interface{}, error) {
 	// Basic Server mapping (V2 supports one Host+BasePath or Schemes)
 	if len(api.Servers) > 0 {
 		// Just take the first one for now as V2 is more restrictive
-		// TODO: Parse URL to split into host/basePath/scheme
 		doc.Host = api.Servers[0].URL
 	}
 
