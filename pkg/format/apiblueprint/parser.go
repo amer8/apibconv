@@ -213,6 +213,7 @@ func (p *Parser) parseDocument(content string) (*model.API, error) {
 			currentOperation = nil // Reset operation
 			continue
 		}
+
 		// Response
 		if matches := reResponse.FindStringSubmatch(line); len(matches) > 0 && currentOperation != nil {
 			statusCode := matches[1]

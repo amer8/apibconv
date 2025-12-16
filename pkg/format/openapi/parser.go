@@ -59,6 +59,10 @@ func (p *Parser) Parse(ctx context.Context, r io.Reader) (*model.API, error) {
 		return nil, fmt.Errorf("failed to read input: %w", err)
 	}
 
+	if len(bytes.TrimSpace(data)) == 0 {
+		return nil, fmt.Errorf("empty input")
+	}
+
 	// 1. Detect Version
 	var base struct {
 		Swagger string `yaml:"swagger"`
@@ -344,6 +348,10 @@ func (p *Parser) convertSchema(s *Schema) *model.Schema {
 			ms.Type = model.SchemaType(t)
 		case []interface{}: // Handle OpenAPI 3.1 type: ["string", "null"]
 			for _, item := range t {
+				if item == nil {
+					ms.Nullable = true
+					continue
+				}
 				if typeStr, ok := item.(string); ok {
 					if typeStr == "null" {
 						ms.Nullable = true // Mark as nullable in the model
