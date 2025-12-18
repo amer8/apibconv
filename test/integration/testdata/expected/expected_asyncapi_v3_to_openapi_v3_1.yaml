@@ -16,7 +16,7 @@ paths:
       summary: Receive developer creation notifications
       operationId: onDeveloperCreated
       responses:
-        "404":
+        '404':
           description: Not Found
           content:
             application/json:
@@ -27,7 +27,7 @@ paths:
       summary: Receive developer deletion notifications
       operationId: onDeveloperDeleted
       responses:
-        "404":
+        '404':
           description: Not Found
           content:
             application/json:
@@ -38,7 +38,7 @@ paths:
       summary: Receive developer update notifications
       operationId: onDeveloperUpdated
       responses:
-        "404":
+        '404':
           description: Not Found
           content:
             application/json:
@@ -49,7 +49,7 @@ paths:
       summary: Receive project creation notifications
       operationId: onProjectCreated
       responses:
-        "404":
+        '404':
           description: Not Found
           content:
             application/json:
@@ -60,7 +60,7 @@ paths:
       summary: Receive project deletion notifications
       operationId: onProjectDeleted
       responses:
-        "404":
+        '404':
           description: Not Found
           content:
             application/json:
@@ -71,7 +71,7 @@ paths:
       summary: Receive member addition notifications
       operationId: onProjectMemberAdded
       responses:
-        "404":
+        '404':
           description: Not Found
           content:
             application/json:
@@ -82,7 +82,7 @@ paths:
       summary: Receive member removal notifications
       operationId: onProjectMemberRemoved
       responses:
-        "404":
+        '404':
           description: Not Found
           content:
             application/json:
@@ -93,7 +93,7 @@ paths:
       summary: Receive project update notifications
       operationId: onProjectUpdated
       responses:
-        "404":
+        '404':
           description: Not Found
           content:
             application/json:
@@ -104,7 +104,7 @@ paths:
       summary: Receive task assignment notifications
       operationId: onTaskAssigned
       responses:
-        "404":
+        '404':
           description: Not Found
           content:
             application/json:
@@ -115,7 +115,7 @@ paths:
       summary: Receive task comment notifications
       operationId: onTaskCommented
       responses:
-        "404":
+        '404':
           description: Not Found
           content:
             application/json:
@@ -126,7 +126,7 @@ paths:
       summary: Receive task creation notifications
       operationId: onTaskCreated
       responses:
-        "404":
+        '404':
           description: Not Found
           content:
             application/json:
@@ -137,7 +137,7 @@ paths:
       summary: Receive task deletion notifications
       operationId: onTaskDeleted
       responses:
-        "404":
+        '404':
           description: Not Found
           content:
             application/json:
@@ -148,7 +148,7 @@ paths:
       summary: Receive task update notifications
       operationId: onTaskUpdated
       responses:
-        "404":
+        '404':
           description: Not Found
           content:
             application/json:
@@ -159,7 +159,7 @@ paths:
       summary: Publish webhook trigger notifications
       operationId: triggerWebhook
       responses:
-        "404":
+        '404':
           description: Not Found
           content:
             application/json:

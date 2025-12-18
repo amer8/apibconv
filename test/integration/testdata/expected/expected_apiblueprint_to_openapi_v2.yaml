@@ -15,14 +15,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/definitions/Developer'
-                type: array
+                $ref: "#/definitions/Developer"
         "404":
           description: Not Found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/definitions/Error"
     delete:
       tags:
         - Developers
@@ -31,13 +30,13 @@ paths:
         "204":
           content:
             application/json:
-              example: |2+
+              example: ""
         "404":
           description: Not Found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/definitions/Error"
     patch:
       tags:
         - Developers
@@ -47,14 +46,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/definitions/Developer'
-                type: array
+                $ref: "#/definitions/Developer"
         "404":
           description: Not Found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/definitions/Error"
   /developers/{developerId}/tasks{?status}:
     get:
       tags:
@@ -65,14 +63,15 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/definitions/Task'
                 type: array
+                items:
+                  $ref: "#/definitions/Task"
         "404":
           description: Not Found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/definitions/Error"
   /developers{?role,team,active,limit,offset}:
     get:
       tags:
@@ -83,14 +82,15 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/definitions/Developer'
                 type: array
+                items:
+                  $ref: "#/definitions/Developer"
         "404":
           description: Not Found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/definitions/Error"
     post:
       tags:
         - Developers
@@ -100,14 +100,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/definitions/Developer'
-                type: array
+                $ref: "#/definitions/Developer"
         "404":
           description: Not Found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/definitions/Error"
   /projects/{projectId}:
     get:
       tags:
@@ -118,14 +117,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/definitions/Project'
-                type: array
+                $ref: "#/definitions/Project"
         "404":
           description: Not Found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/definitions/Error"
     delete:
       tags:
         - Projects
@@ -134,13 +132,13 @@ paths:
         "204":
           content:
             application/json:
-              example: |2+
+              example: ""
         "404":
           description: Not Found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/definitions/Error"
     patch:
       tags:
         - Projects
@@ -150,14 +148,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/definitions/Project'
-                type: array
+                $ref: "#/definitions/Project"
         "404":
           description: Not Found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/definitions/Error"
   /projects/{projectId}/members:
     get:
       tags:
@@ -168,14 +165,15 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/definitions/Developer'
                 type: array
+                items:
+                  $ref: "#/definitions/Developer"
         "404":
           description: Not Found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/definitions/Error"
     post:
       tags:
         - Projects
@@ -185,14 +183,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/definitions/Developer'
-                type: array
+                $ref: "#/definitions/Developer"
         "404":
           description: Not Found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/definitions/Error"
   /projects{?status,owner,limit,offset}:
     get:
       tags:
@@ -203,14 +200,15 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/definitions/Project'
                 type: array
+                items:
+                  $ref: "#/definitions/Project"
         "404":
           description: Not Found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/definitions/Error"
     post:
       tags:
         - Projects
@@ -220,14 +218,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/definitions/Project'
-                type: array
+                $ref: "#/definitions/Project"
         "404":
           description: Not Found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/definitions/Error"
   /tasks/{taskId}:
     get:
       tags:
@@ -238,14 +235,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/definitions/Task'
-                type: array
+                $ref: "#/definitions/Task"
         "404":
           description: Not Found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/definitions/Error"
     delete:
       tags:
         - Tasks
@@ -254,13 +250,13 @@ paths:
         "204":
           content:
             application/json:
-              example: |2+
+              example: ""
         "404":
           description: Not Found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/definitions/Error"
     patch:
       tags:
         - Tasks
@@ -270,14 +266,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/definitions/Task'
-                type: array
+                $ref: "#/definitions/Task"
         "404":
           description: Not Found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/definitions/Error"
   /tasks/{taskId}/comments:
     get:
       tags:
@@ -288,14 +283,15 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/definitions/Comment'
                 type: array
+                items:
+                  $ref: "#/definitions/Comment"
         "404":
           description: Not Found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/definitions/Error"
     post:
       tags:
         - Tasks
@@ -305,14 +301,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/definitions/Comment'
-                type: array
+                $ref: "#/definitions/Comment"
         "404":
           description: Not Found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/definitions/Error"
   /tasks{?status,assignee,project,priority,limit,offset}:
     get:
       tags:
@@ -323,14 +318,15 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/definitions/Task'
                 type: array
+                items:
+                  $ref: "#/definitions/Task"
         "404":
           description: Not Found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/definitions/Error"
     post:
       tags:
         - Tasks
@@ -340,14 +336,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/definitions/Task'
-                type: array
+                $ref: "#/definitions/Task"
         "404":
           description: Not Found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/definitions/Error"
   /webhooks:
     get:
       tags:
@@ -358,14 +353,15 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/definitions/Webhook'
                 type: array
+                items:
+                  $ref: "#/definitions/Webhook"
         "404":
           description: Not Found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/definitions/Error"
     post:
       tags:
         - Webhooks
@@ -375,14 +371,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/definitions/Webhook'
-                type: array
+                $ref: "#/definitions/Webhook"
         "404":
           description: Not Found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/definitions/Error"
 definitions:
   Comment:
     type: object

@@ -55,7 +55,6 @@ type Operation3 struct {
 	Channel     interface{}            `yaml:"channel" json:"channel"` // Ref or Object
 	Summary     string                 `yaml:"summary,omitempty" json:"summary,omitempty"`
 	Description string                 `yaml:"description,omitempty" json:"description,omitempty"`
-	OperationID string                 `yaml:"operationId,omitempty" json:"operationId,omitempty"`
 	Messages    []interface{}          `yaml:"messages,omitempty" json:"messages,omitempty"`
 	Bindings    map[string]interface{} `yaml:"bindings,omitempty" json:"bindings,omitempty"` // Operation Bindings
 }

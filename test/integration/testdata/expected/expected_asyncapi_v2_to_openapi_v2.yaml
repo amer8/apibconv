@@ -15,13 +15,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/definitions/DeveloperCreated'
+                $ref: "#/definitions/DeveloperCreated"
         "404":
           description: Not Found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/definitions/Error"
   /developer/deleted:
     get:
       summary: Receive developer deletion notifications
@@ -32,13 +32,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/definitions/DeveloperDeleted'
+                $ref: "#/definitions/DeveloperDeleted"
         "404":
           description: Not Found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/definitions/Error"
   /developer/updated:
     get:
       summary: Receive developer update notifications
@@ -49,13 +49,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/definitions/DeveloperUpdated'
+                $ref: "#/definitions/DeveloperUpdated"
         "404":
           description: Not Found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/definitions/Error"
   /project/created:
     get:
       summary: Receive project creation notifications
@@ -66,13 +66,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/definitions/ProjectCreated'
+                $ref: "#/definitions/ProjectCreated"
         "404":
           description: Not Found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/definitions/Error"
   /project/deleted:
     get:
       summary: Receive project deletion notifications
@@ -83,13 +83,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/definitions/ProjectDeleted'
+                $ref: "#/definitions/ProjectDeleted"
         "404":
           description: Not Found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/definitions/Error"
   /project/member-added:
     get:
       summary: Receive member addition notifications
@@ -100,13 +100,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/definitions/ProjectMemberAdded'
+                $ref: "#/definitions/ProjectMemberAdded"
         "404":
           description: Not Found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/definitions/Error"
   /project/member-removed:
     get:
       summary: Receive member removal notifications
@@ -117,13 +117,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/definitions/ProjectMemberRemoved'
+                $ref: "#/definitions/ProjectMemberRemoved"
         "404":
           description: Not Found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/definitions/Error"
   /project/updated:
     get:
       summary: Receive project update notifications
@@ -134,13 +134,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/definitions/ProjectUpdated'
+                $ref: "#/definitions/ProjectUpdated"
         "404":
           description: Not Found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/definitions/Error"
   /task/assigned:
     get:
       summary: Receive task assignment notifications
@@ -151,13 +151,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/definitions/TaskAssigned'
+                $ref: "#/definitions/TaskAssigned"
         "404":
           description: Not Found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/definitions/Error"
   /task/commented:
     get:
       summary: Receive task comment notifications
@@ -168,13 +168,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/definitions/TaskCommented'
+                $ref: "#/definitions/TaskCommented"
         "404":
           description: Not Found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/definitions/Error"
   /task/created:
     get:
       summary: Receive task creation notifications
@@ -185,13 +185,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/definitions/TaskCreated'
+                $ref: "#/definitions/TaskCreated"
         "404":
           description: Not Found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/definitions/Error"
   /task/deleted:
     get:
       summary: Receive task deletion notifications
@@ -202,13 +202,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/definitions/TaskDeleted'
+                $ref: "#/definitions/TaskDeleted"
         "404":
           description: Not Found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/definitions/Error"
   /task/updated:
     get:
       summary: Receive task update notifications
@@ -219,13 +219,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/definitions/TaskUpdated'
+                $ref: "#/definitions/TaskUpdated"
         "404":
           description: Not Found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/definitions/Error"
   /webhook/triggered:
     post:
       summary: Publish webhook trigger notifications
@@ -234,7 +234,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/definitions/WebhookTriggered'
+              $ref: "#/definitions/WebhookTriggered"
       responses:
         "200":
           description: OK
@@ -243,8 +243,136 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: "#/definitions/Error"
 definitions:
+  Comment:
+    type: object
+    properties:
+      author_id:
+        type: string
+      content:
+        type: string
+      created_at:
+        type: string
+        format: date-time
+      id:
+        type: string
+      task_id:
+        type: string
+      updated_at:
+        type: string
+        format: date-time
+    required:
+      - id
+      - task_id
+      - author_id
+      - content
+      - created_at
+      - updated_at
+  Developer:
+    type: object
+    properties:
+      active:
+        type: boolean
+      avatar_url:
+        type: string
+        format: uri
+      created_at:
+        type: string
+        format: date-time
+      email:
+        type: string
+        format: email
+      full_name:
+        type: string
+      hire_date:
+        type: string
+        format: date-time
+      id:
+        type: string
+      role:
+        type: string
+        enum:
+          - junior
+          - mid
+          - senior
+          - lead
+          - principal
+      skills:
+        type: array
+        items:
+          type: string
+      team:
+        type: string
+      updated_at:
+        type: string
+        format: date-time
+      username:
+        type: string
+    required:
+      - id
+      - username
+      - email
+      - full_name
+      - role
+      - active
+      - created_at
+      - updated_at
+  DeveloperCreated:
+    $ref: "#/definitions/DeveloperEvent"
+  DeveloperDeleted:
+    type: object
+    properties:
+      deleted_by:
+        type: string
+      developer_id:
+        type: string
+      event:
+        type: string
+      timestamp:
+        type: string
+        format: date-time
+    required:
+      - event
+      - developer_id
+      - deleted_by
+      - timestamp
+  DeveloperEvent:
+    type: object
+    properties:
+      actor:
+        type: object
+        properties:
+          id:
+            type: string
+          type:
+            type: string
+            enum:
+              - user
+              - system
+        required:
+          - id
+          - type
+      changes:
+        type: object
+        description: Fields that were changed (for update events)
+      developer:
+        $ref: "#/definitions/Developer"
+      event:
+        type: string
+        enum:
+          - developer.created
+          - developer.updated
+      timestamp:
+        type: string
+        format: date-time
+    required:
+      - event
+      - developer
+      - timestamp
+      - actor
+  DeveloperUpdated:
+    $ref: "#/definitions/DeveloperEvent"
   Error:
     type: object
     properties:
@@ -255,3 +383,335 @@ definitions:
     required:
       - code
       - message
+  EventHeaders:
+    type: object
+    properties:
+      correlation-id:
+        type: string
+        description: Correlation ID for tracking related events
+      event-id:
+        type: string
+        description: Unique identifier for the event
+      event-version:
+        type: string
+        description: Version of the event schema
+      source:
+        type: string
+        description: Source system that generated the event
+  Project:
+    type: object
+    properties:
+      budget:
+        type: number
+      created_at:
+        type: string
+        format: date-time
+      description:
+        type: string
+      end_date:
+        type: string
+        format: date-time
+      id:
+        type: string
+      member_count:
+        type: integer
+      name:
+        type: string
+      owner_id:
+        type: string
+      start_date:
+        type: string
+        format: date-time
+      status:
+        type: string
+        enum:
+          - planning
+          - active
+          - on_hold
+          - completed
+          - archived
+      task_count:
+        type: integer
+      updated_at:
+        type: string
+        format: date-time
+    required:
+      - id
+      - name
+      - status
+      - owner_id
+      - member_count
+      - task_count
+      - created_at
+      - updated_at
+  ProjectCreated:
+    $ref: "#/definitions/ProjectEvent"
+  ProjectDeleted:
+    type: object
+    properties:
+      deleted_by:
+        type: string
+      event:
+        type: string
+      project_id:
+        type: string
+      timestamp:
+        type: string
+        format: date-time
+    required:
+      - event
+      - project_id
+      - deleted_by
+      - timestamp
+  ProjectEvent:
+    type: object
+    properties:
+      actor:
+        type: object
+        properties:
+          id:
+            type: string
+          type:
+            type: string
+            enum:
+              - user
+              - system
+        required:
+          - id
+          - type
+      changes:
+        type: object
+        description: Fields that were changed (for update events)
+      event:
+        type: string
+        enum:
+          - project.created
+          - project.updated
+      project:
+        $ref: "#/definitions/Project"
+      timestamp:
+        type: string
+        format: date-time
+    required:
+      - event
+      - project
+      - timestamp
+      - actor
+  ProjectMemberAdded:
+    type: object
+    properties:
+      added_by:
+        type: string
+      developer_id:
+        type: string
+      event:
+        type: string
+      project_id:
+        type: string
+      timestamp:
+        type: string
+        format: date-time
+    required:
+      - event
+      - project_id
+      - developer_id
+      - added_by
+      - timestamp
+  ProjectMemberRemoved:
+    type: object
+    properties:
+      developer_id:
+        type: string
+      event:
+        type: string
+      project_id:
+        type: string
+      removed_by:
+        type: string
+      timestamp:
+        type: string
+        format: date-time
+    required:
+      - event
+      - project_id
+      - developer_id
+      - removed_by
+      - timestamp
+  ProjectUpdated:
+    $ref: "#/definitions/ProjectEvent"
+  Task:
+    type: object
+    properties:
+      actual_hours:
+        type: number
+      assignee_id:
+        type: string
+      created_at:
+        type: string
+        format: date-time
+      description:
+        type: string
+      due_date:
+        type: string
+        format: date-time
+      estimated_hours:
+        type: number
+      id:
+        type: string
+      priority:
+        type: string
+        enum:
+          - low
+          - medium
+          - high
+          - critical
+      project_id:
+        type: string
+      reporter_id:
+        type: string
+      status:
+        type: string
+        enum:
+          - open
+          - in_progress
+          - review
+          - completed
+          - closed
+      tags:
+        type: array
+        items:
+          type: string
+      title:
+        type: string
+      updated_at:
+        type: string
+        format: date-time
+    required:
+      - id
+      - title
+      - status
+      - priority
+      - project_id
+      - reporter_id
+      - created_at
+      - updated_at
+  TaskAssigned:
+    type: object
+    properties:
+      assigned_by:
+        type: string
+      assignee_id:
+        type: string
+      event:
+        type: string
+      task_id:
+        type: string
+      timestamp:
+        type: string
+        format: date-time
+    required:
+      - event
+      - task_id
+      - assignee_id
+      - assigned_by
+      - timestamp
+  TaskCommented:
+    type: object
+    properties:
+      comment:
+        $ref: "#/definitions/Comment"
+      event:
+        type: string
+      task_id:
+        type: string
+      timestamp:
+        type: string
+        format: date-time
+    required:
+      - event
+      - task_id
+      - comment
+      - timestamp
+  TaskCreated:
+    $ref: "#/definitions/TaskEvent"
+  TaskDeleted:
+    type: object
+    properties:
+      deleted_by:
+        type: string
+      event:
+        type: string
+      task_id:
+        type: string
+      timestamp:
+        type: string
+        format: date-time
+    required:
+      - event
+      - task_id
+      - deleted_by
+      - timestamp
+  TaskEvent:
+    type: object
+    properties:
+      actor:
+        type: object
+        properties:
+          id:
+            type: string
+          type:
+            type: string
+            enum:
+              - user
+              - system
+        required:
+          - id
+          - type
+      changes:
+        type: object
+        description: Fields that were changed (for update events)
+      event:
+        type: string
+        enum:
+          - task.created
+          - task.updated
+      task:
+        $ref: "#/definitions/Task"
+      timestamp:
+        type: string
+        format: date-time
+    required:
+      - event
+      - task
+      - timestamp
+      - actor
+  TaskUpdated:
+    $ref: "#/definitions/TaskEvent"
+  WebhookTriggered:
+    type: object
+    properties:
+      error_message:
+        type: string
+      event_type:
+        type: string
+      payload:
+        type: object
+      response_code:
+        type: integer
+      status:
+        type: string
+        enum:
+          - success
+          - failed
+          - pending
+      timestamp:
+        type: string
+        format: date-time
+      webhook_id:
+        type: string
+    required:
+      - webhook_id
+      - event_type
+      - payload
+      - timestamp
+      - status

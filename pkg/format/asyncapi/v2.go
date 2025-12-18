@@ -44,7 +44,32 @@ func (p *Parser) parseV2(data []byte) (*model.API, error) {
 		})
 	}
 
-	// Convert Components
+	// Convert Components (Schemas and Messages)
+	if schemas, ok := doc.Components["schemas"].(map[string]interface{}); ok {
+		for name, schemaPayload := range schemas {
+			s := p.convertSchemaPayload(schemaPayload)
+			if s != nil {
+				api.Components.AddSchema(name, s)
+			}
+		}
+	}
+	if messages, ok := doc.Components["messages"].(map[string]interface{}); ok {
+		for name, msgPayload := range messages {
+			// Messages in components are usually map[string]interface{}
+			if msgMap, ok := msgPayload.(map[string]interface{}); ok {
+				// We act as if the message payload is the schema we want to store
+				if payload, ok := msgMap["payload"]; ok {
+					s := p.convertSchemaPayload(payload)
+					if s != nil {
+						// Store message payload as a schema
+						api.Components.AddSchema(name, s)
+					}
+				}
+			}
+		}
+	}
+
+	// Convert Channels
 	for path, ch := range doc.Channels {
 		originalName := path
 
@@ -267,6 +292,15 @@ func (w *Writer) writeV2(api *model.API, wr io.Writer, targetProtocol string, js
 		item := api.Paths[path]
 		ch := Channel2{}
 
+		// AsyncAPI 2.x channel addresses should not contain query params or fragments
+		cleanPath := path
+		if idx := strings.Index(path, "{?"); idx != -1 {
+			cleanPath = path[:idx]
+		}
+		if idx := strings.Index(cleanPath, "#"); idx != -1 {
+			cleanPath = cleanPath[:idx]
+		}
+
 		if item.Post != nil {
 			op := &Operation{
 				OperationID: item.Post.OperationID,
@@ -354,7 +388,7 @@ func (w *Writer) writeV2(api *model.API, wr io.Writer, targetProtocol string, js
 		}
 
 		if ch.Publish != nil || ch.Subscribe != nil {
-			doc.Channels[path] = ch
+			doc.Channels[cleanPath] = ch
 		}
 	}
 

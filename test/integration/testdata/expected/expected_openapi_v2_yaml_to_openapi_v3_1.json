@@ -1,5 +1,5 @@
 {
-  "openapi": "3.1",
+  "openapi": "3.1.0",
   "info": {
     "title": "Task Management API",
     "description": "A comprehensive API for managing tasks, projects, developers, and notifications.",
@@ -82,7 +82,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/definitions/Error"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -121,7 +121,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/definitions/Error"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -194,7 +194,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/definitions/Error"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -243,7 +243,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/definitions/Error"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -294,7 +294,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/definitions/Error"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -358,7 +358,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/definitions/Error"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -397,7 +397,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/definitions/Error"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -470,7 +470,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/definitions/Error"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -519,7 +519,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/definitions/Error"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -563,7 +563,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/definitions/Error"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -612,7 +612,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/definitions/Error"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -654,7 +654,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/definitions/Error"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -937,7 +937,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/definitions/Error"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -986,7 +986,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/definitions/Error"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -1020,7 +1020,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/definitions/Error"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -1059,7 +1059,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/definitions/Error"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -1132,7 +1132,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/definitions/Error"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -1181,7 +1181,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/definitions/Error"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -1832,23 +1832,6 @@
             "type": "string",
             "format": "uri"
           }
-        }
-      }
-    }
-  },
-  "definitions": {
-    "Error": {
-      "type": "object",
-      "required": [
-        "code",
-        "message"
-      ],
-      "properties": {
-        "code": {
-          "type": "integer"
-        },
-        "message": {
-          "type": "string"
         }
       }
     }

@@ -99,7 +99,6 @@ func (p *Parser) parseV3(data []byte) (*model.API, error) {
 		pi, _ := api.GetPath(path)
 
 		modelOp := &model.Operation{
-			OperationID: op.OperationID,
 			Summary:     op.Summary,
 			Description: op.Description,
 			Bindings:    op.Bindings,
@@ -202,15 +201,28 @@ func (w *Writer) writeV3(api *model.API, wr io.Writer, targetProtocol string, js
 
 	for _, path := range paths {
 		item := api.Paths[path]
+		
+		// AsyncAPI channel addresses should not contain query params or fragments
+		cleanPath := path
+		if idx := strings.Index(path, "{?"); idx != -1 {
+			cleanPath = path[:idx]
+		}
+		if idx := strings.Index(cleanPath, "#"); idx != -1 {
+			cleanPath = cleanPath[:idx]
+		}
+
 		// Generate Channel ID
 		channelID := item.Name
 		if channelID == "" {
-			channelID = path
+			channelID = cleanPath
 		}
+		
+		// Escape Channel ID for JSON Pointer
+		escapedChannelID := strings.ReplaceAll(channelID, "~", "~0")
+		escapedChannelID = strings.ReplaceAll(escapedChannelID, "/", "~1")
 
-		doc.Channels[channelID] = Channel3{
-			Address: path,
-		}
+		// Prepare Channel Messages Map
+		channelMessages := make(map[string]interface{})
 
 		if item.Post != nil {
 			opID := item.Post.OperationID
@@ -219,35 +231,56 @@ func (w *Writer) writeV3(api *model.API, wr io.Writer, targetProtocol string, js
 			}
 			op := Operation3{
 				Action:      "send",
-				Channel:     map[string]string{"$ref": "#/channels/" + channelID},
+				Channel:     map[string]string{"$ref": "#/channels/" + escapedChannelID},
 				Summary:     item.Post.Summary,
 				Description: item.Post.Description,
-				OperationID: item.Post.OperationID,
 				Bindings:    item.Post.Bindings,
 			}
 
 			// Add Messages
 			if item.Post.RequestBody != nil {
-				for _, mt := range item.Post.RequestBody.Content {
-					if mt.Schema != nil {
-						msg := &Message{}
-						if mt.Schema.Ref != "" {
-							ref := mt.Schema.Ref
-							if strings.HasPrefix(ref, "#/components/schemas/") {
-								name := strings.TrimPrefix(ref, "#/components/schemas/")
-								msg.Ref = "#/components/messages/" + name
-							} else {
-								msg.Ref = ref
-							}
-						} else {
-							data, _ := json.Marshal(mt.Schema)
-							var payload interface{}
-							_ = json.Unmarshal(data, &payload)
-							msg.Payload = payload
-						}
-						op.Messages = append(op.Messages, msg)
-						break
+				for i, mt := range item.Post.RequestBody.Content {
+					if mt.Schema == nil {
+						continue
 					}
+					msg := &Message{}
+					var msgKey string
+					if mt.Schema.Ref != "" {
+						ref := mt.Schema.Ref
+						if strings.HasPrefix(ref, "#/components/schemas/") {
+							name := strings.TrimPrefix(ref, "#/components/schemas/")
+							msg.Ref = "#/components/messages/" + name
+							msgKey = name
+						} else {
+							msg.Ref = ref
+							parts := strings.Split(ref, "/")
+							if len(parts) > 0 {
+								msgKey = parts[len(parts)-1]
+							} else {
+								msgKey = fmt.Sprintf("message_%%!d(string=%s)", i)
+							}
+						}
+					} else {
+						data, _ := json.Marshal(mt.Schema)
+						var payload interface{}
+						_ = json.Unmarshal(data, &payload)
+						msg.Payload = payload
+						msgKey = fmt.Sprintf("message_%%!d(string=%s)", i)
+					}
+
+					// Add to channel
+					channelMessages[msgKey] = msg
+
+					// Add Ref to Operation
+					// Message key also needs escaping if it contains special chars (unlikely for keys but good practice)
+					escapedMsgKey := strings.ReplaceAll(msgKey, "~", "~0")
+					escapedMsgKey = strings.ReplaceAll(escapedMsgKey, "/", "~1")
+
+					opMsgRef := &Message{
+						Ref: "#/channels/" + escapedChannelID + "/messages/" + escapedMsgKey,
+					}
+					op.Messages = append(op.Messages, opMsgRef)
+					break
 				}
 			}
 			doc.Operations[opID] = op
@@ -260,10 +293,9 @@ func (w *Writer) writeV3(api *model.API, wr io.Writer, targetProtocol string, js
 			}
 			op := Operation3{
 				Action:      "receive",
-				Channel:     map[string]string{"$ref": "#/channels/" + channelID},
+				Channel:     map[string]string{"$ref": "#/channels/" + escapedChannelID},
 				Summary:     item.Get.Summary,
 				Description: item.Get.Description,
-				OperationID: item.Get.OperationID,
 				Bindings:    item.Get.Bindings,
 			}
 
@@ -277,26 +309,47 @@ func (w *Writer) writeV3(api *model.API, wr io.Writer, targetProtocol string, js
 
 				for _, code := range codes {
 					resp := item.Get.Responses[code]
-					for _, mt := range resp.Content {
-						if mt.Schema != nil {
-							msg := &Message{}
-							if mt.Schema.Ref != "" {
-								ref := mt.Schema.Ref
-								if strings.HasPrefix(ref, "#/components/schemas/") {
-									name := strings.TrimPrefix(ref, "#/components/schemas/")
-									msg.Ref = "#/components/messages/" + name
-								} else {
-									msg.Ref = ref
-								}
-							} else {
-								data, _ := json.Marshal(mt.Schema)
-								var payload interface{}
-								_ = json.Unmarshal(data, &payload)
-								msg.Payload = payload
-							}
-							op.Messages = append(op.Messages, msg)
-							break
+					for i, mt := range resp.Content {
+						if mt.Schema == nil {
+							continue
 						}
+						msg := &Message{}
+						var msgKey string
+						if mt.Schema.Ref != "" {
+							ref := mt.Schema.Ref
+							if strings.HasPrefix(ref, "#/components/schemas/") {
+								name := strings.TrimPrefix(ref, "#/components/schemas/")
+								msg.Ref = "#/components/messages/" + name
+								msgKey = name
+							} else {
+								msg.Ref = ref
+								parts := strings.Split(ref, "/")
+								if len(parts) > 0 {
+									msgKey = parts[len(parts)-1]
+								} else {
+									msgKey = fmt.Sprintf("message_%s_%%!d(string=%s)", code, i)
+								}
+							}
+						} else {
+							data, _ := json.Marshal(mt.Schema)
+							var payload interface{}
+							_ = json.Unmarshal(data, &payload)
+							msg.Payload = payload
+							msgKey = fmt.Sprintf("message_%s_%%!d(string=%s)", code, i)
+						}
+
+						// Add to channel
+						channelMessages[msgKey] = msg
+
+						// Add Ref to Operation
+						escapedMsgKey := strings.ReplaceAll(msgKey, "~", "~0")
+						escapedMsgKey = strings.ReplaceAll(escapedMsgKey, "/", "~1")
+
+						opMsgRef := &Message{
+							Ref: "#/channels/" + escapedChannelID + "/messages/" + escapedMsgKey,
+						}
+						op.Messages = append(op.Messages, opMsgRef)
+						break
 					}
 					if len(op.Messages) > 0 {
 						break
@@ -304,6 +357,11 @@ func (w *Writer) writeV3(api *model.API, wr io.Writer, targetProtocol string, js
 				}
 			}
 			doc.Operations[opID] = op
+		}
+
+		doc.Channels[channelID] = Channel3{
+			Address:  cleanPath,
+			Messages: channelMessages,
 		}
 	}
 

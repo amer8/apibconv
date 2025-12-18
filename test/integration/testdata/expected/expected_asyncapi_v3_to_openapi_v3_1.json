@@ -1,5 +1,5 @@
 {
-  "openapi": "3.1",
+  "openapi": "3.1.0",
   "info": {
     "title": "Task Management API",
     "description": "A comprehensive API for managing tasks, projects, developers, and notifications through webhook events.",
@@ -8,19 +8,19 @@
   "servers": [
     {
       "url": "kafka.example.com:9092",
-      "description": "kafka"
+      "description": "Production Kafka broker"
     },
     {
       "url": "staging-kafka.example.com:9092",
-      "description": "kafka"
+      "description": "Staging Kafka broker"
     },
     {
       "url": "webhooks.example.com",
-      "description": "https"
+      "description": "Webhook notification endpoint"
     }
   ],
   "paths": {
-    "developer/created": {
+    "/developer/created": {
       "get": {
         "summary": "Receive developer creation notifications",
         "operationId": "onDeveloperCreated",
@@ -38,7 +38,7 @@
         }
       }
     },
-    "developer/deleted": {
+    "/developer/deleted": {
       "get": {
         "summary": "Receive developer deletion notifications",
         "operationId": "onDeveloperDeleted",
@@ -56,7 +56,7 @@
         }
       }
     },
-    "developer/updated": {
+    "/developer/updated": {
       "get": {
         "summary": "Receive developer update notifications",
         "operationId": "onDeveloperUpdated",
@@ -74,7 +74,7 @@
         }
       }
     },
-    "project/created": {
+    "/project/created": {
       "get": {
         "summary": "Receive project creation notifications",
         "operationId": "onProjectCreated",
@@ -92,7 +92,7 @@
         }
       }
     },
-    "project/deleted": {
+    "/project/deleted": {
       "get": {
         "summary": "Receive project deletion notifications",
         "operationId": "onProjectDeleted",
@@ -110,7 +110,7 @@
         }
       }
     },
-    "project/member-added": {
+    "/project/member-added": {
       "get": {
         "summary": "Receive member addition notifications",
         "operationId": "onProjectMemberAdded",
@@ -128,7 +128,7 @@
         }
       }
     },
-    "project/member-removed": {
+    "/project/member-removed": {
       "get": {
         "summary": "Receive member removal notifications",
         "operationId": "onProjectMemberRemoved",
@@ -146,7 +146,7 @@
         }
       }
     },
-    "project/updated": {
+    "/project/updated": {
       "get": {
         "summary": "Receive project update notifications",
         "operationId": "onProjectUpdated",
@@ -164,7 +164,7 @@
         }
       }
     },
-    "task/assigned": {
+    "/task/assigned": {
       "get": {
         "summary": "Receive task assignment notifications",
         "operationId": "onTaskAssigned",
@@ -182,7 +182,7 @@
         }
       }
     },
-    "task/commented": {
+    "/task/commented": {
       "get": {
         "summary": "Receive task comment notifications",
         "operationId": "onTaskCommented",
@@ -200,7 +200,7 @@
         }
       }
     },
-    "task/created": {
+    "/task/created": {
       "get": {
         "summary": "Receive task creation notifications",
         "operationId": "onTaskCreated",
@@ -218,7 +218,7 @@
         }
       }
     },
-    "task/deleted": {
+    "/task/deleted": {
       "get": {
         "summary": "Receive task deletion notifications",
         "operationId": "onTaskDeleted",
@@ -236,7 +236,7 @@
         }
       }
     },
-    "task/updated": {
+    "/task/updated": {
       "get": {
         "summary": "Receive task update notifications",
         "operationId": "onTaskUpdated",
@@ -254,7 +254,7 @@
         }
       }
     },
-    "webhook/triggered": {
+    "/webhook/triggered": {
       "post": {
         "summary": "Publish webhook trigger notifications",
         "operationId": "triggerWebhook",
@@ -277,10 +277,6 @@
     "schemas": {
       "Error": {
         "type": "object",
-        "required": [
-          "code",
-          "message"
-        ],
         "properties": {
           "code": {
             "type": "integer"
@@ -288,7 +284,11 @@
           "message": {
             "type": "string"
           }
-        }
+        },
+        "required": [
+          "code",
+          "message"
+        ]
       }
     }
   }
