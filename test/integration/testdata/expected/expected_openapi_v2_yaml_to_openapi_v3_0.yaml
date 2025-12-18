@@ -40,7 +40,7 @@ paths:
           schema:
             type: integer
       responses:
-        "200":
+        '200':
           description: Successful response
           content:
             application/json:
@@ -48,7 +48,7 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Developer'
-        "404":
+        '404':
           description: Not Found
           content:
             application/json:
@@ -66,13 +66,13 @@ paths:
               $ref: '#/components/schemas/DeveloperCreate'
         required: true
       responses:
-        "201":
+        '201':
           description: Developer created
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Developer'
-        "404":
+        '404':
           description: Not Found
           content:
             application/json:
@@ -91,13 +91,13 @@ paths:
           schema:
             type: string
       responses:
-        "200":
+        '200':
           description: Successful response
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Developer'
-        "404":
+        '404':
           description: Developer not found
           content:
             application/json:
@@ -115,9 +115,9 @@ paths:
           schema:
             type: string
       responses:
-        "204":
+        '204':
           description: Developer deleted
-        "404":
+        '404':
           description: Not Found
           content:
             application/json:
@@ -141,13 +141,13 @@ paths:
               $ref: '#/components/schemas/DeveloperUpdate'
         required: true
       responses:
-        "200":
+        '200':
           description: Developer updated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Developer'
-        "404":
+        '404':
           description: Not Found
           content:
             application/json:
@@ -170,7 +170,7 @@ paths:
           schema:
             type: string
       responses:
-        "200":
+        '200':
           description: Successful response
           content:
             application/json:
@@ -178,7 +178,7 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Task'
-        "404":
+        '404':
           description: Not Found
           content:
             application/json:
@@ -208,7 +208,7 @@ paths:
           schema:
             type: integer
       responses:
-        "200":
+        '200':
           description: Successful response
           content:
             application/json:
@@ -216,7 +216,7 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Project'
-        "404":
+        '404':
           description: Not Found
           content:
             application/json:
@@ -234,13 +234,13 @@ paths:
               $ref: '#/components/schemas/ProjectCreate'
         required: true
       responses:
-        "201":
+        '201':
           description: Project created
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Project'
-        "404":
+        '404':
           description: Not Found
           content:
             application/json:
@@ -259,13 +259,13 @@ paths:
           schema:
             type: string
       responses:
-        "200":
+        '200':
           description: Successful response
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Project'
-        "404":
+        '404':
           description: Project not found
           content:
             application/json:
@@ -283,9 +283,9 @@ paths:
           schema:
             type: string
       responses:
-        "204":
+        '204':
           description: Project deleted
-        "404":
+        '404':
           description: Not Found
           content:
             application/json:
@@ -309,13 +309,13 @@ paths:
               $ref: '#/components/schemas/ProjectUpdate'
         required: true
       responses:
-        "200":
+        '200':
           description: Project updated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Project'
-        "404":
+        '404':
           description: Not Found
           content:
             application/json:
@@ -334,7 +334,7 @@ paths:
           schema:
             type: string
       responses:
-        "200":
+        '200':
           description: Successful response
           content:
             application/json:
@@ -342,7 +342,7 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Developer'
-        "404":
+        '404':
           description: Not Found
           content:
             application/json:
@@ -366,13 +366,13 @@ paths:
               $ref: '#/components/schemas/MemberAdd'
         required: true
       responses:
-        "201":
+        '201':
           description: Member added
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Developer'
-        "404":
+        '404':
           description: Not Found
           content:
             application/json:
@@ -396,9 +396,9 @@ paths:
           schema:
             type: string
       responses:
-        "204":
+        '204':
           description: Member removed
-        "404":
+        '404':
           description: Not Found
           content:
             application/json:
@@ -436,7 +436,7 @@ paths:
           schema:
             type: integer
       responses:
-        "200":
+        '200':
           description: Successful response
           content:
             application/json:
@@ -444,7 +444,7 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Task'
-        "401":
+        '401':
           description: Unauthorized
           content:
             application/json:
@@ -462,13 +462,13 @@ paths:
               $ref: '#/components/schemas/TaskCreate'
         required: true
       responses:
-        "201":
+        '201':
           description: Task created
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Task'
-        "400":
+        '400':
           description: Invalid input
           content:
             application/json:
@@ -487,13 +487,13 @@ paths:
           schema:
             type: string
       responses:
-        "200":
+        '200':
           description: Successful response
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Task'
-        "404":
+        '404':
           description: Task not found
           content:
             application/json:
@@ -511,9 +511,9 @@ paths:
           schema:
             type: string
       responses:
-        "204":
+        '204':
           description: Task deleted
-        "404":
+        '404':
           description: Task not found
           content:
             application/json:
@@ -537,13 +537,13 @@ paths:
               $ref: '#/components/schemas/TaskUpdate'
         required: true
       responses:
-        "200":
+        '200':
           description: Task updated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Task'
-        "404":
+        '404':
           description: Task not found
           content:
             application/json:
@@ -562,7 +562,7 @@ paths:
           schema:
             type: string
       responses:
-        "200":
+        '200':
           description: Successful response
           content:
             application/json:
@@ -570,7 +570,7 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Comment'
-        "404":
+        '404':
           description: Not Found
           content:
             application/json:
@@ -594,13 +594,13 @@ paths:
               $ref: '#/components/schemas/CommentCreate'
         required: true
       responses:
-        "201":
+        '201':
           description: Comment created
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Comment'
-        "404":
+        '404':
           description: Not Found
           content:
             application/json:
@@ -613,7 +613,7 @@ paths:
       summary: List all webhooks
       operationId: listWebhooks
       responses:
-        "200":
+        '200':
           description: Successful response
           content:
             application/json:
@@ -621,7 +621,7 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Webhook'
-        "404":
+        '404':
           description: Not Found
           content:
             application/json:
@@ -639,13 +639,13 @@ paths:
               $ref: '#/components/schemas/WebhookCreate'
         required: true
       responses:
-        "201":
+        '201':
           description: Webhook created
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Webhook'
-        "404":
+        '404':
           description: Not Found
           content:
             application/json:
@@ -664,13 +664,13 @@ paths:
           schema:
             type: string
       responses:
-        "200":
+        '200':
           description: Successful response
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Webhook'
-        "404":
+        '404':
           description: Webhook not found
           content:
             application/json:
@@ -688,9 +688,9 @@ paths:
           schema:
             type: string
       responses:
-        "204":
+        '204':
           description: Webhook deleted
-        "404":
+        '404':
           description: Not Found
           content:
             application/json:
@@ -714,13 +714,13 @@ paths:
               $ref: '#/components/schemas/WebhookUpdate'
         required: true
       responses:
-        "200":
+        '200':
           description: Webhook updated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Webhook'
-        "404":
+        '404':
           description: Not Found
           content:
             application/json:

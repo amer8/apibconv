@@ -6,186 +6,214 @@ info:
 channels:
   /developers:
     address: /developers
+    messages:
+      DeveloperCreate:
+        $ref: '#/components/messages/DeveloperCreate'
+      message_200_%!d(string=application/json):
+        payload:
+          items:
+            $ref: '#/components/schemas/Developer'
+          type: array
   /developers/{developerId}:
     address: /developers/{developerId}
+    messages:
+      Developer:
+        $ref: '#/components/messages/Developer'
   /developers/{developerId}/tasks:
     address: /developers/{developerId}/tasks
+    messages:
+      message_200_%!d(string=application/json):
+        payload:
+          items:
+            $ref: '#/components/schemas/Task'
+          type: array
   /projects:
     address: /projects
+    messages:
+      ProjectCreate:
+        $ref: '#/components/messages/ProjectCreate'
+      message_200_%!d(string=application/json):
+        payload:
+          items:
+            $ref: '#/components/schemas/Project'
+          type: array
   /projects/{projectId}:
     address: /projects/{projectId}
+    messages:
+      Project:
+        $ref: '#/components/messages/Project'
   /projects/{projectId}/members:
     address: /projects/{projectId}/members
+    messages:
+      MemberAdd:
+        $ref: '#/components/messages/MemberAdd'
+      message_200_%!d(string=application/json):
+        payload:
+          items:
+            $ref: '#/components/schemas/Developer'
+          type: array
   /projects/{projectId}/members/{developerId}:
     address: /projects/{projectId}/members/{developerId}
   /tasks:
     address: /tasks
+    messages:
+      TaskCreate:
+        $ref: '#/components/messages/TaskCreate'
+      message_200_%!d(string=application/json):
+        payload:
+          items:
+            $ref: '#/components/schemas/Task'
+          type: array
   /tasks/{taskId}:
     address: /tasks/{taskId}
+    messages:
+      Task:
+        $ref: '#/components/messages/Task'
   /tasks/{taskId}/comments:
     address: /tasks/{taskId}/comments
+    messages:
+      CommentCreate:
+        $ref: '#/components/messages/CommentCreate'
+      message_200_%!d(string=application/json):
+        payload:
+          items:
+            $ref: '#/components/schemas/Comment'
+          type: array
   /webhooks:
     address: /webhooks
+    messages:
+      WebhookCreate:
+        $ref: '#/components/messages/WebhookCreate'
+      message_200_%!d(string=application/json):
+        payload:
+          items:
+            $ref: '#/components/schemas/Webhook'
+          type: array
   /webhooks/{webhookId}:
     address: /webhooks/{webhookId}
+    messages:
+      Webhook:
+        $ref: '#/components/messages/Webhook'
 operations:
   addProjectMember:
     action: send
     channel:
-      $ref: '#/channels//projects/{projectId}/members'
+      $ref: '#/channels/~1projects~1{projectId}~1members'
     summary: Add a member
-    operationId: addProjectMember
     messages:
-      - $ref: '#/components/messages/MemberAdd'
+      - $ref: '#/channels/~1projects~1{projectId}~1members/messages/MemberAdd'
   createComment:
     action: send
     channel:
-      $ref: '#/channels//tasks/{taskId}/comments'
+      $ref: '#/channels/~1tasks~1{taskId}~1comments'
     summary: Add a comment
-    operationId: createComment
     messages:
-      - $ref: '#/components/messages/CommentCreate'
+      - $ref: '#/channels/~1tasks~1{taskId}~1comments/messages/CommentCreate'
   createDeveloper:
     action: send
     channel:
-      $ref: '#/channels//developers'
+      $ref: '#/channels/~1developers'
     summary: Create a new developer
-    operationId: createDeveloper
     messages:
-      - $ref: '#/components/messages/DeveloperCreate'
+      - $ref: '#/channels/~1developers/messages/DeveloperCreate'
   createProject:
     action: send
     channel:
-      $ref: '#/channels//projects'
+      $ref: '#/channels/~1projects'
     summary: Create a new project
-    operationId: createProject
     messages:
-      - $ref: '#/components/messages/ProjectCreate'
+      - $ref: '#/channels/~1projects/messages/ProjectCreate'
   createTask:
     action: send
     channel:
-      $ref: '#/channels//tasks'
+      $ref: '#/channels/~1tasks'
     summary: Create a new task
-    operationId: createTask
     messages:
-      - $ref: '#/components/messages/TaskCreate'
+      - $ref: '#/channels/~1tasks/messages/TaskCreate'
   createWebhook:
     action: send
     channel:
-      $ref: '#/channels//webhooks'
+      $ref: '#/channels/~1webhooks'
     summary: Create a webhook
-    operationId: createWebhook
     messages:
-      - $ref: '#/components/messages/WebhookCreate'
+      - $ref: '#/channels/~1webhooks/messages/WebhookCreate'
   getDeveloper:
     action: receive
     channel:
-      $ref: '#/channels//developers/{developerId}'
+      $ref: '#/channels/~1developers~1{developerId}'
     summary: Get developer by ID
-    operationId: getDeveloper
     messages:
-      - $ref: '#/components/messages/Developer'
+      - $ref: '#/channels/~1developers~1{developerId}/messages/Developer'
   getProject:
     action: receive
     channel:
-      $ref: '#/channels//projects/{projectId}'
+      $ref: '#/channels/~1projects~1{projectId}'
     summary: Get project by ID
-    operationId: getProject
     messages:
-      - $ref: '#/components/messages/Project'
+      - $ref: '#/channels/~1projects~1{projectId}/messages/Project'
   getTask:
     action: receive
     channel:
-      $ref: '#/channels//tasks/{taskId}'
+      $ref: '#/channels/~1tasks~1{taskId}'
     summary: Get task by ID
-    operationId: getTask
     messages:
-      - $ref: '#/components/messages/Task'
+      - $ref: '#/channels/~1tasks~1{taskId}/messages/Task'
   getWebhook:
     action: receive
     channel:
-      $ref: '#/channels//webhooks/{webhookId}'
+      $ref: '#/channels/~1webhooks~1{webhookId}'
     summary: Get webhook by ID
-    operationId: getWebhook
     messages:
-      - $ref: '#/components/messages/Webhook'
+      - $ref: '#/channels/~1webhooks~1{webhookId}/messages/Webhook'
   listDeveloperTasks:
     action: receive
     channel:
-      $ref: '#/channels//developers/{developerId}/tasks'
+      $ref: '#/channels/~1developers~1{developerId}~1tasks'
     summary: List developer tasks
-    operationId: listDeveloperTasks
     messages:
-      - payload:
-          items:
-            $ref: '#/components/schemas/Task'
-          type: array
+      - $ref: '#/channels/~1developers~1{developerId}~1tasks/messages/message_200_%!d(string=application~1json)'
   listDevelopers:
     action: receive
     channel:
-      $ref: '#/channels//developers'
+      $ref: '#/channels/~1developers'
     summary: List all developers
-    operationId: listDevelopers
     messages:
-      - payload:
-          items:
-            $ref: '#/components/schemas/Developer'
-          type: array
+      - $ref: '#/channels/~1developers/messages/message_200_%!d(string=application~1json)'
   listProjectMembers:
     action: receive
     channel:
-      $ref: '#/channels//projects/{projectId}/members'
+      $ref: '#/channels/~1projects~1{projectId}~1members'
     summary: List project members
-    operationId: listProjectMembers
     messages:
-      - payload:
-          items:
-            $ref: '#/components/schemas/Developer'
-          type: array
+      - $ref: '#/channels/~1projects~1{projectId}~1members/messages/message_200_%!d(string=application~1json)'
   listProjects:
     action: receive
     channel:
-      $ref: '#/channels//projects'
+      $ref: '#/channels/~1projects'
     summary: List all projects
-    operationId: listProjects
     messages:
-      - payload:
-          items:
-            $ref: '#/components/schemas/Project'
-          type: array
+      - $ref: '#/channels/~1projects/messages/message_200_%!d(string=application~1json)'
   listTaskComments:
     action: receive
     channel:
-      $ref: '#/channels//tasks/{taskId}/comments'
+      $ref: '#/channels/~1tasks~1{taskId}~1comments'
     summary: List task comments
-    operationId: listTaskComments
     messages:
-      - payload:
-          items:
-            $ref: '#/components/schemas/Comment'
-          type: array
+      - $ref: '#/channels/~1tasks~1{taskId}~1comments/messages/message_200_%!d(string=application~1json)'
   listTasks:
     action: receive
     channel:
-      $ref: '#/channels//tasks'
+      $ref: '#/channels/~1tasks'
     summary: List all tasks
-    operationId: listTasks
     messages:
-      - payload:
-          items:
-            $ref: '#/components/schemas/Task'
-          type: array
+      - $ref: '#/channels/~1tasks/messages/message_200_%!d(string=application~1json)'
   listWebhooks:
     action: receive
     channel:
-      $ref: '#/channels//webhooks'
+      $ref: '#/channels/~1webhooks'
     summary: List all webhooks
-    operationId: listWebhooks
     messages:
-      - payload:
-          items:
-            $ref: '#/components/schemas/Webhook'
-          type: array
+      - $ref: '#/channels/~1webhooks/messages/message_200_%!d(string=application~1json)'
 servers:
   server0:
     host: https://api.example.com/v1

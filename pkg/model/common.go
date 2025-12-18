@@ -20,7 +20,3 @@ func (r *Reference) IsEmpty() bool {
 	return r.Ref == ""
 }
 
-// Resolve returns the resolved reference string
-func (r *Reference) Resolve(base string) string {
-	return r.Ref
-}

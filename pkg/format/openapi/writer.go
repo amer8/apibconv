@@ -134,36 +134,36 @@ func (w *Writer) Version() string {
 	return w.version
 }
 
-func (w *Writer) convertPathItemOperations(item *model.PathItem) PathItem {
+func (w *Writer) convertPathItemOperations(item *model.PathItem, api *model.API) PathItem {
 	pi := PathItem{
 		Summary:     item.Summary,
 		Description: item.Description,
-		Parameters:  w.convertParameters(item.Parameters),
+		Parameters:  w.convertParameters(item.Parameters, api),
 	}
 
 	if item.Get != nil {
-		pi.Get = w.convertOperation(item.Get)
+		pi.Get = w.convertOperation(item.Get, api)
 	}
 	if item.Post != nil {
-		pi.Post = w.convertOperation(item.Post)
+		pi.Post = w.convertOperation(item.Post, api)
 	}
 	if item.Put != nil {
-		pi.Put = w.convertOperation(item.Put)
+		pi.Put = w.convertOperation(item.Put, api)
 	}
 	if item.Delete != nil {
-		pi.Delete = w.convertOperation(item.Delete)
+		pi.Delete = w.convertOperation(item.Delete, api)
 	}
 	if item.Patch != nil {
-		pi.Patch = w.convertOperation(item.Patch)
+		pi.Patch = w.convertOperation(item.Patch, api)
 	}
 	if item.Head != nil {
-		pi.Head = w.convertOperation(item.Head)
+		pi.Head = w.convertOperation(item.Head, api)
 	}
 	if item.Options != nil {
-		pi.Options = w.convertOperation(item.Options)
+		pi.Options = w.convertOperation(item.Options, api)
 	}
 	if item.Trace != nil {
-		pi.Trace = w.convertOperation(item.Trace)
+		pi.Trace = w.convertOperation(item.Trace, api)
 	}
 
 	return pi
@@ -215,7 +215,7 @@ func (w *Writer) convertFromModel(api *model.API) *OpenAPI {
 	if len(api.Components.Schemas) > 0 {
 		doc.Components.Schemas = make(map[string]*Schema)
 		for name, schema := range api.Components.Schemas {
-			doc.Components.Schemas[name] = w.convertSchema(schema)
+			doc.Components.Schemas[name] = w.convertSchema(schema, api)
 		}
 	}
 
@@ -239,7 +239,7 @@ func (w *Writer) convertFromModel(api *model.API) *OpenAPI {
 		doc.Webhooks = make(map[string]PathItem)
 		for name := range api.Webhooks {
 			item := api.Webhooks[name]
-			doc.Webhooks[name] = w.convertPathItemOperations(&item)
+			doc.Webhooks[name] = w.convertPathItemOperations(&item, api)
 		}
 	}
 
@@ -249,13 +249,13 @@ func (w *Writer) convertFromModel(api *model.API) *OpenAPI {
 		if !strings.HasPrefix(key, "/") {
 			key = "/" + key
 		}
-		doc.Paths[key] = w.convertPathItemOperations(&item)
+		doc.Paths[key] = w.convertPathItemOperations(&item, api)
 	}
 
 	return doc
 }
 
-func (w *Writer) convertOperation(op *model.Operation) *Operation {
+func (w *Writer) convertOperation(op *model.Operation, api *model.API) *Operation {
 	if op == nil {
 		return nil
 	}
@@ -265,7 +265,7 @@ func (w *Writer) convertOperation(op *model.Operation) *Operation {
 		Description: op.Description,
 		OperationID: op.OperationID,
 		Deprecated:  op.Deprecated,
-		Parameters:  w.convertParameters(op.Parameters),
+		Parameters:  w.convertParameters(op.Parameters, api),
 	}
 
 	if op.RequestBody != nil {
@@ -275,7 +275,7 @@ func (w *Writer) convertOperation(op *model.Operation) *Operation {
 			Content:     make(map[string]MediaType),
 		}
 		for k, v := range op.RequestBody.Content {
-			res.RequestBody.Content[k] = w.convertMediaType(v)
+			res.RequestBody.Content[k] = w.convertMediaType(v, api)
 		}
 	}
 
@@ -286,7 +286,7 @@ func (w *Writer) convertOperation(op *model.Operation) *Operation {
 			if len(status) == 3 && status[0] == '4' {
 				found4xx = true
 			}
-			res.Responses[status] = w.convertResponse(resp)
+			res.Responses[status] = w.convertResponse(resp, api)
 		}
 	}
 
@@ -307,7 +307,7 @@ func (w *Writer) convertOperation(op *model.Operation) *Operation {
 	return res
 }
 
-func (w *Writer) convertParameters(params []model.Parameter) []Parameter {
+func (w *Writer) convertParameters(params []model.Parameter, api *model.API) []Parameter {
 	result := make([]Parameter, 0, len(params))
 	for _, param := range params {
 		p := Parameter{
@@ -322,12 +322,12 @@ func (w *Writer) convertParameters(params []model.Parameter) []Parameter {
 			Example:         param.Example,
 		}
 		if param.Schema != nil {
-			p.Schema = w.convertSchema(param.Schema)
+			p.Schema = w.convertSchema(param.Schema, api)
 		}
 		if len(param.Content) > 0 {
 			p.Content = make(map[string]MediaType)
 			for k, v := range param.Content {
-				p.Content[k] = w.convertMediaType(v)
+				p.Content[k] = w.convertMediaType(v, api)
 			}
 		}
 		result = append(result, p)
@@ -335,7 +335,7 @@ func (w *Writer) convertParameters(params []model.Parameter) []Parameter {
 	return result
 }
 
-func (w *Writer) convertResponse(resp model.Response) Response {
+func (w *Writer) convertResponse(resp model.Response, api *model.API) Response {
 	res := Response{
 		Description: resp.Description,
 		Content:     make(map[string]MediaType),
@@ -343,7 +343,7 @@ func (w *Writer) convertResponse(resp model.Response) Response {
 	}
 
 	for ct, mt := range resp.Content {
-		res.Content[ct] = w.convertMediaType(mt)
+		res.Content[ct] = w.convertMediaType(mt, api)
 	}
 
 	for name, h := range resp.Headers {
@@ -353,7 +353,7 @@ func (w *Writer) convertResponse(resp model.Response) Response {
 			Deprecated:  h.Deprecated,
 		}
 		if h.Schema != nil {
-			header.Schema = w.convertSchema(h.Schema)
+			header.Schema = w.convertSchema(h.Schema, api)
 		}
 		res.Headers[name] = header
 	}
@@ -361,17 +361,17 @@ func (w *Writer) convertResponse(resp model.Response) Response {
 	return res
 }
 
-func (w *Writer) convertMediaType(mt model.MediaType) MediaType {
+func (w *Writer) convertMediaType(mt model.MediaType, api *model.API) MediaType {
 	res := MediaType{
 		Example: mt.Example,
 	}
 	if mt.Schema != nil {
-		res.Schema = w.convertSchema(mt.Schema)
+		res.Schema = w.convertSchema(mt.Schema, api)
 	}
 	return res
 }
 
-func (w *Writer) convertSchema(s *model.Schema) *Schema {
+func (w *Writer) convertSchema(s *model.Schema, api *model.API) *Schema {
 	if s == nil {
 		return nil
 	}
@@ -387,6 +387,16 @@ func (w *Writer) convertSchema(s *model.Schema) *Schema {
 	// Rewrite References
 	if s.Ref != "" {
 		ref := s.Ref
+		
+		// Attempt to resolve aliases (e.g. Message wrapper -> underlying Schema)
+		if strings.HasPrefix(ref, "#/components/messages/") && api != nil && api.Components.Schemas != nil {
+			name := strings.TrimPrefix(ref, "#/components/messages/")
+			if target, ok := api.Components.Schemas[name]; ok && target.Ref != "" {
+				// Use the underlying ref if it's just an alias
+				ref = target.Ref
+			}
+		}
+
 		if strings.HasPrefix(w.version, "2") {
 			// OpenAPI 2.0 uses #/definitions/
 			if strings.HasPrefix(ref, "#/components/schemas/") {
@@ -414,26 +424,26 @@ func (w *Writer) convertSchema(s *model.Schema) *Schema {
 	if len(s.Properties) > 0 {
 		ms.Properties = make(map[string]*Schema)
 		for k, v := range s.Properties {
-			ms.Properties[k] = w.convertSchema(v)
+			ms.Properties[k] = w.convertSchema(v, api)
 		}
 	}
 
 	if s.Items != nil {
-		ms.Items = w.convertSchema(s.Items)
+		ms.Items = w.convertSchema(s.Items, api)
 	}
 
 	// Composition
 	for _, subSchema := range s.AllOf {
-		ms.AllOf = append(ms.AllOf, w.convertSchema(subSchema))
+		ms.AllOf = append(ms.AllOf, w.convertSchema(subSchema, api))
 	}
 	for _, subSchema := range s.AnyOf {
-		ms.AnyOf = append(ms.AnyOf, w.convertSchema(subSchema))
+		ms.AnyOf = append(ms.AnyOf, w.convertSchema(subSchema, api))
 	}
 	for _, subSchema := range s.OneOf {
-		ms.OneOf = append(ms.OneOf, w.convertSchema(subSchema))
+		ms.OneOf = append(ms.OneOf, w.convertSchema(subSchema, api))
 	}
 	if s.Not != nil {
-		ms.Not = w.convertSchema(s.Not)
+		ms.Not = w.convertSchema(s.Not, api)
 	}
 
 	return ms
@@ -475,7 +485,7 @@ func (w *Writer) convertV2(api *model.API) (interface{}, error) {
 	if len(api.Components.Schemas) > 0 {
 		doc.Definitions = make(map[string]*Schema)
 		for name, schema := range api.Components.Schemas {
-			doc.Definitions[name] = w.convertSchema(schema)
+			doc.Definitions[name] = w.convertSchema(schema, api)
 		}
 	}
 
@@ -497,14 +507,14 @@ func (w *Writer) convertV2(api *model.API) (interface{}, error) {
 	for path := range api.Paths {
 		item := api.Paths[path] // Access by key to avoid rangeValCopy
 		pi := PathItemV2{
-			Parameters: w.convertParameters(item.Parameters),
+			Parameters: w.convertParameters(item.Parameters, api),
 		}
 
 		convertOp := func(op *model.Operation) *Operation {
 			if op == nil {
 				return nil
 			}
-			res := w.convertOperation(op)
+			res := w.convertOperation(op, api)
 			return res
 		}
 

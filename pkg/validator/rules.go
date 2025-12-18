@@ -48,17 +48,25 @@ func (r *SchemaValidationRule) Name() string { return "schema-validation" }
 func (r *SchemaValidationRule) Validate(api *model.API) []format.ValidationError {
 	var errors []format.ValidationError
 	for name, schema := range api.Components.Schemas {
-		if schema.Type != "" {
-			switch schema.Type {
-			case model.TypeString, model.TypeNumber, model.TypeInteger, model.TypeBoolean, model.TypeArray, model.TypeObject:
-				// Valid
-			default:
-				errors = append(errors, format.ValidationError{
-					Path:    fmt.Sprintf("components/schemas/%s", name),
-					Message: fmt.Sprintf("Invalid schema type: %s", schema.Type),
-					Level:   r.Level(),
-				})
-			}
+		errs := ValidateSchemaNode(schema, fmt.Sprintf("components/schemas/%s", name))
+		errors = append(errors, errs...)
+	}
+	return errors
+}
+
+// ValidateSchemaNode performs validation on a single schema node.
+func ValidateSchemaNode(schema *model.Schema, path string) []format.ValidationError {
+	var errors []format.ValidationError
+	if schema.Type != "" {
+		switch schema.Type {
+		case model.TypeString, model.TypeNumber, model.TypeInteger, model.TypeBoolean, model.TypeArray, model.TypeObject:
+			// Valid
+		default:
+			errors = append(errors, format.ValidationError{
+				Path:    path,
+				Message: fmt.Sprintf("Invalid schema type: %s", schema.Type),
+				Level:   format.LevelError,
+			})
 		}
 	}
 	return errors

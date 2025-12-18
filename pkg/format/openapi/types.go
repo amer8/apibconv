@@ -81,6 +81,10 @@ type Operation struct {
 	Deprecated   bool                  `yaml:"deprecated,omitempty" json:"deprecated,omitempty"`
 	Security     []map[string][]string `yaml:"security,omitempty" json:"security,omitempty"`
 	Servers      []Server              `yaml:"servers,omitempty" json:"servers,omitempty"`
+
+	// V2 specific fields
+	Consumes []string `yaml:"consumes,omitempty" json:"consumes,omitempty"`
+	Produces []string `yaml:"produces,omitempty" json:"produces,omitempty"`
 }
 
 // Parameter describes a single operation parameter.

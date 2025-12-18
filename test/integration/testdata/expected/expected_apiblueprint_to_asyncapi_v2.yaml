@@ -3,23 +3,39 @@ info:
   title: Task Management API
   version: ""
 channels:
-  /developers/{developerId}:
-    subscribe:
-      summary: Get developer details
-      message:
-        $ref: '#/components/messages/Developer'
-  /developers/{developerId}/tasks{?status}:
-    subscribe:
-      summary: List developer tasks
-      message:
-        $ref: '#/components/messages/Task'
-  /developers{?role,team,active,limit,offset}:
+  /developers:
     publish:
       summary: Create a developer
     subscribe:
       summary: List all developers
       message:
+        payload:
+          items:
+            $ref: '#/components/schemas/Developer'
+          type: array
+  /developers/{developerId}:
+    subscribe:
+      summary: Get developer details
+      message:
         $ref: '#/components/messages/Developer'
+  /developers/{developerId}/tasks:
+    subscribe:
+      summary: List developer tasks
+      message:
+        payload:
+          items:
+            $ref: '#/components/schemas/Task'
+          type: array
+  /projects:
+    publish:
+      summary: Create a project
+    subscribe:
+      summary: List all projects
+      message:
+        payload:
+          items:
+            $ref: '#/components/schemas/Project'
+          type: array
   /projects/{projectId}:
     subscribe:
       summary: Get project details
@@ -31,14 +47,20 @@ channels:
     subscribe:
       summary: List project members
       message:
-        $ref: '#/components/messages/Developer'
-  /projects{?status,owner,limit,offset}:
+        payload:
+          items:
+            $ref: '#/components/schemas/Developer'
+          type: array
+  /tasks:
     publish:
-      summary: Create a project
+      summary: Create a task
     subscribe:
-      summary: List all projects
+      summary: List all tasks
       message:
-        $ref: '#/components/messages/Project'
+        payload:
+          items:
+            $ref: '#/components/schemas/Task'
+          type: array
   /tasks/{taskId}:
     subscribe:
       summary: Get task details
@@ -50,21 +72,20 @@ channels:
     subscribe:
       summary: List task comments
       message:
-        $ref: '#/components/messages/Comment'
-  /tasks{?status,assignee,project,priority,limit,offset}:
-    publish:
-      summary: Create a task
-    subscribe:
-      summary: List all tasks
-      message:
-        $ref: '#/components/messages/Task'
+        payload:
+          items:
+            $ref: '#/components/schemas/Comment'
+          type: array
   /webhooks:
     publish:
       summary: Create a webhook
     subscribe:
       summary: List all webhooks
       message:
-        $ref: '#/components/messages/Webhook'
+        payload:
+          items:
+            $ref: '#/components/schemas/Webhook'
+          type: array
 servers:
   server0:
     url: https://api.example.com

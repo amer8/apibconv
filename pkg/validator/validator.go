@@ -3,6 +3,7 @@ package validator
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/amer8/apibconv/pkg/format"
 	"github.com/amer8/apibconv/pkg/model"
@@ -83,14 +84,45 @@ func (v *Validator) Validate(ctx context.Context, api *model.API) ([]format.Vali
 	return allErrors, nil
 }
 
-// ValidateSchema (Not yet implemented) performs validation on a specific schema.
+// ValidateSchema performs validation on a specific schema.
 func (v *Validator) ValidateSchema(schema *model.Schema) []format.ValidationError {
-	// A dedicated schema validation might iterate through a subset of rules specific to schemas.
-	return nil
+	return ValidateSchemaNode(schema, "schema")
 }
 
-// ValidateOperation (Not yet implemented) performs validation on a specific operation.
+// ValidateOperation performs validation on a specific operation.
 func (v *Validator) ValidateOperation(op *model.Operation) []format.ValidationError {
-	// A dedicated operation validation might iterate through a subset of rules specific to operations.
-	return nil
+	var errors []format.ValidationError
+	if op == nil {
+		return errors
+	}
+
+	// Validate Parameters
+	for i, p := range op.Parameters {
+		if p.Schema != nil {
+			errs := ValidateSchemaNode(p.Schema, fmt.Sprintf("parameters[%d]", i))
+			errors = append(errors, errs...)
+		}
+	}
+
+	// Validate RequestBody
+	if op.RequestBody != nil {
+		for ct, mt := range op.RequestBody.Content {
+			if mt.Schema != nil {
+				errs := ValidateSchemaNode(mt.Schema, fmt.Sprintf("requestBody/content[%s]", ct))
+				errors = append(errors, errs...)
+			}
+		}
+	}
+
+	// Validate Responses
+	for status, resp := range op.Responses {
+		for ct, mt := range resp.Content {
+			if mt.Schema != nil {
+				errs := ValidateSchemaNode(mt.Schema, fmt.Sprintf("responses[%s]/content[%s]", status, ct))
+				errors = append(errors, errs...)
+			}
+		}
+	}
+
+	return errors
 }

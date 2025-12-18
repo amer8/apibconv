@@ -1,5 +1,10 @@
 package model
 
+import (
+	"fmt"
+	"strings"
+)
+
 // Schema represents an OpenAPI Schema object.
 type Schema struct {
 	// Type and format
@@ -135,15 +140,21 @@ func (s *Schema) SetRequired(fields ...string) {
 	s.Required = fields
 }
 
-// Validate validates the schema
-func (s *Schema) Validate() error {
-	// Validation is primarily handled by the `validator` package.
-	return nil
-}
-
-// ResolveRef resolves a reference within the components. Full implementation is pending.
+// ResolveRef resolves a reference within the components.
 func (s *Schema) ResolveRef(components *Components) (*Schema, error) {
-	return nil, nil
+	if s.Ref == "" {
+		return s, nil
+	}
+	if strings.HasPrefix(s.Ref, "#/components/schemas/") {
+		refName := strings.TrimPrefix(s.Ref, "#/components/schemas/")
+		if resolved, ok := components.GetSchema(refName); ok {
+			return resolved, nil
+		}
+		return nil, fmt.Errorf("reference not found: %s", s.Ref)
+	}
+	// Return nil for unsupported or external refs for now, or error?
+	// The interface implies we should be able to resolve it.
+	return nil, fmt.Errorf("unsupported reference format: %s", s.Ref)
 }
 
 // AddSchema adds a schema to components

@@ -1,112 +1,296 @@
 {
-  "asyncapi": "2.0.0",
+  "asyncapi": "3.0.0",
   "info": {
     "title": "Task Management API",
     "version": ""
   },
   "channels": {
+    "/developers": {
+      "address": "/developers",
+      "messages": {
+        "message_200_%!d(string=application/json)": {
+          "payload": {
+            "items": {
+              "$ref": "#/components/schemas/Developer"
+            },
+            "type": "array"
+          }
+        }
+      }
+    },
     "/developers/{developerId}": {
-      "subscribe": {
-        "summary": "Get developer details",
-        "message": {
+      "address": "/developers/{developerId}",
+      "messages": {
+        "Developer": {
           "$ref": "#/components/messages/Developer"
         }
       }
     },
-    "/developers/{developerId}/tasks{?status}": {
-      "subscribe": {
-        "summary": "List developer tasks",
-        "message": {
-          "$ref": "#/components/messages/Task"
+    "/developers/{developerId}/tasks": {
+      "address": "/developers/{developerId}/tasks",
+      "messages": {
+        "message_200_%!d(string=application/json)": {
+          "payload": {
+            "items": {
+              "$ref": "#/components/schemas/Task"
+            },
+            "type": "array"
+          }
         }
       }
     },
-    "/developers{?role,team,active,limit,offset}": {
-      "publish": {
-        "summary": "Create a developer"
-      },
-      "subscribe": {
-        "summary": "List all developers",
-        "message": {
-          "$ref": "#/components/messages/Developer"
+    "/projects": {
+      "address": "/projects",
+      "messages": {
+        "message_200_%!d(string=application/json)": {
+          "payload": {
+            "items": {
+              "$ref": "#/components/schemas/Project"
+            },
+            "type": "array"
+          }
         }
       }
     },
     "/projects/{projectId}": {
-      "subscribe": {
-        "summary": "Get project details",
-        "message": {
+      "address": "/projects/{projectId}",
+      "messages": {
+        "Project": {
           "$ref": "#/components/messages/Project"
         }
       }
     },
     "/projects/{projectId}/members": {
-      "publish": {
-        "summary": "Add a member"
-      },
-      "subscribe": {
-        "summary": "List project members",
-        "message": {
-          "$ref": "#/components/messages/Developer"
+      "address": "/projects/{projectId}/members",
+      "messages": {
+        "message_200_%!d(string=application/json)": {
+          "payload": {
+            "items": {
+              "$ref": "#/components/schemas/Developer"
+            },
+            "type": "array"
+          }
         }
       }
     },
-    "/projects{?status,owner,limit,offset}": {
-      "publish": {
-        "summary": "Create a project"
-      },
-      "subscribe": {
-        "summary": "List all projects",
-        "message": {
-          "$ref": "#/components/messages/Project"
+    "/tasks": {
+      "address": "/tasks",
+      "messages": {
+        "message_200_%!d(string=application/json)": {
+          "payload": {
+            "items": {
+              "$ref": "#/components/schemas/Task"
+            },
+            "type": "array"
+          }
         }
       }
     },
     "/tasks/{taskId}": {
-      "subscribe": {
-        "summary": "Get task details",
-        "message": {
+      "address": "/tasks/{taskId}",
+      "messages": {
+        "Task": {
           "$ref": "#/components/messages/Task"
         }
       }
     },
     "/tasks/{taskId}/comments": {
-      "publish": {
-        "summary": "Add a comment"
-      },
-      "subscribe": {
-        "summary": "List task comments",
-        "message": {
-          "$ref": "#/components/messages/Comment"
-        }
-      }
-    },
-    "/tasks{?status,assignee,project,priority,limit,offset}": {
-      "publish": {
-        "summary": "Create a task"
-      },
-      "subscribe": {
-        "summary": "List all tasks",
-        "message": {
-          "$ref": "#/components/messages/Task"
+      "address": "/tasks/{taskId}/comments",
+      "messages": {
+        "message_200_%!d(string=application/json)": {
+          "payload": {
+            "items": {
+              "$ref": "#/components/schemas/Comment"
+            },
+            "type": "array"
+          }
         }
       }
     },
     "/webhooks": {
-      "publish": {
-        "summary": "Create a webhook"
-      },
-      "subscribe": {
-        "summary": "List all webhooks",
-        "message": {
-          "$ref": "#/components/messages/Webhook"
+      "address": "/webhooks",
+      "messages": {
+        "message_200_%!d(string=application/json)": {
+          "payload": {
+            "items": {
+              "$ref": "#/components/schemas/Webhook"
+            },
+            "type": "array"
+          }
         }
       }
+    },
+    "DELETE /projects/{projectId}/members/{developerId}": {
+      "address": "DELETE /projects/{projectId}/members/{developerId}"
+    }
+  },
+  "operations": {
+    "receive_/developers": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/~1developers"
+      },
+      "summary": "List all developers",
+      "messages": [
+        {
+          "$ref": "#/channels/~1developers/messages/message_200_%!d(string=application~1json)"
+        }
+      ]
+    },
+    "receive_/developers/{developerId}": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/~1developers~1{developerId}"
+      },
+      "summary": "Get developer details",
+      "messages": [
+        {
+          "$ref": "#/channels/~1developers~1{developerId}/messages/Developer"
+        }
+      ]
+    },
+    "receive_/developers/{developerId}/tasks": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/~1developers~1{developerId}~1tasks"
+      },
+      "summary": "List developer tasks",
+      "messages": [
+        {
+          "$ref": "#/channels/~1developers~1{developerId}~1tasks/messages/message_200_%!d(string=application~1json)"
+        }
+      ]
+    },
+    "receive_/projects": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/~1projects"
+      },
+      "summary": "List all projects",
+      "messages": [
+        {
+          "$ref": "#/channels/~1projects/messages/message_200_%!d(string=application~1json)"
+        }
+      ]
+    },
+    "receive_/projects/{projectId}": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/~1projects~1{projectId}"
+      },
+      "summary": "Get project details",
+      "messages": [
+        {
+          "$ref": "#/channels/~1projects~1{projectId}/messages/Project"
+        }
+      ]
+    },
+    "receive_/projects/{projectId}/members": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/~1projects~1{projectId}~1members"
+      },
+      "summary": "List project members",
+      "messages": [
+        {
+          "$ref": "#/channels/~1projects~1{projectId}~1members/messages/message_200_%!d(string=application~1json)"
+        }
+      ]
+    },
+    "receive_/tasks": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/~1tasks"
+      },
+      "summary": "List all tasks",
+      "messages": [
+        {
+          "$ref": "#/channels/~1tasks/messages/message_200_%!d(string=application~1json)"
+        }
+      ]
+    },
+    "receive_/tasks/{taskId}": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/~1tasks~1{taskId}"
+      },
+      "summary": "Get task details",
+      "messages": [
+        {
+          "$ref": "#/channels/~1tasks~1{taskId}/messages/Task"
+        }
+      ]
+    },
+    "receive_/tasks/{taskId}/comments": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/~1tasks~1{taskId}~1comments"
+      },
+      "summary": "List task comments",
+      "messages": [
+        {
+          "$ref": "#/channels/~1tasks~1{taskId}~1comments/messages/message_200_%!d(string=application~1json)"
+        }
+      ]
+    },
+    "receive_/webhooks": {
+      "action": "receive",
+      "channel": {
+        "$ref": "#/channels/~1webhooks"
+      },
+      "summary": "List all webhooks",
+      "messages": [
+        {
+          "$ref": "#/channels/~1webhooks/messages/message_200_%!d(string=application~1json)"
+        }
+      ]
+    },
+    "send_/developers": {
+      "action": "send",
+      "channel": {
+        "$ref": "#/channels/~1developers"
+      },
+      "summary": "Create a developer"
+    },
+    "send_/projects": {
+      "action": "send",
+      "channel": {
+        "$ref": "#/channels/~1projects"
+      },
+      "summary": "Create a project"
+    },
+    "send_/projects/{projectId}/members": {
+      "action": "send",
+      "channel": {
+        "$ref": "#/channels/~1projects~1{projectId}~1members"
+      },
+      "summary": "Add a member"
+    },
+    "send_/tasks": {
+      "action": "send",
+      "channel": {
+        "$ref": "#/channels/~1tasks"
+      },
+      "summary": "Create a task"
+    },
+    "send_/tasks/{taskId}/comments": {
+      "action": "send",
+      "channel": {
+        "$ref": "#/channels/~1tasks~1{taskId}~1comments"
+      },
+      "summary": "Add a comment"
+    },
+    "send_/webhooks": {
+      "action": "send",
+      "channel": {
+        "$ref": "#/channels/~1webhooks"
+      },
+      "summary": "Create a webhook"
     }
   },
   "servers": {
     "server0": {
-      "url": "https://api.example.com",
+      "host": "https://api.example.com",
       "protocol": "kafka"
     }
   },

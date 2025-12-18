@@ -16,10 +16,6 @@ import (
 // MyCustomTransformer implements a custom transformation logic
 type MyCustomTransformer struct{}
 
-func (t *MyCustomTransformer) Name() string {
-	return "my-custom-plugin"
-}
-
 func (t *MyCustomTransformer) Transform(api *model.API) error {
 	fmt.Println("  [Plugin] Running custom transformation...")
 	api.Info.Title = fmt.Sprintf("[Plugin] %s", api.Info.Title)

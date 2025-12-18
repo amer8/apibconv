@@ -17,6 +17,8 @@ type Swagger20 struct {
 	Host                string                    `yaml:"host,omitempty" json:"host,omitempty"`
 	BasePath            string                    `yaml:"basePath,omitempty" json:"basePath,omitempty"`
 	Schemes             []string                  `yaml:"schemes,omitempty" json:"schemes,omitempty"`
+	Consumes            []string                  `yaml:"consumes,omitempty" json:"consumes,omitempty"`
+	Produces            []string                  `yaml:"produces,omitempty" json:"produces,omitempty"`
 	Paths               map[string]PathItemV2     `yaml:"paths" json:"paths"`
 	Definitions         map[string]*Schema        `yaml:"definitions,omitempty" json:"definitions,omitempty"`
 	Parameters          map[string]Parameter      `yaml:"parameters,omitempty" json:"parameters,omitempty"`
@@ -102,7 +104,7 @@ func (p *Parser) parseV2(ctx context.Context, r io.Reader) (*model.API, error) {
 		}
 
 		convertOp := func(op *Operation) *model.Operation {
-			return p.convertV2Operation(op)
+			return p.convertV2Operation(op, doc.Consumes, doc.Produces)
 		}
 
 		pi.Get = convertOp(item.Get)
@@ -119,10 +121,28 @@ func (p *Parser) parseV2(ctx context.Context, r io.Reader) (*model.API, error) {
 	return api, nil
 }
 
-func (p *Parser) convertV2Operation(op *Operation) *model.Operation {
+func (p *Parser) convertV2Operation(op *Operation, globalConsumes, globalProduces []string) *model.Operation {
 	if op == nil {
 		return nil
 	}
+
+	// Determine effective media types
+	consumes := globalConsumes
+	if len(op.Consumes) > 0 {
+		consumes = op.Consumes
+	}
+	if len(consumes) == 0 {
+		consumes = []string{"application/json"} // Default
+	}
+
+	produces := globalProduces
+	if len(op.Produces) > 0 {
+		produces = op.Produces
+	}
+	if len(produces) == 0 {
+		produces = []string{"application/json"} // Default
+	}
+
 	res := &model.Operation{
 		Tags:        op.Tags,
 		Summary:     op.Summary,
@@ -139,14 +159,17 @@ func (p *Parser) convertV2Operation(op *Operation) *model.Operation {
 	for _, param := range res.Parameters {
 		if param.In == "body" {
 			// Found body parameter, move to RequestBody
+			content := make(map[string]model.MediaType)
+			for _, ct := range consumes {
+				content[ct] = model.MediaType{
+					Schema: param.Schema,
+				}
+			}
+
 			res.RequestBody = &model.RequestBody{
 				Description: param.Description,
 				Required:    param.Required,
-				Content: map[string]model.MediaType{
-					"application/json": { // Default V2 assumption often JSON
-						Schema: param.Schema,
-					},
-				},
+				Content:     content,
 			}
 		} else {
 			parameters = append(parameters, param)
@@ -157,7 +180,7 @@ func (p *Parser) convertV2Operation(op *Operation) *model.Operation {
 	if op.Responses != nil {
 		res.Responses = make(model.Responses)
 		for status, resp := range op.Responses {
-			res.Responses[status] = p.convertV2Response(resp)
+			res.Responses[status] = p.convertV2Response(resp, produces)
 		}
 	}
 
@@ -208,7 +231,7 @@ func (p *Parser) convertV2Parameters(params []Parameter) []model.Parameter {
 	return result
 }
 
-func (p *Parser) convertV2Response(resp Response) model.Response {
+func (p *Parser) convertV2Response(resp Response, produces []string) model.Response {
 	res := model.Response{
 		Description: resp.Description,
 		Content:     make(map[string]model.MediaType),
@@ -218,8 +241,10 @@ func (p *Parser) convertV2Response(resp Response) model.Response {
 	// V2 Response has a direct Schema field.
 	// In V3/Model this maps to Content -> application/json (or others) -> Schema
 	if resp.Schema != nil {
-		res.Content["application/json"] = model.MediaType{
-			Schema: p.convertSchema(resp.Schema),
+		for _, ct := range produces {
+			res.Content[ct] = model.MediaType{
+				Schema: p.convertSchema(resp.Schema),
+			}
 		}
 	}
 

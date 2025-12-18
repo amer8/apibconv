@@ -3,128 +3,179 @@ info:
   title: Task Management API
   version: ""
 channels:
+  /developers:
+    address: /developers
+    messages:
+      message_200_%!d(string=application/json):
+        payload:
+          items:
+            $ref: '#/components/schemas/Developer'
+          type: array
   /developers/{developerId}:
     address: /developers/{developerId}
-  /developers/{developerId}/tasks{?status}:
-    address: /developers/{developerId}/tasks{?status}
-  /developers{?role,team,active,limit,offset}:
-    address: /developers{?role,team,active,limit,offset}
+    messages:
+      Developer:
+        $ref: '#/components/messages/Developer'
+  /developers/{developerId}/tasks:
+    address: /developers/{developerId}/tasks
+    messages:
+      message_200_%!d(string=application/json):
+        payload:
+          items:
+            $ref: '#/components/schemas/Task'
+          type: array
+  /projects:
+    address: /projects
+    messages:
+      message_200_%!d(string=application/json):
+        payload:
+          items:
+            $ref: '#/components/schemas/Project'
+          type: array
   /projects/{projectId}:
     address: /projects/{projectId}
+    messages:
+      Project:
+        $ref: '#/components/messages/Project'
   /projects/{projectId}/members:
     address: /projects/{projectId}/members
-  /projects{?status,owner,limit,offset}:
-    address: /projects{?status,owner,limit,offset}
+    messages:
+      message_200_%!d(string=application/json):
+        payload:
+          items:
+            $ref: '#/components/schemas/Developer'
+          type: array
+  /tasks:
+    address: /tasks
+    messages:
+      message_200_%!d(string=application/json):
+        payload:
+          items:
+            $ref: '#/components/schemas/Task'
+          type: array
   /tasks/{taskId}:
     address: /tasks/{taskId}
+    messages:
+      Task:
+        $ref: '#/components/messages/Task'
   /tasks/{taskId}/comments:
     address: /tasks/{taskId}/comments
-  /tasks{?status,assignee,project,priority,limit,offset}:
-    address: /tasks{?status,assignee,project,priority,limit,offset}
+    messages:
+      message_200_%!d(string=application/json):
+        payload:
+          items:
+            $ref: '#/components/schemas/Comment'
+          type: array
   /webhooks:
     address: /webhooks
+    messages:
+      message_200_%!d(string=application/json):
+        payload:
+          items:
+            $ref: '#/components/schemas/Webhook'
+          type: array
   DELETE /projects/{projectId}/members/{developerId}:
     address: DELETE /projects/{projectId}/members/{developerId}
 operations:
+  receive_/developers:
+    action: receive
+    channel:
+      $ref: '#/channels/~1developers'
+    summary: List all developers
+    messages:
+      - $ref: '#/channels/~1developers/messages/message_200_%!d(string=application~1json)'
   receive_/developers/{developerId}:
     action: receive
     channel:
-      $ref: '#/channels//developers/{developerId}'
+      $ref: '#/channels/~1developers~1{developerId}'
     summary: Get developer details
     messages:
-      - $ref: '#/components/messages/Developer'
-  receive_/developers/{developerId}/tasks{?status}:
+      - $ref: '#/channels/~1developers~1{developerId}/messages/Developer'
+  receive_/developers/{developerId}/tasks:
     action: receive
     channel:
-      $ref: '#/channels//developers/{developerId}/tasks{?status}'
+      $ref: '#/channels/~1developers~1{developerId}~1tasks'
     summary: List developer tasks
     messages:
-      - $ref: '#/components/messages/Task'
-  receive_/developers{?role,team,active,limit,offset}:
+      - $ref: '#/channels/~1developers~1{developerId}~1tasks/messages/message_200_%!d(string=application~1json)'
+  receive_/projects:
     action: receive
     channel:
-      $ref: '#/channels//developers{?role,team,active,limit,offset}'
-    summary: List all developers
+      $ref: '#/channels/~1projects'
+    summary: List all projects
     messages:
-      - $ref: '#/components/messages/Developer'
+      - $ref: '#/channels/~1projects/messages/message_200_%!d(string=application~1json)'
   receive_/projects/{projectId}:
     action: receive
     channel:
-      $ref: '#/channels//projects/{projectId}'
+      $ref: '#/channels/~1projects~1{projectId}'
     summary: Get project details
     messages:
-      - $ref: '#/components/messages/Project'
+      - $ref: '#/channels/~1projects~1{projectId}/messages/Project'
   receive_/projects/{projectId}/members:
     action: receive
     channel:
-      $ref: '#/channels//projects/{projectId}/members'
+      $ref: '#/channels/~1projects~1{projectId}~1members'
     summary: List project members
     messages:
-      - $ref: '#/components/messages/Developer'
-  receive_/projects{?status,owner,limit,offset}:
+      - $ref: '#/channels/~1projects~1{projectId}~1members/messages/message_200_%!d(string=application~1json)'
+  receive_/tasks:
     action: receive
     channel:
-      $ref: '#/channels//projects{?status,owner,limit,offset}'
-    summary: List all projects
+      $ref: '#/channels/~1tasks'
+    summary: List all tasks
     messages:
-      - $ref: '#/components/messages/Project'
+      - $ref: '#/channels/~1tasks/messages/message_200_%!d(string=application~1json)'
   receive_/tasks/{taskId}:
     action: receive
     channel:
-      $ref: '#/channels//tasks/{taskId}'
+      $ref: '#/channels/~1tasks~1{taskId}'
     summary: Get task details
     messages:
-      - $ref: '#/components/messages/Task'
+      - $ref: '#/channels/~1tasks~1{taskId}/messages/Task'
   receive_/tasks/{taskId}/comments:
     action: receive
     channel:
-      $ref: '#/channels//tasks/{taskId}/comments'
+      $ref: '#/channels/~1tasks~1{taskId}~1comments'
     summary: List task comments
     messages:
-      - $ref: '#/components/messages/Comment'
-  receive_/tasks{?status,assignee,project,priority,limit,offset}:
-    action: receive
-    channel:
-      $ref: '#/channels//tasks{?status,assignee,project,priority,limit,offset}'
-    summary: List all tasks
-    messages:
-      - $ref: '#/components/messages/Task'
+      - $ref: '#/channels/~1tasks~1{taskId}~1comments/messages/message_200_%!d(string=application~1json)'
   receive_/webhooks:
     action: receive
     channel:
-      $ref: '#/channels//webhooks'
+      $ref: '#/channels/~1webhooks'
     summary: List all webhooks
     messages:
-      - $ref: '#/components/messages/Webhook'
-  send_/developers{?role,team,active,limit,offset}:
+      - $ref: '#/channels/~1webhooks/messages/message_200_%!d(string=application~1json)'
+  send_/developers:
     action: send
     channel:
-      $ref: '#/channels//developers{?role,team,active,limit,offset}'
+      $ref: '#/channels/~1developers'
     summary: Create a developer
+  send_/projects:
+    action: send
+    channel:
+      $ref: '#/channels/~1projects'
+    summary: Create a project
   send_/projects/{projectId}/members:
     action: send
     channel:
-      $ref: '#/channels//projects/{projectId}/members'
+      $ref: '#/channels/~1projects~1{projectId}~1members'
     summary: Add a member
-  send_/projects{?status,owner,limit,offset}:
+  send_/tasks:
     action: send
     channel:
-      $ref: '#/channels//projects{?status,owner,limit,offset}'
-    summary: Create a project
+      $ref: '#/channels/~1tasks'
+    summary: Create a task
   send_/tasks/{taskId}/comments:
     action: send
     channel:
-      $ref: '#/channels//tasks/{taskId}/comments'
+      $ref: '#/channels/~1tasks~1{taskId}~1comments'
     summary: Add a comment
-  send_/tasks{?status,assignee,project,priority,limit,offset}:
-    action: send
-    channel:
-      $ref: '#/channels//tasks{?status,assignee,project,priority,limit,offset}'
-    summary: Create a task
   send_/webhooks:
     action: send
     channel:
-      $ref: '#/channels//webhooks'
+      $ref: '#/channels/~1webhooks'
     summary: Create a webhook
 servers:
   server0:

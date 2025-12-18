@@ -34,6 +34,10 @@ lint-fix:
 build:
 	go build -o apibconv ./cmd/apibconv
 
+# Generate expected test data
+gen-expected: build
+	./scripts/gen_expected.sh
+
 clean:
 	rm -f apibconv coverage.txt
 
@@ -76,6 +80,7 @@ help:
 	@echo ""
 	@echo "Building:"
 	@echo "  build             - Build the CLI tool"
+	@echo "  gen-expected      - Generate expected test data for integration tests"
 	@echo "  clean             - Remove build artifacts"
 	@echo ""
 	@echo "Documentation:"

@@ -1,5 +1,5 @@
 {
-  "asyncapi": "2.0.0",
+  "asyncapi": "2.6.0",
   "info": {
     "title": "Task Management API",
     "version": "1.0.0",
@@ -186,11 +186,13 @@
   "servers": {
     "server0": {
       "url": "https://api.example.com/v1",
-      "protocol": "kafka"
+      "protocol": "kafka",
+      "description": "Production server"
     },
     "server1": {
       "url": "https://staging-api.example.com/v1",
-      "protocol": "kafka"
+      "protocol": "kafka",
+      "description": "Staging server"
     }
   },
   "components": {

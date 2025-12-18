@@ -1,5 +1,5 @@
 {
-  "openapi": "3.1",
+  "openapi": "3.1.0",
   "info": {
     "title": "Task Management API",
     "description": "A comprehensive API for managing tasks, projects, developers, and notifications.",
@@ -77,12 +77,12 @@
               }
             }
           },
-          "404": {
-            "description": "Not Found",
+          "401": {
+            "description": "Unauthorized",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/definitions/Error"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -116,12 +116,12 @@
               }
             }
           },
-          "404": {
-            "description": "Not Found",
+          "400": {
+            "description": "Invalid input",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/definitions/Error"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -190,11 +190,11 @@
             "description": "Developer deleted"
           },
           "404": {
-            "description": "Not Found",
+            "description": "Developer not found",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/definitions/Error"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -239,11 +239,11 @@
             }
           },
           "404": {
-            "description": "Not Found",
+            "description": "Developer not found",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/definitions/Error"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -290,11 +290,11 @@
             }
           },
           "404": {
-            "description": "Not Found",
+            "description": "Developer not found",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/definitions/Error"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -353,12 +353,12 @@
               }
             }
           },
-          "404": {
-            "description": "Not Found",
+          "401": {
+            "description": "Unauthorized",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/definitions/Error"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -392,12 +392,12 @@
               }
             }
           },
-          "404": {
-            "description": "Not Found",
+          "400": {
+            "description": "Invalid input",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/definitions/Error"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -466,11 +466,11 @@
             "description": "Project deleted"
           },
           "404": {
-            "description": "Not Found",
+            "description": "Project not found",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/definitions/Error"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -515,11 +515,11 @@
             }
           },
           "404": {
-            "description": "Not Found",
+            "description": "Project not found",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/definitions/Error"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -559,11 +559,11 @@
             }
           },
           "404": {
-            "description": "Not Found",
+            "description": "Project not found",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/definitions/Error"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -607,12 +607,12 @@
               }
             }
           },
-          "404": {
-            "description": "Not Found",
+          "400": {
+            "description": "Invalid input",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/definitions/Error"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -650,11 +650,11 @@
             "description": "Member removed"
           },
           "404": {
-            "description": "Not Found",
+            "description": "Project or Developer not found",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/definitions/Error"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -933,11 +933,11 @@
             }
           },
           "404": {
-            "description": "Not Found",
+            "description": "Task not found",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/definitions/Error"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -981,12 +981,12 @@
               }
             }
           },
-          "404": {
-            "description": "Not Found",
+          "400": {
+            "description": "Invalid input",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/definitions/Error"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -1015,12 +1015,12 @@
               }
             }
           },
-          "404": {
-            "description": "Not Found",
+          "401": {
+            "description": "Unauthorized",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/definitions/Error"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -1054,12 +1054,12 @@
               }
             }
           },
-          "404": {
-            "description": "Not Found",
+          "400": {
+            "description": "Invalid input",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/definitions/Error"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -1128,11 +1128,11 @@
             "description": "Webhook deleted"
           },
           "404": {
-            "description": "Not Found",
+            "description": "Webhook not found",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/definitions/Error"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -1177,11 +1177,11 @@
             }
           },
           "404": {
-            "description": "Not Found",
+            "description": "Webhook not found",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/definitions/Error"
+                  "$ref": "#/components/schemas/Error"
                 }
               }
             }
@@ -1832,23 +1832,6 @@
             "type": "string",
             "format": "uri"
           }
-        }
-      }
-    }
-  },
-  "definitions": {
-    "Error": {
-      "type": "object",
-      "required": [
-        "code",
-        "message"
-      ],
-      "properties": {
-        "code": {
-          "type": "integer"
-        },
-        "message": {
-          "type": "string"
         }
       }
     }

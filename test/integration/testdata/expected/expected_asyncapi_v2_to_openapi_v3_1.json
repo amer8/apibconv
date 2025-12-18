@@ -1,5 +1,5 @@
 {
-  "openapi": "3.1",
+  "openapi": "3.1.0",
   "info": {
     "title": "Task Management API",
     "description": "A comprehensive API for managing tasks, projects, developers, and notifications through webhook events.",
@@ -8,15 +8,15 @@
   "servers": [
     {
       "url": "kafka.example.com:9092",
-      "description": "kafka"
+      "description": "Production Kafka broker"
     },
     {
       "url": "staging-kafka.example.com:9092",
-      "description": "kafka"
+      "description": "Staging Kafka broker"
     },
     {
       "url": "https://webhooks.example.com",
-      "description": "https"
+      "description": "Webhook notification endpoint"
     }
   ],
   "paths": {
@@ -30,7 +30,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DeveloperCreated"
+                  "$ref": "#/components/schemas/DeveloperEvent"
                 }
               }
             }
@@ -86,7 +86,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DeveloperUpdated"
+                  "$ref": "#/components/schemas/DeveloperEvent"
                 }
               }
             }
@@ -114,7 +114,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProjectCreated"
+                  "$ref": "#/components/schemas/ProjectEvent"
                 }
               }
             }
@@ -226,7 +226,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ProjectUpdated"
+                  "$ref": "#/components/schemas/ProjectEvent"
                 }
               }
             }
@@ -310,7 +310,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TaskCreated"
+                  "$ref": "#/components/schemas/TaskEvent"
                 }
               }
             }
@@ -366,7 +366,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/TaskUpdated"
+                  "$ref": "#/components/schemas/TaskEvent"
                 }
               }
             }
@@ -417,12 +417,185 @@
   },
   "components": {
     "schemas": {
+      "Comment": {
+        "type": "object",
+        "properties": {
+          "author_id": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string"
+          },
+          "task_id": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "task_id",
+          "author_id",
+          "content",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "Developer": {
+        "type": "object",
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "avatar_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "full_name": {
+            "type": "string"
+          },
+          "hire_date": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "junior",
+              "mid",
+              "senior",
+              "lead",
+              "principal"
+            ]
+          },
+          "skills": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "team": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "username": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "email",
+          "full_name",
+          "role",
+          "active",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "DeveloperCreated": {
+        "$ref": "#/components/schemas/DeveloperEvent"
+      },
+      "DeveloperDeleted": {
+        "type": "object",
+        "properties": {
+          "deleted_by": {
+            "type": "string"
+          },
+          "developer_id": {
+            "type": "string"
+          },
+          "event": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "event",
+          "developer_id",
+          "deleted_by",
+          "timestamp"
+        ]
+      },
+      "DeveloperEvent": {
+        "type": "object",
+        "properties": {
+          "actor": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "user",
+                  "system"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "type"
+            ]
+          },
+          "changes": {
+            "type": "object",
+            "description": "Fields that were changed (for update events)"
+          },
+          "developer": {
+            "$ref": "#/components/schemas/Developer"
+          },
+          "event": {
+            "type": "string",
+            "enum": [
+              "developer.created",
+              "developer.updated"
+            ]
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "event",
+          "developer",
+          "timestamp",
+          "actor"
+        ]
+      },
+      "DeveloperUpdated": {
+        "$ref": "#/components/schemas/DeveloperEvent"
+      },
       "Error": {
         "type": "object",
-        "required": [
-          "code",
-          "message"
-        ],
         "properties": {
           "code": {
             "type": "integer"
@@ -430,7 +603,473 @@
           "message": {
             "type": "string"
           }
+        },
+        "required": [
+          "code",
+          "message"
+        ]
+      },
+      "EventHeaders": {
+        "type": "object",
+        "properties": {
+          "correlation-id": {
+            "type": "string",
+            "description": "Correlation ID for tracking related events"
+          },
+          "event-id": {
+            "type": "string",
+            "description": "Unique identifier for the event"
+          },
+          "event-version": {
+            "type": "string",
+            "description": "Version of the event schema"
+          },
+          "source": {
+            "type": "string",
+            "description": "Source system that generated the event"
+          }
         }
+      },
+      "Project": {
+        "type": "object",
+        "properties": {
+          "budget": {
+            "type": "number"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "description": {
+            "type": "string"
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "id": {
+            "type": "string"
+          },
+          "member_count": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "owner_id": {
+            "type": "string"
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "planning",
+              "active",
+              "on_hold",
+              "completed",
+              "archived"
+            ]
+          },
+          "task_count": {
+            "type": "integer"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "status",
+          "owner_id",
+          "member_count",
+          "task_count",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "ProjectCreated": {
+        "$ref": "#/components/schemas/ProjectEvent"
+      },
+      "ProjectDeleted": {
+        "type": "object",
+        "properties": {
+          "deleted_by": {
+            "type": "string"
+          },
+          "event": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "event",
+          "project_id",
+          "deleted_by",
+          "timestamp"
+        ]
+      },
+      "ProjectEvent": {
+        "type": "object",
+        "properties": {
+          "actor": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "user",
+                  "system"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "type"
+            ]
+          },
+          "changes": {
+            "type": "object",
+            "description": "Fields that were changed (for update events)"
+          },
+          "event": {
+            "type": "string",
+            "enum": [
+              "project.created",
+              "project.updated"
+            ]
+          },
+          "project": {
+            "$ref": "#/components/schemas/Project"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "event",
+          "project",
+          "timestamp",
+          "actor"
+        ]
+      },
+      "ProjectMemberAdded": {
+        "type": "object",
+        "properties": {
+          "added_by": {
+            "type": "string"
+          },
+          "developer_id": {
+            "type": "string"
+          },
+          "event": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "event",
+          "project_id",
+          "developer_id",
+          "added_by",
+          "timestamp"
+        ]
+      },
+      "ProjectMemberRemoved": {
+        "type": "object",
+        "properties": {
+          "developer_id": {
+            "type": "string"
+          },
+          "event": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "removed_by": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "event",
+          "project_id",
+          "developer_id",
+          "removed_by",
+          "timestamp"
+        ]
+      },
+      "ProjectUpdated": {
+        "$ref": "#/components/schemas/ProjectEvent"
+      },
+      "Task": {
+        "type": "object",
+        "properties": {
+          "actual_hours": {
+            "type": "number"
+          },
+          "assignee_id": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "description": {
+            "type": "string"
+          },
+          "due_date": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "estimated_hours": {
+            "type": "number"
+          },
+          "id": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ]
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "reporter_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "in_progress",
+              "review",
+              "completed",
+              "closed"
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "title": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "status",
+          "priority",
+          "project_id",
+          "reporter_id",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "TaskAssigned": {
+        "type": "object",
+        "properties": {
+          "assigned_by": {
+            "type": "string"
+          },
+          "assignee_id": {
+            "type": "string"
+          },
+          "event": {
+            "type": "string"
+          },
+          "task_id": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "event",
+          "task_id",
+          "assignee_id",
+          "assigned_by",
+          "timestamp"
+        ]
+      },
+      "TaskCommented": {
+        "type": "object",
+        "properties": {
+          "comment": {
+            "$ref": "#/components/schemas/Comment"
+          },
+          "event": {
+            "type": "string"
+          },
+          "task_id": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "event",
+          "task_id",
+          "comment",
+          "timestamp"
+        ]
+      },
+      "TaskCreated": {
+        "$ref": "#/components/schemas/TaskEvent"
+      },
+      "TaskDeleted": {
+        "type": "object",
+        "properties": {
+          "deleted_by": {
+            "type": "string"
+          },
+          "event": {
+            "type": "string"
+          },
+          "task_id": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "event",
+          "task_id",
+          "deleted_by",
+          "timestamp"
+        ]
+      },
+      "TaskEvent": {
+        "type": "object",
+        "properties": {
+          "actor": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "user",
+                  "system"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "type"
+            ]
+          },
+          "changes": {
+            "type": "object",
+            "description": "Fields that were changed (for update events)"
+          },
+          "event": {
+            "type": "string",
+            "enum": [
+              "task.created",
+              "task.updated"
+            ]
+          },
+          "task": {
+            "$ref": "#/components/schemas/Task"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "event",
+          "task",
+          "timestamp",
+          "actor"
+        ]
+      },
+      "TaskUpdated": {
+        "$ref": "#/components/schemas/TaskEvent"
+      },
+      "WebhookTriggered": {
+        "type": "object",
+        "properties": {
+          "error_message": {
+            "type": "string"
+          },
+          "event_type": {
+            "type": "string"
+          },
+          "payload": {
+            "type": "object"
+          },
+          "response_code": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "success",
+              "failed",
+              "pending"
+            ]
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "webhook_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "webhook_id",
+          "event_type",
+          "payload",
+          "timestamp",
+          "status"
+        ]
       }
     }
   }

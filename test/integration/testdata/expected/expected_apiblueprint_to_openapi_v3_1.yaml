@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Task Management API
-  version: ""
+  version: ''
 servers:
   - url: https://api.example.com
 paths:
@@ -14,13 +14,12 @@ paths:
         - Developers
       summary: Get developer details
       responses:
-        "200":
+        '200':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Developer'
-                type: array
-        "404":
+        '404':
           description: Not Found
           content:
             application/json:
@@ -31,11 +30,11 @@ paths:
         - Developers
       summary: Delete a developer
       responses:
-        "204":
+        '204':
           content:
             application/json:
-              example: |2+
-        "404":
+              example: ''
+        '404':
           description: Not Found
           content:
             application/json:
@@ -46,13 +45,12 @@ paths:
         - Developers
       summary: Update a developer
       responses:
-        "200":
+        '200':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Developer'
-                type: array
-        "404":
+        '404':
           description: Not Found
           content:
             application/json:
@@ -65,13 +63,14 @@ paths:
         - Developers
       summary: List developer tasks
       responses:
-        "200":
+        '200':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Task'
                 type: array
-        "404":
+                items:
+                  $ref: '#/components/schemas/Task'
+        '404':
           description: Not Found
           content:
             application/json:
@@ -84,13 +83,14 @@ paths:
         - Developers
       summary: List all developers
       responses:
-        "200":
+        '200':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Developer'
                 type: array
-        "404":
+                items:
+                  $ref: '#/components/schemas/Developer'
+        '404':
           description: Not Found
           content:
             application/json:
@@ -101,13 +101,12 @@ paths:
         - Developers
       summary: Create a developer
       responses:
-        "201":
+        '201':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Developer'
-                type: array
-        "404":
+        '404':
           description: Not Found
           content:
             application/json:
@@ -120,13 +119,12 @@ paths:
         - Projects
       summary: Get project details
       responses:
-        "200":
+        '200':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Project'
-                type: array
-        "404":
+        '404':
           description: Not Found
           content:
             application/json:
@@ -137,11 +135,11 @@ paths:
         - Projects
       summary: Delete a project
       responses:
-        "204":
+        '204':
           content:
             application/json:
-              example: |2+
-        "404":
+              example: ''
+        '404':
           description: Not Found
           content:
             application/json:
@@ -152,13 +150,12 @@ paths:
         - Projects
       summary: Update a project
       responses:
-        "200":
+        '200':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Project'
-                type: array
-        "404":
+        '404':
           description: Not Found
           content:
             application/json:
@@ -171,13 +168,14 @@ paths:
         - Projects
       summary: List project members
       responses:
-        "200":
+        '200':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Developer'
                 type: array
-        "404":
+                items:
+                  $ref: '#/components/schemas/Developer'
+        '404':
           description: Not Found
           content:
             application/json:
@@ -188,13 +186,12 @@ paths:
         - Projects
       summary: Add a member
       responses:
-        "201":
+        '201':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Developer'
-                type: array
-        "404":
+        '404':
           description: Not Found
           content:
             application/json:
@@ -207,13 +204,14 @@ paths:
         - Projects
       summary: List all projects
       responses:
-        "200":
+        '200':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Project'
                 type: array
-        "404":
+                items:
+                  $ref: '#/components/schemas/Project'
+        '404':
           description: Not Found
           content:
             application/json:
@@ -224,13 +222,12 @@ paths:
         - Projects
       summary: Create a project
       responses:
-        "201":
+        '201':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Project'
-                type: array
-        "404":
+        '404':
           description: Not Found
           content:
             application/json:
@@ -243,13 +240,12 @@ paths:
         - Tasks
       summary: Get task details
       responses:
-        "200":
+        '200':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Task'
-                type: array
-        "404":
+        '404':
           description: Not Found
           content:
             application/json:
@@ -260,11 +256,11 @@ paths:
         - Tasks
       summary: Delete a task
       responses:
-        "204":
+        '204':
           content:
             application/json:
-              example: |2+
-        "404":
+              example: ''
+        '404':
           description: Not Found
           content:
             application/json:
@@ -275,13 +271,12 @@ paths:
         - Tasks
       summary: Update a task
       responses:
-        "200":
+        '200':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Task'
-                type: array
-        "404":
+        '404':
           description: Not Found
           content:
             application/json:
@@ -294,13 +289,14 @@ paths:
         - Tasks
       summary: List task comments
       responses:
-        "200":
+        '200':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Comment'
                 type: array
-        "404":
+                items:
+                  $ref: '#/components/schemas/Comment'
+        '404':
           description: Not Found
           content:
             application/json:
@@ -311,13 +307,12 @@ paths:
         - Tasks
       summary: Add a comment
       responses:
-        "201":
+        '201':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Comment'
-                type: array
-        "404":
+        '404':
           description: Not Found
           content:
             application/json:
@@ -330,13 +325,14 @@ paths:
         - Tasks
       summary: List all tasks
       responses:
-        "200":
+        '200':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Task'
                 type: array
-        "404":
+                items:
+                  $ref: '#/components/schemas/Task'
+        '404':
           description: Not Found
           content:
             application/json:
@@ -347,13 +343,12 @@ paths:
         - Tasks
       summary: Create a task
       responses:
-        "201":
+        '201':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Task'
-                type: array
-        "404":
+        '404':
           description: Not Found
           content:
             application/json:
@@ -366,13 +361,14 @@ paths:
         - Webhooks
       summary: List all webhooks
       responses:
-        "200":
+        '200':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Webhook'
                 type: array
-        "404":
+                items:
+                  $ref: '#/components/schemas/Webhook'
+        '404':
           description: Not Found
           content:
             application/json:
@@ -383,13 +379,12 @@ paths:
         - Webhooks
       summary: Create a webhook
       responses:
-        "201":
+        '201':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Webhook'
-                type: array
-        "404":
+        '404':
           description: Not Found
           content:
             application/json:

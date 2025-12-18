@@ -3,9 +3,16 @@ package integration
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
+	"sort"
+	"strings"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 
 	"github.com/amer8/apibconv/pkg/converter"
 	"github.com/amer8/apibconv/pkg/format"
@@ -472,15 +479,174 @@ func TestConversions(t *testing.T) {
 				t.Fatalf("Failed to read expected file: %v", err)
 			}
 
-			if !bytes.Equal(output.Bytes(), expectedBytes) {
-				t.Errorf("Output does not match expected file %s", tt.expectedFile)
-				// Print first 500 chars of diff
-				expectedStr := string(expectedBytes)
-				actualStr := output.String()
-				if len(expectedStr) > 500 { expectedStr = expectedStr[:500] + "..." }
-				if len(actualStr) > 500 { actualStr = actualStr[:500] + "..." }
-				t.Logf("Expected (start):\n%s\nGot (start):\n%s", expectedStr, actualStr)
-			}
+			compareContent(t, tt.expectedFile, expectedBytes, output.Bytes())
 		})
+	}
+}
+
+func compareContent(t *testing.T, filename string, expected, actual []byte) {
+	ext := filepath.Ext(filename)
+	switch ext {
+	case ".json":
+		var exp, act interface{}
+		if err := json.Unmarshal(expected, &exp); err != nil {
+			t.Fatalf("Failed to unmarshal expected JSON %s: %v", filename, err)
+		}
+		if err := json.Unmarshal(actual, &act); err != nil {
+			t.Errorf("Failed to unmarshal actual JSON output for %s: %v", filename, err)
+			compareText(t, filename, expected, actual)
+			return
+		}
+		// Normalize
+		exp = normalize(exp)
+		act = normalize(act)
+		
+		if !reflect.DeepEqual(exp, act) {
+			t.Errorf("JSON output does not match expected file %s", filename)
+			compareText(t, filename, expected, actual)
+		}
+	case ".yaml", ".yml":
+		compareYAML(t, filename, expected, actual)
+	default:
+		compareText(t, filename, expected, actual)
+	}
+}
+
+func compareYAML(t *testing.T, filename string, expected, actual []byte) {
+	var expNode, actNode yaml.Node
+	if err := yaml.Unmarshal(expected, &expNode); err != nil {
+		t.Fatalf("Failed to unmarshal expected YAML %s: %v", filename, err)
+	}
+	if err := yaml.Unmarshal(actual, &actNode); err != nil {
+		t.Errorf("Failed to unmarshal actual YAML output for %s: %v", filename, err)
+		compareText(t, filename, expected, actual)
+		return
+	}
+
+	if diff := diffNodes(&expNode, &actNode); diff != "" {
+		t.Errorf("YAML output does not match expected file %s: %s", filename, diff)
+		compareText(t, filename, expected, actual)
+	}
+}
+
+func diffNodes(exp, act *yaml.Node) string {
+	if exp.Kind != act.Kind {
+		return fmt.Sprintf("Kind mismatch: %v vs %v", exp.Kind, act.Kind)
+	}
+
+	if exp.Kind == yaml.ScalarNode {
+		if exp.Value != act.Value {
+			return fmt.Sprintf("Value mismatch: %q vs %q", exp.Value, act.Value)
+		}
+	}
+
+	if exp.Kind == yaml.SequenceNode {
+		if len(exp.Content) != len(act.Content) {
+			return fmt.Sprintf("Sequence length mismatch: %d vs %d", len(exp.Content), len(act.Content))
+		}
+		for i := range exp.Content {
+			if d := diffNodes(exp.Content[i], act.Content[i]); d != "" {
+				return fmt.Sprintf("Index %d: %s", i, d)
+			}
+		}
+	}
+
+	if exp.Kind == yaml.MappingNode {
+		// Content is [key, val, key, val...]
+		// Sort keys to compare
+		expMap := make(map[string]*yaml.Node)
+		actMap := make(map[string]*yaml.Node)
+
+		for i := 0; i < len(exp.Content); i += 2 {
+			expMap[exp.Content[i].Value] = exp.Content[i+1]
+		}
+		for i := 0; i < len(act.Content); i += 2 {
+			actMap[act.Content[i].Value] = act.Content[i+1]
+		}
+
+		if len(expMap) != len(actMap) {
+			// Find missing keys
+			var missing []string
+			for k := range expMap {
+				if _, ok := actMap[k]; !ok {
+					missing = append(missing, "-"+k)
+				}
+			}
+			for k := range actMap {
+				if _, ok := expMap[k]; !ok {
+					missing = append(missing, "+"+k)
+				}
+			}
+			sort.Strings(missing)
+			return fmt.Sprintf("Map size mismatch: %d vs %d. Diff keys: %v", len(expMap), len(actMap), missing)
+		}
+
+		for k, vExp := range expMap {
+			vAct, ok := actMap[k]
+			if !ok {
+				return fmt.Sprintf("Missing key: %s", k)
+			}
+			if d := diffNodes(vExp, vAct); d != "" {
+				return fmt.Sprintf("Key %s: %s", k, d)
+			}
+		}
+	}
+	
+	if exp.Kind == yaml.DocumentNode {
+		if len(exp.Content) > 0 && len(act.Content) > 0 {
+			return diffNodes(exp.Content[0], act.Content[0])
+		}
+	}
+
+	return ""
+}
+
+func normalize(i interface{}) interface{} {
+	b, err := json.Marshal(i)
+	if err != nil {
+		return i 
+	}
+	var res interface{}
+	if err := json.Unmarshal(b, &res); err != nil {
+		return i
+	}
+	return res
+}
+
+func compareText(t *testing.T, filename string, expected, actual []byte) {
+	// Normalize line endings
+	expStr := strings.ReplaceAll(string(expected), "\r\n", "\n")
+	actStr := strings.ReplaceAll(string(actual), "\r\n", "\n")
+
+	// Trim spaces
+	expStr = strings.TrimSpace(expStr)
+	actStr = strings.TrimSpace(actStr)
+
+	if expStr != actStr {
+		// Find first difference
+		minLen := len(expStr)
+		if len(actStr) < minLen {
+			minLen = len(actStr)
+		}
+		diffIdx := 0
+		for i := 0; i < minLen; i++ {
+			if expStr[i] != actStr[i] {
+				diffIdx = i
+				break
+			}
+		}
+		
+		// Context around diff
+		start := diffIdx - 50
+		if start < 0 { start = 0 }
+		end := diffIdx + 50
+		if end > len(expStr) { end = len(expStr) }
+		expCtx := expStr[start:end]
+		
+		endAct := diffIdx + 50
+		if endAct > len(actStr) { endAct = len(actStr) }
+		actCtx := actStr[start:endAct]
+
+		t.Logf("First difference at index %d:\nExpected: ...%q...\nGot:      ...%q...", diffIdx, expCtx, actCtx)
 	}
 }

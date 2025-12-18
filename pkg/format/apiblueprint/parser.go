@@ -234,6 +234,7 @@ func (p *Parser) parseDocument(content string) (*model.API, error) {
 			var bodyBuilder strings.Builder
 			var msonProperties map[string]*model.Schema
 			var isMSON bool
+			var isArray bool
 			var hadBody bool
 			var refName string
 
@@ -246,6 +247,7 @@ func (p *Parser) parseDocument(content string) (*model.API, error) {
 					// e.g. + Attributes (array[Task])
 					attrContent := reAttributes.FindStringSubmatch(trimmedNext)[1]
 					if strings.Contains(attrContent, "array[") {
+						isArray = true
 						// Extract Ref
 						start := strings.Index(attrContent, "array[") + 6
 						end := strings.Index(attrContent[start:], "]")
@@ -291,14 +293,12 @@ func (p *Parser) parseDocument(content string) (*model.API, error) {
 			if isMSON {
 				schema := &model.Schema{}
 				if refName != "" {
-					schema.Type = model.TypeArray // simplified assumption based on array[] detection above, needs refinement for object refs
-					if strings.Contains(refName, "array") {
+					if isArray {
 						schema.Type = model.TypeArray
+						schema.Items = &model.Schema{
+							Ref: "#/components/schemas/" + refName,
+						}
 					} else {
-						// If refName is just a type name like 'Task', it could be an object ref or array ref depending on context.
-						// APIB usually says `Attributes (Task)` or `Attributes (array[Task])`
-						// For now, if we extracted refName, let's set Items ref or direct ref.
-						// Actually, better to link to #/components/schemas/
 						schema.Ref = "#/components/schemas/" + refName
 					}
 				} else {

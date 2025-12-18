@@ -6,145 +6,173 @@ info:
 channels:
   developerCreated:
     address: developer/created
+    messages:
+      DeveloperCreated:
+        $ref: '#/components/messages/DeveloperCreated'
   developerDeleted:
     address: developer/deleted
+    messages:
+      DeveloperDeleted:
+        $ref: '#/components/messages/DeveloperDeleted'
   developerUpdated:
     address: developer/updated
+    messages:
+      DeveloperUpdated:
+        $ref: '#/components/messages/DeveloperUpdated'
   projectCreated:
     address: project/created
+    messages:
+      ProjectCreated:
+        $ref: '#/components/messages/ProjectCreated'
   projectDeleted:
     address: project/deleted
+    messages:
+      ProjectDeleted:
+        $ref: '#/components/messages/ProjectDeleted'
   projectMemberAdded:
     address: project/member-added
+    messages:
+      ProjectMemberAdded:
+        $ref: '#/components/messages/ProjectMemberAdded'
   projectMemberRemoved:
     address: project/member-removed
+    messages:
+      ProjectMemberRemoved:
+        $ref: '#/components/messages/ProjectMemberRemoved'
   projectUpdated:
     address: project/updated
+    messages:
+      ProjectUpdated:
+        $ref: '#/components/messages/ProjectUpdated'
   taskAssigned:
     address: task/assigned
+    messages:
+      TaskAssigned:
+        $ref: '#/components/messages/TaskAssigned'
   taskCommented:
     address: task/commented
+    messages:
+      TaskCommented:
+        $ref: '#/components/messages/TaskCommented'
   taskCreated:
     address: task/created
+    messages:
+      TaskCreated:
+        $ref: '#/components/messages/TaskCreated'
   taskDeleted:
     address: task/deleted
+    messages:
+      TaskDeleted:
+        $ref: '#/components/messages/TaskDeleted'
   taskUpdated:
     address: task/updated
+    messages:
+      TaskUpdated:
+        $ref: '#/components/messages/TaskUpdated'
   webhookTriggered:
     address: webhook/triggered
+    messages:
+      WebhookTriggered:
+        $ref: '#/components/messages/WebhookTriggered'
 operations:
   onDeveloperCreated:
     action: receive
     channel:
       $ref: '#/channels/developerCreated'
     summary: Receive developer creation notifications
-    operationId: onDeveloperCreated
     messages:
-      - $ref: '#/components/messages/DeveloperCreated'
+      - $ref: '#/channels/developerCreated/messages/DeveloperCreated'
   onDeveloperDeleted:
     action: receive
     channel:
       $ref: '#/channels/developerDeleted'
     summary: Receive developer deletion notifications
-    operationId: onDeveloperDeleted
     messages:
-      - $ref: '#/components/messages/DeveloperDeleted'
+      - $ref: '#/channels/developerDeleted/messages/DeveloperDeleted'
   onDeveloperUpdated:
     action: receive
     channel:
       $ref: '#/channels/developerUpdated'
     summary: Receive developer update notifications
-    operationId: onDeveloperUpdated
     messages:
-      - $ref: '#/components/messages/DeveloperUpdated'
+      - $ref: '#/channels/developerUpdated/messages/DeveloperUpdated'
   onProjectCreated:
     action: receive
     channel:
       $ref: '#/channels/projectCreated'
     summary: Receive project creation notifications
-    operationId: onProjectCreated
     messages:
-      - $ref: '#/components/messages/ProjectCreated'
+      - $ref: '#/channels/projectCreated/messages/ProjectCreated'
   onProjectDeleted:
     action: receive
     channel:
       $ref: '#/channels/projectDeleted'
     summary: Receive project deletion notifications
-    operationId: onProjectDeleted
     messages:
-      - $ref: '#/components/messages/ProjectDeleted'
+      - $ref: '#/channels/projectDeleted/messages/ProjectDeleted'
   onProjectMemberAdded:
     action: receive
     channel:
       $ref: '#/channels/projectMemberAdded'
     summary: Receive member addition notifications
-    operationId: onProjectMemberAdded
     messages:
-      - $ref: '#/components/messages/ProjectMemberAdded'
+      - $ref: '#/channels/projectMemberAdded/messages/ProjectMemberAdded'
   onProjectMemberRemoved:
     action: receive
     channel:
       $ref: '#/channels/projectMemberRemoved'
     summary: Receive member removal notifications
-    operationId: onProjectMemberRemoved
     messages:
-      - $ref: '#/components/messages/ProjectMemberRemoved'
+      - $ref: '#/channels/projectMemberRemoved/messages/ProjectMemberRemoved'
   onProjectUpdated:
     action: receive
     channel:
       $ref: '#/channels/projectUpdated'
     summary: Receive project update notifications
-    operationId: onProjectUpdated
     messages:
-      - $ref: '#/components/messages/ProjectUpdated'
+      - $ref: '#/channels/projectUpdated/messages/ProjectUpdated'
   onTaskAssigned:
     action: receive
     channel:
       $ref: '#/channels/taskAssigned'
     summary: Receive task assignment notifications
-    operationId: onTaskAssigned
     messages:
-      - $ref: '#/components/messages/TaskAssigned'
+      - $ref: '#/channels/taskAssigned/messages/TaskAssigned'
   onTaskCommented:
     action: receive
     channel:
       $ref: '#/channels/taskCommented'
     summary: Receive task comment notifications
-    operationId: onTaskCommented
     messages:
-      - $ref: '#/components/messages/TaskCommented'
+      - $ref: '#/channels/taskCommented/messages/TaskCommented'
   onTaskCreated:
     action: receive
     channel:
       $ref: '#/channels/taskCreated'
     summary: Receive task creation notifications
-    operationId: onTaskCreated
     messages:
-      - $ref: '#/components/messages/TaskCreated'
+      - $ref: '#/channels/taskCreated/messages/TaskCreated'
   onTaskDeleted:
     action: receive
     channel:
       $ref: '#/channels/taskDeleted'
     summary: Receive task deletion notifications
-    operationId: onTaskDeleted
     messages:
-      - $ref: '#/components/messages/TaskDeleted'
+      - $ref: '#/channels/taskDeleted/messages/TaskDeleted'
   onTaskUpdated:
     action: receive
     channel:
       $ref: '#/channels/taskUpdated'
     summary: Receive task update notifications
-    operationId: onTaskUpdated
     messages:
-      - $ref: '#/components/messages/TaskUpdated'
+      - $ref: '#/channels/taskUpdated/messages/TaskUpdated'
   triggerWebhook:
     action: send
     channel:
       $ref: '#/channels/webhookTriggered'
     summary: Publish webhook trigger notifications
-    operationId: triggerWebhook
     messages:
-      - $ref: '#/components/messages/WebhookTriggered'
+      - $ref: '#/channels/webhookTriggered/messages/WebhookTriggered'
 servers:
   production:
     host: kafka.example.com:9092
@@ -158,3 +186,576 @@ servers:
     host: https://webhooks.example.com
     protocol: https
     description: Webhook notification endpoint
+components:
+  messages:
+    Comment:
+      name: Comment
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/Comment'
+    Developer:
+      name: Developer
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/Developer'
+    DeveloperCreated:
+      name: DeveloperCreated
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/DeveloperCreated'
+    DeveloperDeleted:
+      name: DeveloperDeleted
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/DeveloperDeleted'
+    DeveloperEvent:
+      name: DeveloperEvent
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/DeveloperEvent'
+    DeveloperUpdated:
+      name: DeveloperUpdated
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/DeveloperUpdated'
+    EventHeaders:
+      name: EventHeaders
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/EventHeaders'
+    Project:
+      name: Project
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/Project'
+    ProjectCreated:
+      name: ProjectCreated
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/ProjectCreated'
+    ProjectDeleted:
+      name: ProjectDeleted
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/ProjectDeleted'
+    ProjectEvent:
+      name: ProjectEvent
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/ProjectEvent'
+    ProjectMemberAdded:
+      name: ProjectMemberAdded
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/ProjectMemberAdded'
+    ProjectMemberRemoved:
+      name: ProjectMemberRemoved
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/ProjectMemberRemoved'
+    ProjectUpdated:
+      name: ProjectUpdated
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/ProjectUpdated'
+    Task:
+      name: Task
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/Task'
+    TaskAssigned:
+      name: TaskAssigned
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/TaskAssigned'
+    TaskCommented:
+      name: TaskCommented
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/TaskCommented'
+    TaskCreated:
+      name: TaskCreated
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/TaskCreated'
+    TaskDeleted:
+      name: TaskDeleted
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/TaskDeleted'
+    TaskEvent:
+      name: TaskEvent
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/TaskEvent'
+    TaskUpdated:
+      name: TaskUpdated
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/TaskUpdated'
+    WebhookTriggered:
+      name: WebhookTriggered
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/WebhookTriggered'
+  schemas:
+    Comment:
+      properties:
+        author_id:
+          type: string
+        content:
+          type: string
+        created_at:
+          format: date-time
+          type: string
+        id:
+          type: string
+        task_id:
+          type: string
+        updated_at:
+          format: date-time
+          type: string
+      required:
+        - id
+        - task_id
+        - author_id
+        - content
+        - created_at
+        - updated_at
+      type: object
+    Developer:
+      properties:
+        active:
+          type: boolean
+        avatar_url:
+          format: uri
+          type: string
+        created_at:
+          format: date-time
+          type: string
+        email:
+          format: email
+          type: string
+        full_name:
+          type: string
+        hire_date:
+          format: date-time
+          type: string
+        id:
+          type: string
+        role:
+          enum:
+            - junior
+            - mid
+            - senior
+            - lead
+            - principal
+          type: string
+        skills:
+          items:
+            type: string
+          type: array
+        team:
+          type: string
+        updated_at:
+          format: date-time
+          type: string
+        username:
+          type: string
+      required:
+        - id
+        - username
+        - email
+        - full_name
+        - role
+        - active
+        - created_at
+        - updated_at
+      type: object
+    DeveloperCreated:
+      $ref: '#/components/schemas/DeveloperEvent'
+    DeveloperDeleted:
+      properties:
+        deleted_by:
+          type: string
+        developer_id:
+          type: string
+        event:
+          type: string
+        timestamp:
+          format: date-time
+          type: string
+      required:
+        - event
+        - developer_id
+        - deleted_by
+        - timestamp
+      type: object
+    DeveloperEvent:
+      properties:
+        actor:
+          properties:
+            id:
+              type: string
+            type:
+              enum:
+                - user
+                - system
+              type: string
+          required:
+            - id
+            - type
+          type: object
+        changes:
+          description: Fields that were changed (for update events)
+          type: object
+        developer:
+          $ref: '#/components/schemas/Developer'
+        event:
+          enum:
+            - developer.created
+            - developer.updated
+          type: string
+        timestamp:
+          format: date-time
+          type: string
+      required:
+        - event
+        - developer
+        - timestamp
+        - actor
+      type: object
+    DeveloperUpdated:
+      $ref: '#/components/schemas/DeveloperEvent'
+    EventHeaders:
+      properties:
+        correlation-id:
+          description: Correlation ID for tracking related events
+          type: string
+        event-id:
+          description: Unique identifier for the event
+          type: string
+        event-version:
+          description: Version of the event schema
+          type: string
+        source:
+          description: Source system that generated the event
+          type: string
+      type: object
+    Project:
+      properties:
+        budget:
+          type: number
+        created_at:
+          format: date-time
+          type: string
+        description:
+          type: string
+        end_date:
+          format: date-time
+          type: string
+        id:
+          type: string
+        member_count:
+          type: integer
+        name:
+          type: string
+        owner_id:
+          type: string
+        start_date:
+          format: date-time
+          type: string
+        status:
+          enum:
+            - planning
+            - active
+            - on_hold
+            - completed
+            - archived
+          type: string
+        task_count:
+          type: integer
+        updated_at:
+          format: date-time
+          type: string
+      required:
+        - id
+        - name
+        - status
+        - owner_id
+        - member_count
+        - task_count
+        - created_at
+        - updated_at
+      type: object
+    ProjectCreated:
+      $ref: '#/components/schemas/ProjectEvent'
+    ProjectDeleted:
+      properties:
+        deleted_by:
+          type: string
+        event:
+          type: string
+        project_id:
+          type: string
+        timestamp:
+          format: date-time
+          type: string
+      required:
+        - event
+        - project_id
+        - deleted_by
+        - timestamp
+      type: object
+    ProjectEvent:
+      properties:
+        actor:
+          properties:
+            id:
+              type: string
+            type:
+              enum:
+                - user
+                - system
+              type: string
+          required:
+            - id
+            - type
+          type: object
+        changes:
+          description: Fields that were changed (for update events)
+          type: object
+        event:
+          enum:
+            - project.created
+            - project.updated
+          type: string
+        project:
+          $ref: '#/components/schemas/Project'
+        timestamp:
+          format: date-time
+          type: string
+      required:
+        - event
+        - project
+        - timestamp
+        - actor
+      type: object
+    ProjectMemberAdded:
+      properties:
+        added_by:
+          type: string
+        developer_id:
+          type: string
+        event:
+          type: string
+        project_id:
+          type: string
+        timestamp:
+          format: date-time
+          type: string
+      required:
+        - event
+        - project_id
+        - developer_id
+        - added_by
+        - timestamp
+      type: object
+    ProjectMemberRemoved:
+      properties:
+        developer_id:
+          type: string
+        event:
+          type: string
+        project_id:
+          type: string
+        removed_by:
+          type: string
+        timestamp:
+          format: date-time
+          type: string
+      required:
+        - event
+        - project_id
+        - developer_id
+        - removed_by
+        - timestamp
+      type: object
+    ProjectUpdated:
+      $ref: '#/components/schemas/ProjectEvent'
+    Task:
+      properties:
+        actual_hours:
+          type: number
+        assignee_id:
+          type: string
+        created_at:
+          format: date-time
+          type: string
+        description:
+          type: string
+        due_date:
+          format: date-time
+          type: string
+        estimated_hours:
+          type: number
+        id:
+          type: string
+        priority:
+          enum:
+            - low
+            - medium
+            - high
+            - critical
+          type: string
+        project_id:
+          type: string
+        reporter_id:
+          type: string
+        status:
+          enum:
+            - open
+            - in_progress
+            - review
+            - completed
+            - closed
+          type: string
+        tags:
+          items:
+            type: string
+          type: array
+        title:
+          type: string
+        updated_at:
+          format: date-time
+          type: string
+      required:
+        - id
+        - title
+        - status
+        - priority
+        - project_id
+        - reporter_id
+        - created_at
+        - updated_at
+      type: object
+    TaskAssigned:
+      properties:
+        assigned_by:
+          type: string
+        assignee_id:
+          type: string
+        event:
+          type: string
+        task_id:
+          type: string
+        timestamp:
+          format: date-time
+          type: string
+      required:
+        - event
+        - task_id
+        - assignee_id
+        - assigned_by
+        - timestamp
+      type: object
+    TaskCommented:
+      properties:
+        comment:
+          $ref: '#/components/schemas/Comment'
+        event:
+          type: string
+        task_id:
+          type: string
+        timestamp:
+          format: date-time
+          type: string
+      required:
+        - event
+        - task_id
+        - comment
+        - timestamp
+      type: object
+    TaskCreated:
+      $ref: '#/components/schemas/TaskEvent'
+    TaskDeleted:
+      properties:
+        deleted_by:
+          type: string
+        event:
+          type: string
+        task_id:
+          type: string
+        timestamp:
+          format: date-time
+          type: string
+      required:
+        - event
+        - task_id
+        - deleted_by
+        - timestamp
+      type: object
+    TaskEvent:
+      properties:
+        actor:
+          properties:
+            id:
+              type: string
+            type:
+              enum:
+                - user
+                - system
+              type: string
+          required:
+            - id
+            - type
+          type: object
+        changes:
+          description: Fields that were changed (for update events)
+          type: object
+        event:
+          enum:
+            - task.created
+            - task.updated
+          type: string
+        task:
+          $ref: '#/components/schemas/Task'
+        timestamp:
+          format: date-time
+          type: string
+      required:
+        - event
+        - task
+        - timestamp
+        - actor
+      type: object
+    TaskUpdated:
+      $ref: '#/components/schemas/TaskEvent'
+    WebhookTriggered:
+      properties:
+        error_message:
+          type: string
+        event_type:
+          type: string
+        payload:
+          type: object
+        response_code:
+          type: integer
+        status:
+          enum:
+            - success
+            - failed
+            - pending
+          type: string
+        timestamp:
+          format: date-time
+          type: string
+        webhook_id:
+          type: string
+      required:
+        - webhook_id
+        - event_type
+        - payload
+        - timestamp
+        - status
+      type: object
