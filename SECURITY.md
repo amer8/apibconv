@@ -14,7 +14,7 @@ We take security vulnerabilities seriously. If you discover a security issue, pl
 
 1. **Do not** open a public GitHub issue for security vulnerabilities
 2. Email your findings to the repository maintainers via GitHub's private vulnerability reporting feature
-3. Alternatively, use [GitHub's Security Advisory feature](https://github.com/amer8/learning/security/advisories/new) to report privately
+3. Alternatively, use [GitHub's Security Advisory feature](https://github.com/amer8/apibconv/security/advisories/new) to report privately
 
 ### What to Include
 
