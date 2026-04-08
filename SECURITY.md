@@ -25,13 +25,21 @@ Please include the following information in your report:
 - Potential impact of the vulnerability
 - Any suggested fixes (optional)
 
-## Security Best Practices
+## Review Model
 
-This project follows security best practices including:
+This repository is currently maintained by a single active maintainer.
 
-- Dependency scanning with Dependabot
-- Static analysis with gosec and golangci-lint
-- Code review requirements for all changes
-- Regular security audits
+Because there is not yet a second active reviewer with write access, independent human approval cannot be required for every change. This is a known project limitation and should not be interpreted as equivalent to multi-maintainer review.
+
+Where practical, changes should still be proposed through pull requests and merged through protected-branch or repository-rule workflows rather than by direct pushes. If additional maintainers are added in the future, the project intends to require independent approval for protected branch changes.
+
+## Security Practices
+
+This project currently uses the following security controls:
+
+- Dependency updates via Dependabot
+- Static analysis with `gosec` and `golangci-lint` in CI
+- CodeQL and OpenSSF Scorecard workflows
+- Private vulnerability reporting through GitHub Security Advisories
 
 Thank you for helping keep this project secure.
