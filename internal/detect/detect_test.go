@@ -82,8 +82,13 @@ func TestDetectFromBytes(t *testing.T) {
 			wantVersion: "1A",
 		},
 		{
-			name:        "API Blueprint Metadata",
-			input:       `# My API`,
+			name: "API Blueprint Structure Without Format Header",
+			input: `# My API
+
+## Users [/users]
+
+### List users [GET]
++ Response 200 (application/json)`,
 			wantFormat:  format.FormatAPIBlueprint,
 			wantVersion: "1A",
 		},
@@ -98,6 +103,18 @@ func TestDetectFromBytes(t *testing.T) {
 		{
 			name:       "Random Text",
 			input:      `Hello World`,
+			wantFormat: format.FormatUnknown,
+			wantErr:    true,
+		},
+		{
+			name:       "Plain Markdown Heading",
+			input:      `# Release Notes`,
+			wantFormat: format.FormatUnknown,
+			wantErr:    true,
+		},
+		{
+			name:       "Embedded OpenAPI String Does Not Count",
+			input:      `{"description":"mentions openapi: 3.0.0 but is not a spec"}`,
 			wantFormat: format.FormatUnknown,
 			wantErr:    true,
 		},
