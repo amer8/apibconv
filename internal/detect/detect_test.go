@@ -47,6 +47,12 @@ func TestDetectFromBytes(t *testing.T) {
 			wantFormat:  format.FormatOpenAPI,
 			wantVersion: "3.1.x",
 		},
+		{
+			name:        "OpenAPI Unknown Major Falls Back",
+			input:       `openapi: 4.0.0`,
+			wantFormat:  format.FormatOpenAPI,
+			wantVersion: "3.0.x",
+		},
 
 		// AsyncAPI Cases
 		{
@@ -73,6 +79,12 @@ func TestDetectFromBytes(t *testing.T) {
 			wantFormat:  format.FormatAsyncAPI,
 			wantVersion: "2.6",
 		},
+		{
+			name:        "AsyncAPI Unknown Version Falls Back",
+			input:       `asyncapi: 1.0.0`,
+			wantFormat:  format.FormatAsyncAPI,
+			wantVersion: "2.6",
+		},
 
 		// API Blueprint Cases
 		{
@@ -82,8 +94,22 @@ func TestDetectFromBytes(t *testing.T) {
 			wantVersion: "1A",
 		},
 		{
-			name:        "API Blueprint Metadata",
-			input:       `# My API`,
+			name: "API Blueprint Structure Without Format Header",
+			input: `# My API
+
+## Users [/users]
+
+### List users [GET]
++ Response 200 (application/json)`,
+			wantFormat:  format.FormatAPIBlueprint,
+			wantVersion: "1A",
+		},
+		{
+			name: "API Blueprint Structure Only",
+			input: `## Users [/users]
+
+### List users [GET]
++ Response 200 (application/json)`,
 			wantFormat:  format.FormatAPIBlueprint,
 			wantVersion: "1A",
 		},
@@ -98,6 +124,18 @@ func TestDetectFromBytes(t *testing.T) {
 		{
 			name:       "Random Text",
 			input:      `Hello World`,
+			wantFormat: format.FormatUnknown,
+			wantErr:    true,
+		},
+		{
+			name:       "Plain Markdown Heading",
+			input:      `# Release Notes`,
+			wantFormat: format.FormatUnknown,
+			wantErr:    true,
+		},
+		{
+			name:       "Embedded OpenAPI String Does Not Count",
+			input:      `{"description":"mentions openapi: 3.0.0 but is not a spec"}`,
 			wantFormat: format.FormatUnknown,
 			wantErr:    true,
 		},
