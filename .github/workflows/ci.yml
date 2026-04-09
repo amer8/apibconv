@@ -20,7 +20,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6
         with:
-          go-version: "1.25"
+          go-version: "1.26"
 
       - name: Download dependencies
         run: go mod download
@@ -36,7 +36,19 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: ["1.21", "1.22", "1.23", "1.24", "1.25"]
+        include:
+          - go-version: "1.21"
+            extended_checks: false
+          - go-version: "1.22"
+            extended_checks: false
+          - go-version: "1.23"
+            extended_checks: false
+          - go-version: "1.24"
+            extended_checks: false
+          - go-version: "1.25"
+            extended_checks: false
+          - go-version: "1.26"
+            extended_checks: true
     steps:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -49,7 +61,12 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
-      - name: Run tests
+      - name: Run compatibility tests
+        if: ${{ !matrix.extended_checks }}
+        run: go test -v $(go list ./... | grep -v /examples/)
+
+      - name: Run race tests with coverage
+        if: ${{ matrix.extended_checks }}
         run: go test -v -race -coverprofile=coverage.txt -covermode=atomic -coverpkg=./... $(go list ./... | grep -v /examples/)
 
       - name: Upload coverage to Codecov
@@ -57,7 +74,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage.txt
-        if: matrix.go-version == '1.25'
+        if: ${{ matrix.extended_checks }}
 
   security:
     name: Security Scan
@@ -73,7 +90,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6
         with:
-          go-version: "1.25"
+          go-version: "1.26"
 
       - name: Run Gosec Security Scanner
         uses: securego/gosec@5e5517beec77b8228ba43ec8d7cc22d82ed31924 # v2.25.0
@@ -97,7 +114,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6
         with:
-          go-version: "1.25"
+          go-version: "1.26"
 
       - name: Build
         run: go build -v -o apibconv ./cmd/apibconv
