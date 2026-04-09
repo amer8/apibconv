@@ -309,8 +309,12 @@ func (p *Parser) parseDocument(content string) (*model.API, error) {
 					Schema: schema,
 				}
 			} else if hadBody && bodyBuilder.String() != "" {
+				example := bodyBuilder.String()
+				if strings.TrimSpace(example) == "" {
+					example = ""
+				}
 				resp.Content[contentType] = model.MediaType{
-					Example: bodyBuilder.String(),
+					Example: example,
 				}
 			}
 

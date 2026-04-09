@@ -10,7 +10,7 @@ import (
 	"github.com/amer8/apibconv/pkg/converter"
 	"github.com/amer8/apibconv/pkg/format"
 	"github.com/amer8/apibconv/pkg/model"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 )
 
 // A helper to remove dynamic default 404 response added by writer for testing.
