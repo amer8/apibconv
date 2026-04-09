@@ -47,6 +47,12 @@ func TestDetectFromBytes(t *testing.T) {
 			wantFormat:  format.FormatOpenAPI,
 			wantVersion: "3.1.x",
 		},
+		{
+			name:        "OpenAPI Unknown Major Falls Back",
+			input:       `openapi: 4.0.0`,
+			wantFormat:  format.FormatOpenAPI,
+			wantVersion: "3.0.x",
+		},
 
 		// AsyncAPI Cases
 		{
@@ -73,6 +79,12 @@ func TestDetectFromBytes(t *testing.T) {
 			wantFormat:  format.FormatAsyncAPI,
 			wantVersion: "2.6",
 		},
+		{
+			name:        "AsyncAPI Unknown Version Falls Back",
+			input:       `asyncapi: 1.0.0`,
+			wantFormat:  format.FormatAsyncAPI,
+			wantVersion: "2.6",
+		},
 
 		// API Blueprint Cases
 		{
@@ -86,6 +98,15 @@ func TestDetectFromBytes(t *testing.T) {
 			input: `# My API
 
 ## Users [/users]
+
+### List users [GET]
++ Response 200 (application/json)`,
+			wantFormat:  format.FormatAPIBlueprint,
+			wantVersion: "1A",
+		},
+		{
+			name: "API Blueprint Structure Only",
+			input: `## Users [/users]
 
 ### List users [GET]
 + Response 200 (application/json)`,
