@@ -41,6 +41,15 @@ docker run --rm -v $(pwd):/data -w /data ghcr.io/amer8/apibconv -o openapi.json 
 
 Download pre-built binaries from [GitHub Releases](https://github.com/amer8/apibconv/releases):
 
+- each platform archive ships with a matching `*_checksums.txt` file for targeted verification
+- each release also includes a CycloneDX `bom.json` SBOM
+
+Example verification:
+
+```sh
+sha256sum -c apibconv_1.2.3_Linux_x86_64.tar.gz_checksums.txt
+```
+
 
 ## Usage
 

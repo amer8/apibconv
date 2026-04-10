@@ -4,6 +4,8 @@ before:
   hooks:
     - go mod tidy
     - go test ./...
+    - mkdir -p dist
+    - go run github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@v1.10.0 mod -licenses -json -output dist/bom.json .
 
 builds:
   - env:
@@ -30,7 +32,8 @@ builds:
     binary: apibconv
 
 archives:
-  - formats: [ 'tar.gz' ]
+  - id: binaries
+    formats: [ 'tar.gz' ]
     name_template: >-
       {{ .ProjectName }}_
       {{- .Version }}_
@@ -47,7 +50,10 @@ archives:
       - README.md
 
 checksum:
-  name_template: 'checksums.txt'
+  name_template: '{{ .ArtifactName }}_checksums.txt'
+  split: true
+  ids:
+    - binaries
 
 snapshot:
   version_template: "{{ incpatch .Version }}-next"
@@ -79,6 +85,8 @@ release:
   github:
     owner: amer8
     name: apibconv
+  extra_files:
+    - glob: ./dist/bom.json
   draft: false
   prerelease: auto
   mode: replace
