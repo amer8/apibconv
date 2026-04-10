@@ -86,7 +86,7 @@ release:
     owner: amer8
     name: apibconv
   extra_files:
-    - glob: ./dist/bom.json
+    - glob: ./.release-artifacts/bom.json
   draft: false
   prerelease: auto
   mode: replace
