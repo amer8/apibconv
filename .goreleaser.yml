@@ -4,8 +4,8 @@ before:
   hooks:
     - go mod tidy
     - go test ./...
-    - mkdir -p .release-artifacts
-    - go run github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@v1.10.0 mod -licenses -json -output .release-artifacts/bom.json .
+    - mkdir -p dist
+    - go run github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@v1.10.0 mod -licenses -json -output dist/bom.json .
 
 builds:
   - env:
