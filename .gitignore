@@ -24,6 +24,7 @@ go.work
 
 # GoReleaser
 dist/
+.release-artifacts/
 
 # IDE
 .idea/

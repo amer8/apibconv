@@ -4,8 +4,8 @@ before:
   hooks:
     - go mod tidy
     - go test ./...
-    - mkdir -p dist
-    - go run github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@v1.10.0 mod -licenses -json -output dist/bom.json .
+    - mkdir -p .release-artifacts
+    - go run github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@v1.10.0 mod -licenses -json -output .release-artifacts/bom.json .
 
 builds:
   - env:
@@ -86,7 +86,7 @@ release:
     owner: amer8
     name: apibconv
   extra_files:
-    - glob: ./dist/bom.json
+    - glob: ./.release-artifacts/bom.json
   draft: false
   prerelease: auto
   mode: replace
