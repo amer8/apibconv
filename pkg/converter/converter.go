@@ -144,4 +144,3 @@ func (c *Converter) DetectFormat(ctx context.Context, input io.Reader) (format.F
 func (c *Converter) SetProgress(fn func(int64)) {
 	c.opts.OnProgress = fn
 }
-
