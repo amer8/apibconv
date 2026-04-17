@@ -197,3 +197,85 @@ func TestTransformOption(t *testing.T) {
 		t.Error("Transform function was not called")
 	}
 }
+
+func TestValidateSkipsAsyncAPIPathRule(t *testing.T) {
+	c, _ := New()
+	c.RegisterParser(&mockParser{
+		fmt: format.FormatAsyncAPI,
+		api: &model.API{
+			Paths: map[string]model.PathItem{
+				"user/signedup": {},
+			},
+		},
+	})
+
+	errs, err := c.Validate(context.Background(), bytes.NewReader([]byte("dummy input")), format.FormatAsyncAPI)
+	if err != nil {
+		t.Fatalf("Validate() error = %v", err)
+	}
+	if len(errs) != 0 {
+		t.Fatalf("Validate() returned unexpected errors: %#v", errs)
+	}
+}
+
+func TestValidateStillChecksOpenAPIPaths(t *testing.T) {
+	c, _ := New()
+	c.RegisterParser(&mockParser{
+		fmt: format.FormatOpenAPI,
+		api: &model.API{
+			Paths: map[string]model.PathItem{
+				"users": {},
+			},
+		},
+	})
+
+	errs, err := c.Validate(context.Background(), bytes.NewReader([]byte("dummy input")), format.FormatOpenAPI)
+	if err != nil {
+		t.Fatalf("Validate() error = %v", err)
+	}
+	if len(errs) != 1 {
+		t.Fatalf("Validate() returned %d errors, want 1", len(errs))
+	}
+	if errs[0].Message != "Path must start with /" {
+		t.Fatalf("Validate() error message = %q, want %q", errs[0].Message, "Path must start with /")
+	}
+}
+
+func TestParseToModelValidateInputUsesFormatAwareRules(t *testing.T) {
+	c, _ := New(WithValidation(true, false))
+	c.RegisterParser(&mockParser{
+		fmt: format.FormatAsyncAPI,
+		api: &model.API{
+			Paths: map[string]model.PathItem{
+				"user/signedup": {},
+			},
+		},
+	})
+
+	api, err := c.ParseToModel(context.Background(), bytes.NewReader([]byte("dummy input")), format.FormatAsyncAPI)
+	if err != nil {
+		t.Fatalf("ParseToModel() error = %v", err)
+	}
+	if api == nil {
+		t.Fatal("ParseToModel() returned nil API")
+	}
+}
+
+func TestWriteFromModelValidateOutputUsesFormatAwareRules(t *testing.T) {
+	c, _ := New(WithValidation(false, true))
+	c.RegisterWriter(&mockWriter{fmt: format.FormatAsyncAPI})
+
+	api := &model.API{
+		Paths: map[string]model.PathItem{
+			"user/signedup": {},
+		},
+	}
+
+	var buf bytes.Buffer
+	if err := c.WriteFromModel(context.Background(), api, &buf, format.FormatAsyncAPI); err != nil {
+		t.Fatalf("WriteFromModel() error = %v", err)
+	}
+	if buf.String() != "mock output" {
+		t.Fatalf("WriteFromModel() output = %q, want %q", buf.String(), "mock output")
+	}
+}

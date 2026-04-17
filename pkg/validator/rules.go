@@ -1,6 +1,7 @@
 package validator
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -24,7 +25,11 @@ type OperationIDRule struct{}
 func (r *PathValidationRule) Name() string { return "path-validation" }
 
 // Validate validates paths in the API model.
-func (r *PathValidationRule) Validate(api *model.API) []format.ValidationError {
+func (r *PathValidationRule) Validate(ctx context.Context, api *model.API) []format.ValidationError {
+	if formatFromContext(ctx) == format.FormatAsyncAPI {
+		return nil
+	}
+
 	var errors []format.ValidationError
 	for path := range api.Paths {
 		if !strings.HasPrefix(path, "/") {
@@ -45,7 +50,7 @@ func (r *PathValidationRule) Level() format.ValidationLevel { return format.Leve
 func (r *SchemaValidationRule) Name() string { return "schema-validation" }
 
 // Validate validates schemas in the API model.
-func (r *SchemaValidationRule) Validate(api *model.API) []format.ValidationError {
+func (r *SchemaValidationRule) Validate(ctx context.Context, api *model.API) []format.ValidationError {
 	var errors []format.ValidationError
 	for name, schema := range api.Components.Schemas {
 		errs := ValidateSchemaNode(schema, fmt.Sprintf("components/schemas/%s", name))
@@ -82,9 +87,9 @@ type ReferenceValidationRule struct{}
 func (r *ReferenceValidationRule) Name() string { return "reference-validation" }
 
 // Validate validates references in the API model.
-func (r *ReferenceValidationRule) Validate(api *model.API) []format.ValidationError {
+func (r *ReferenceValidationRule) Validate(ctx context.Context, api *model.API) []format.ValidationError {
 	var errors []format.ValidationError
-	
+
 	// Set of valid schema names
 	validSchemas := make(map[string]bool)
 	for name := range api.Components.Schemas {
@@ -132,7 +137,9 @@ func (r *ReferenceValidationRule) Validate(api *model.API) []format.ValidationEr
 		}
 		// Helper to check operation
 		checkOp := func(op *model.Operation, method string) {
-			if op == nil { return }
+			if op == nil {
+				return
+			}
 			for i, p := range op.Parameters {
 				validateSchema(p.Schema, fmt.Sprintf("paths[%s]/%s/parameters[%d]", path, method, i))
 			}

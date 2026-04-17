@@ -18,7 +18,7 @@ type Validator struct {
 // Rule defines an interface for a validation rule.
 type Rule interface {
 	Name() string
-	Validate(api *model.API) []format.ValidationError
+	Validate(ctx context.Context, api *model.API) []format.ValidationError
 	Level() format.ValidationLevel
 }
 
@@ -69,7 +69,7 @@ func (v *Validator) Validate(ctx context.Context, api *model.API) ([]format.Vali
 	var allErrors []format.ValidationError
 
 	for _, rule := range v.rules {
-		errs := rule.Validate(api)
+		errs := rule.Validate(ctx, api)
 		allErrors = append(allErrors, errs...)
 
 		if v.opts.StopOnFirstError && len(errs) > 0 {
