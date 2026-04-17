@@ -74,6 +74,8 @@ func (c *Converter) ParseToModel(ctx context.Context, input io.Reader, from form
 		return nil, fmt.Errorf("no parser registered for format: %s", from)
 	}
 
+	validationCtx := validator.WithFormat(ctx, from)
+
 	if c.opts.OnProgress != nil {
 		input = fs.NewProgressReader(input, c.opts.OnProgress)
 	}
@@ -84,7 +86,7 @@ func (c *Converter) ParseToModel(ctx context.Context, input io.Reader, from form
 	}
 
 	if c.opts.ValidateInput {
-		if _, err := c.validator.Validate(ctx, api); err != nil {
+		if _, err := c.validator.Validate(validationCtx, api); err != nil {
 			return nil, err
 		}
 	}
@@ -99,8 +101,10 @@ func (c *Converter) WriteFromModel(ctx context.Context, api *model.API, output i
 		return fmt.Errorf("no writer registered for format: %s", to)
 	}
 
+	validationCtx := validator.WithFormat(ctx, to)
+
 	if c.opts.ValidateOutput {
-		if _, err := c.validator.Validate(ctx, api); err != nil {
+		if _, err := c.validator.Validate(validationCtx, api); err != nil {
 			return err
 		}
 	}
@@ -115,7 +119,7 @@ func (c *Converter) Validate(ctx context.Context, input io.Reader, formatType fo
 	if err != nil {
 		return nil, err
 	}
-	return c.validator.Validate(ctx, api)
+	return c.validator.Validate(validator.WithFormat(ctx, formatType), api)
 }
 
 // SupportedFormats returns the list of supported input and output formats.
