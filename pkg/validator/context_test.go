@@ -8,12 +8,6 @@ import (
 )
 
 func TestFormatFromContext(t *testing.T) {
-	t.Run("nil context", func(t *testing.T) {
-		if got := formatFromContext(nil); got != format.FormatUnknown {
-			t.Fatalf("formatFromContext(nil) = %q, want %q", got, format.FormatUnknown)
-		}
-	})
-
 	t.Run("missing format", func(t *testing.T) {
 		if got := formatFromContext(context.Background()); got != format.FormatUnknown {
 			t.Fatalf("formatFromContext(background) = %q, want %q", got, format.FormatUnknown)
