@@ -120,3 +120,32 @@ jobs:
         with:
           name: apibconv-linux-amd64
           path: apibconv
+
+  action:
+    name: Action
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+
+      - name: Resolve latest published release
+        id: latest-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100" --jq '[.[] | select(.draft == false)] | sort_by(.published_at) | last | .tag_name')
+          if [ -z "$version" ] || [ "$version" = "null" ]; then
+            echo "No published releases found" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Install apibconv via local action
+        uses: ./
+        with:
+          version: ${{ steps.latest-release.outputs.version }}
+
+      - name: Test installed binary
+        run: apibconv -v

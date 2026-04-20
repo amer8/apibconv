@@ -18,6 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      id-token: write
     steps:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -35,7 +36,29 @@ jobs:
       - name: Run tests
         run: go test -v ./...
 
-      - name: Run GoReleaser
+      - name: Build release artifacts for smoke test
+        uses: goreleaser/goreleaser-action@e24998b8b67b290c2fa8b7c14fcfa7de2c5c9b8c # v7.1.0
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --clean --skip=publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install apibconv via local action
+        id: install-action
+        uses: ./
+        with:
+          version: ${{ github.ref_name }}
+          asset-base-url: file://${{ github.workspace }}/dist
+
+      - name: Assert signature verification succeeded
+        run: test "${{ steps.install-action.outputs.signature-verified }}" = "true"
+
+      - name: Test installed binary
+        run: apibconv -v
+
+      - name: Publish GitHub release
         uses: goreleaser/goreleaser-action@e24998b8b67b290c2fa8b7c14fcfa7de2c5c9b8c # v7.1.0
         with:
           distribution: goreleaser
@@ -80,7 +103,7 @@ jobs:
         id: prep
         run: |
           VERSION=${GITHUB_REF_NAME#v}
-          echo "clean_version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "clean_version=${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Build and push Docker image
         uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
