@@ -42,12 +42,21 @@ docker run --rm -v $(pwd):/data -w /data ghcr.io/amer8/apibconv -o openapi.json 
 Download pre-built binaries from [GitHub Releases](https://github.com/amer8/apibconv/releases):
 
 - each platform archive ships with a matching `*_checksums.txt` file for targeted verification
+- signed releases also ship a matching `*.sigstore.json` bundle for the checksum file
 - each release also includes a CycloneDX `bom.json` SBOM
+
+Older releases may only have the checksum file. In that case, verify the checksum directly.
 
 Example verification:
 
 ```sh
-sha256sum -c apibconv_1.2.3_Linux_x86_64.tar.gz_checksums.txt
+cosign verify-blob \
+  --bundle apibconv_X.Y.Z_Linux_x86_64.tar.gz_checksums.txt.sigstore.json \
+  --certificate-identity "https://github.com/amer8/apibconv/.github/workflows/release.yml@refs/tags/vX.Y.Z" \
+  --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+  apibconv_X.Y.Z_Linux_x86_64.tar.gz_checksums.txt
+
+sha256sum -c apibconv_X.Y.Z_Linux_x86_64.tar.gz_checksums.txt
 ```
 
 
@@ -104,14 +113,23 @@ Examples:
 
 ### GitHub Actions
 
-This tool is designed to integrate seamlessly into GitHub Actions workflows
+For GitHub Actions, prefer the first-party install action over `go install ...@latest`.
+Pin the action itself to a full commit SHA and pin the binary version to a release tag.
 
 ```yaml
+- name: Install apibconv
+  uses: amer8/apibconv@<full-commit-sha>
+  with:
+    version: vX.Y.Z
+
 - name: Convert OpenAPI to API Blueprint
-  run: |
-    go install github.com/amer8/apibconv@latest
-    apibconv -o api-blueprint.apib openapi.json
+  run: apibconv -o api-blueprint.apib openapi.json
 ```
+
+The action downloads the published release asset for the current runner, verifies its SHA-256 checksum,
+and when the release includes a Sigstore bundle it also verifies the checksum signature with cosign
+against this repository's release workflow identity.
+Older releases without a bundle fall back to checksum-only verification with a warning.
 
 ### Go projects
 

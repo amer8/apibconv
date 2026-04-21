@@ -55,6 +55,16 @@ checksum:
   ids:
     - binaries
 
+signs:
+  - artifacts: checksum
+    signature: "${artifact}.sigstore.json"
+    cmd: cosign
+    args:
+      - "sign-blob"
+      - "--bundle=${signature}"
+      - "${artifact}"
+      - "--yes"
+
 snapshot:
   version_template: "{{ incpatch .Version }}-next"
 

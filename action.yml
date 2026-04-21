@@ -1,0 +1,52 @@
+name: apibconv
+description: Install and verify a published apibconv release for use in GitHub Actions
+author: amer8
+
+inputs:
+  version:
+    description: apibconv release tag to install, for example v0.7.0
+    required: true
+  asset-base-url:
+    description: Optional base URL for release assets, for example file:///path/to/dist
+    required: false
+
+outputs:
+  binary-path:
+    description: Absolute path to the installed apibconv binary
+    value: ${{ steps.install-windows.outputs.binary-path || steps.install-unix.outputs.binary-path }}
+  version:
+    description: Installed apibconv version
+    value: ${{ steps.install-windows.outputs.version || steps.install-unix.outputs.version }}
+  signature-verified:
+    description: Whether the checksum signature bundle was present and verified
+    value: ${{ steps.install-windows.outputs.signature-verified || steps.install-unix.outputs.signature-verified }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install cosign
+      uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
+
+    - name: Install apibconv release on Windows
+      id: install-windows
+      if: ${{ runner.os == 'Windows' }}
+      shell: pwsh
+      env:
+        APIBCONV_VERSION: ${{ inputs.version }}
+        APIBCONV_ASSET_BASE_URL: ${{ inputs.asset-base-url }}
+      run: |
+        & "$env:GITHUB_ACTION_PATH/scripts/install-apibconv-release.ps1"
+
+    - name: Install apibconv release on Unix
+      id: install-unix
+      if: ${{ runner.os != 'Windows' }}
+      shell: sh
+      env:
+        APIBCONV_VERSION: ${{ inputs.version }}
+        APIBCONV_ASSET_BASE_URL: ${{ inputs.asset-base-url }}
+      run: |
+        sh "$GITHUB_ACTION_PATH/scripts/install-apibconv-release.sh"
+
+branding:
+  icon: package
+  color: blue
