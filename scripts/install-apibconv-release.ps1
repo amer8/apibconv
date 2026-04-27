@@ -43,12 +43,6 @@ function Get-ArchiveInfo {
     switch ($archName) {
         "X64" { $arch = "x86_64" }
         "ARM64" { $arch = "arm64" }
-        "ARM" {
-            if ($osName -eq "Windows") {
-                throw "Windows ARM runners are not currently supported."
-            }
-            $arch = "armv7"
-        }
         default {
             throw "Unsupported runner architecture '$archName'."
         }
@@ -144,6 +138,11 @@ function Get-ExpectedChecksum {
     )
 
     foreach ($line in Get-Content -LiteralPath $ChecksumPath) {
+        $trimmed = $line.Trim()
+        if ($trimmed -match "^[A-Fa-f0-9]+$") {
+            return $trimmed.ToLowerInvariant()
+        }
+
         if ($line -match "^([A-Fa-f0-9]+)\s+\*?(.+)$" -and $matches[2] -eq $ArchiveName) {
             return $matches[1].ToLowerInvariant()
         }

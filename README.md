@@ -41,6 +41,7 @@ docker run --rm -v $(pwd):/data -w /data ghcr.io/amer8/apibconv -o openapi.json 
 
 Download pre-built binaries from [GitHub Releases](https://github.com/amer8/apibconv/releases):
 
+- published release assets cover Linux, macOS, and Windows on `x64` and `arm64`
 - each platform archive ships with a matching `*_checksums.txt` file for targeted verification
 - signed releases also ship a matching `*.sigstore.json` bundle for the checksum file
 - each release also includes a CycloneDX `bom.json` SBOM
@@ -130,6 +131,7 @@ The action downloads the published release asset for the current runner, verifie
 and when the release includes a Sigstore bundle it also verifies the checksum signature with cosign
 against this repository's release workflow identity.
 Older releases without a bundle fall back to checksum-only verification with a warning.
+Published action assets target `x64` and `arm64` runners.
 
 ### Go projects
 
