@@ -83,6 +83,10 @@ get_expected_checksum() {
             print tolower($1)
             exit
         }
+        NF == 1 && $1 ~ /^[[:xdigit:]]+$/ {
+            print tolower($1)
+            exit
+        }
     ' "$checksum_path")
     if [ -n "$checksum" ]; then
         printf '%s\n' "$checksum"
