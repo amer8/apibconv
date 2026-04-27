@@ -144,6 +144,11 @@ function Get-ExpectedChecksum {
     )
 
     foreach ($line in Get-Content -LiteralPath $ChecksumPath) {
+        $trimmed = $line.Trim()
+        if ($trimmed -match "^[A-Fa-f0-9]+$") {
+            return $trimmed.ToLowerInvariant()
+        }
+
         if ($line -match "^([A-Fa-f0-9]+)\s+\*?(.+)$" -and $matches[2] -eq $ArchiveName) {
             return $matches[1].ToLowerInvariant()
         }
