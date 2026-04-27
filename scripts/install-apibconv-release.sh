@@ -132,9 +132,6 @@ case "$runner_arch" in
     ARM64)
         arch=arm64
         ;;
-    ARM)
-        arch=armv7
-        ;;
     *)
         echo "Unsupported runner architecture '$runner_arch'." >&2
         exit 1
