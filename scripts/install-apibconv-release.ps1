@@ -43,12 +43,6 @@ function Get-ArchiveInfo {
     switch ($archName) {
         "X64" { $arch = "x86_64" }
         "ARM64" { $arch = "arm64" }
-        "ARM" {
-            if ($osName -eq "Windows") {
-                throw "Windows ARM runners are not currently supported."
-            }
-            $arch = "armv7"
-        }
         default {
             throw "Unsupported runner architecture '$archName'."
         }
