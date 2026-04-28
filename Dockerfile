@@ -29,6 +29,8 @@ COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
 # Copy the binary
 COPY --from=builder /build/apibconv /apibconv
+COPY --from=builder /build/LICENSE /LICENSE
+COPY --from=builder /build/THIRD_PARTY_NOTICES.md /THIRD_PARTY_NOTICES.md
 
 # Use a non-root user (ID 65532 is commonly used for nonroot)
 USER 65532:65532

@@ -117,7 +117,7 @@ AsyncAPI Options:
 OpenAPI Options:
 
     --openapi-version VERSION
-        OpenAPI version: 3.0, 3.1 (default: "3.0")
+        OpenAPI version: 2.0, 3.0, 3.1 (default: "3.0")
         Determines which OpenAPI schema version to generate
 
 Format Detection:
@@ -180,7 +180,7 @@ Environment Variables:
         Default AsyncAPI version: 2.6, 3.0
 
     APIBCONV_OPENAPI_VERSION
-        Default OpenAPI version: 3.0, 3.1
+        Default OpenAPI version: 2.0, 3.0, 3.1
 
 File Extensions:
 
@@ -196,8 +196,9 @@ File Extensions:
 
 Validation:
 
-    The --validate flag performs basic structural validation:
+    The --validate flag performs structural validation:
     - Format detection and syntax validation
+    - JSON Schema validation for pinned OpenAPI and AsyncAPI versions
     - Basic path, schema type, and reference validation
 
     Validation output shows errors and warnings with:

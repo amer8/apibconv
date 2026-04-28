@@ -1,0 +1,73 @@
+asyncapi: 3.0.0
+info:
+  title: Notification Events
+  version: 1.0.0
+  description: Valid integration fixture for notification delivery messages.
+servers:
+  production:
+    host: notifications.example.test:9092
+    protocol: kafka
+channels:
+  notificationRequested:
+    address: notifications/requested
+    messages:
+      NotificationRequested:
+        $ref: '#/components/messages/NotificationRequested'
+  notificationDelivered:
+    address: notifications/delivered
+    messages:
+      NotificationDelivered:
+        $ref: '#/components/messages/NotificationDelivered'
+operations:
+  onNotificationRequested:
+    action: receive
+    channel:
+      $ref: '#/channels/notificationRequested'
+    messages:
+      - $ref: '#/channels/notificationRequested/messages/NotificationRequested'
+  publishNotificationDelivered:
+    action: send
+    channel:
+      $ref: '#/channels/notificationDelivered'
+    messages:
+      - $ref: '#/channels/notificationDelivered/messages/NotificationDelivered'
+components:
+  messages:
+    NotificationRequested:
+      name: NotificationRequested
+      payload:
+        $ref: '#/components/schemas/NotificationRequestedPayload'
+    NotificationDelivered:
+      name: NotificationDelivered
+      payload:
+        $ref: '#/components/schemas/NotificationDeliveredPayload'
+  schemas:
+    NotificationRequestedPayload:
+      type: object
+      required:
+        - notificationId
+        - recipient
+        - template
+      properties:
+        notificationId:
+          type: string
+        recipient:
+          type: string
+        template:
+          type: string
+        data:
+          type: object
+          additionalProperties: true
+    NotificationDeliveredPayload:
+      type: object
+      required:
+        - notificationId
+        - deliveredAt
+      properties:
+        notificationId:
+          type: string
+        deliveredAt:
+          type: string
+          format: date-time
+        providerMessageId:
+          type: string

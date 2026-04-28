@@ -1,0 +1,123 @@
+openapi: 3.1.0
+info:
+  title: Subscriptions API
+  version: 1.0.0
+  description: Valid integration fixture for plans and subscriber lifecycle.
+jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
+servers:
+  - url: https://subscriptions.example.test/v1
+paths:
+  /plans:
+    get:
+      summary: List plans
+      operationId: listPlans
+      responses:
+        '200':
+          description: Available plans
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Plan'
+  /subscriptions:
+    post:
+      summary: Create a subscription
+      operationId: createSubscription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubscriptionCreate'
+      responses:
+        '201':
+          description: Subscription created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+  /subscriptions/{subscriptionId}:
+    get:
+      summary: Get a subscription
+      operationId: getSubscription
+      parameters:
+        - name: subscriptionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Subscription details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+webhooks:
+  subscriptionRenewed:
+    post:
+      summary: Subscription renewed notification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubscriptionEvent'
+      responses:
+        '204':
+          description: Notification accepted
+components:
+  schemas:
+    Plan:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        monthlyPrice:
+          type: number
+    SubscriptionCreate:
+      type: object
+      required:
+        - customerId
+        - planId
+      properties:
+        customerId:
+          type: string
+        planId:
+          type: string
+    Subscription:
+      type: object
+      required:
+        - id
+        - customerId
+        - status
+      properties:
+        id:
+          type: string
+        customerId:
+          type: string
+        status:
+          type: string
+          enum:
+            - active
+            - paused
+            - canceled
+    SubscriptionEvent:
+      type: object
+      required:
+        - subscriptionId
+        - eventType
+      properties:
+        subscriptionId:
+          type: string
+        eventType:
+          type: string
+        occurredAt:
+          type: string
+          format: date-time

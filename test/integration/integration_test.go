@@ -3,12 +3,9 @@ package integration
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
-	"reflect"
-	"sort"
 	"strings"
 	"testing"
 
@@ -19,634 +16,742 @@ import (
 	"github.com/amer8/apibconv/pkg/format/apiblueprint"
 	"github.com/amer8/apibconv/pkg/format/asyncapi"
 	"github.com/amer8/apibconv/pkg/format/openapi"
+	"github.com/amer8/apibconv/pkg/model"
 )
 
+type conversionCase struct {
+	name              string
+	inputFile         string
+	fromFormat        format.Format
+	toFormat          format.Format
+	toAsyncAPIVersion string
+	toOpenAPIVersion  string
+	toProtocol        string
+	encoding          string
+}
+
 func TestConversions(t *testing.T) {
-	tests := []struct {
-		name         string
-		inputFile    string
-		expectedFile string
-		fromFormat   format.Format
-		toFormat          format.Format
-		toAsyncAPIVersion string
-		toOpenAPIVersion  string
-		toProtocol        string
-	}{
-		// OpenAPI v2.0 to others
-		{
-			name:         "OpenAPI v2.0 (json) to API Blueprint",
-			inputFile:    "openapi_v2.json",
-			expectedFile: "expected/expected_openapi_v2_json_to_apiblueprint.apib",
-			fromFormat:   format.FormatOpenAPI,
-			toFormat:     format.FormatAPIBlueprint,
-		},
-		{
-			name:         "OpenAPI v2.0 (json) to AsyncAPI v2.6 (kafka)",
-			inputFile:    "openapi_v2.json",
-			expectedFile: "expected/expected_openapi_v2_json_to_asyncapi_v2.yaml",
-			fromFormat:   format.FormatOpenAPI,
-			toFormat:     format.FormatAsyncAPI,
-			toAsyncAPIVersion: "2.6",
-			toProtocol: "kafka",
-		},
-		{
-			name:         "OpenAPI v2.0 (json) to AsyncAPI v2.6 (amqp)",
-			inputFile:    "openapi_v2.json",
-			expectedFile: "expected/expected_openapi_v2_json_to_asyncapi_v2_amqp.yaml",
-			fromFormat:   format.FormatOpenAPI,
-			toFormat:     format.FormatAsyncAPI,
-			toAsyncAPIVersion: "2.6",
-			toProtocol: "amqp",
-		},
-		{
-			name:         "OpenAPI v2.0 (json) to AsyncAPI v3.0",
-			inputFile:    "openapi_v2.json",
-			expectedFile: "expected/expected_openapi_v2_json_to_asyncapi_v3.yaml",
-			fromFormat:   format.FormatOpenAPI,
-			toFormat:     format.FormatAsyncAPI,
-			toAsyncAPIVersion: "3.0",
-			toProtocol: "kafka",
-		},
-		{
-			name:         "OpenAPI v2.0 (json) to OpenAPI v3.0",
-			inputFile:    "openapi_v2.json",
-			expectedFile: "expected/expected_openapi_v2_json_to_openapi_v3_0.yaml",
-			fromFormat:   format.FormatOpenAPI,
-			toFormat:     format.FormatOpenAPI,
-			toOpenAPIVersion: "3.0",
-		},
-		{
-			name:         "OpenAPI v2.0 (json) to OpenAPI v3.1",
-			inputFile:    "openapi_v2.json",
-			expectedFile: "expected/expected_openapi_v2_json_to_openapi_v3_1.yaml",
-			fromFormat:   format.FormatOpenAPI,
-			toFormat:     format.FormatOpenAPI,
-			toOpenAPIVersion: "3.1",
-		},
-		{
-			name:         "OpenAPI v2.0 (yaml) to API Blueprint",
-			inputFile:    "openapi_v2.yaml",
-			expectedFile: "expected/expected_openapi_v2_yaml_to_apiblueprint.apib",
-			fromFormat:   format.FormatOpenAPI,
-			toFormat:     format.FormatAPIBlueprint,
-		},
-		{
-			name:         "OpenAPI v2.0 (yaml) to AsyncAPI v2.6",
-			inputFile:    "openapi_v2.yaml",
-			expectedFile: "expected/expected_openapi_v2_yaml_to_asyncapi_v2.yaml",
-			fromFormat:   format.FormatOpenAPI,
-			toFormat:     format.FormatAsyncAPI,
-			toAsyncAPIVersion: "2.6",
-			toProtocol: "kafka",
-		},
-		{
-			name:         "OpenAPI v2.0 (yaml) to AsyncAPI v3.0",
-			inputFile:    "openapi_v2.yaml",
-			expectedFile: "expected/expected_openapi_v2_yaml_to_asyncapi_v3.yaml",
-			fromFormat:   format.FormatOpenAPI,
-			toFormat:     format.FormatAsyncAPI,
-			toAsyncAPIVersion: "3.0",
-			toProtocol: "kafka",
-		},
-		{
-			name:         "OpenAPI v2.0 (yaml) to OpenAPI v3.0",
-			inputFile:    "openapi_v2.yaml",
-			expectedFile: "expected/expected_openapi_v2_yaml_to_openapi_v3_0.yaml",
-			fromFormat:   format.FormatOpenAPI,
-			toFormat:     format.FormatOpenAPI,
-			toOpenAPIVersion: "3.0",
-		},
-		{
-			name:         "OpenAPI v2.0 (yaml) to OpenAPI v3.1",
-			inputFile:    "openapi_v2.yaml",
-			expectedFile: "expected/expected_openapi_v2_yaml_to_openapi_v3_1.yaml",
-			fromFormat:   format.FormatOpenAPI,
-			toFormat:     format.FormatOpenAPI,
-			toOpenAPIVersion: "3.1",
-		},
-		// OpenAPI v3.0
-		{
-			name:         "OpenAPI v3.0 (json) to API Blueprint",
-			inputFile:    "openapi_v3_0.json",
-			expectedFile: "expected/expected_openapi_v3_0_json_to_apiblueprint.apib",
-			fromFormat:   format.FormatOpenAPI,
-			toFormat:     format.FormatAPIBlueprint,
-		},
-		{
-			name:         "OpenAPI v3.0 (json) to AsyncAPI v2.6 (kafka)",
-			inputFile:    "openapi_v3_0.json",
-			expectedFile: "expected/expected_openapi_v3_0_json_to_asyncapi_v2.yaml",
-			fromFormat:   format.FormatOpenAPI,
-			toFormat:     format.FormatAsyncAPI,
-			toAsyncAPIVersion: "2.6",
-			toProtocol: "kafka",
-		},
-		{
-			name:         "OpenAPI v3.0 (json) to AsyncAPI v2.6 (http)",
-			inputFile:    "openapi_v3_0.json",
-			expectedFile: "expected/expected_openapi_v3_0_json_to_asyncapi_v2_http.yaml",
-			fromFormat:   format.FormatOpenAPI,
-			toFormat:     format.FormatAsyncAPI,
-			toAsyncAPIVersion: "2.6",
-			toProtocol: "http",
-		},
-		{
-			name:         "OpenAPI v3.0 (json) to AsyncAPI v3.0 (kafka)",
-			inputFile:    "openapi_v3_0.json",
-			expectedFile: "expected/expected_openapi_v3_0_json_to_asyncapi_v3.yaml",
-			fromFormat:   format.FormatOpenAPI,
-			toFormat:     format.FormatAsyncAPI,
-			toAsyncAPIVersion: "3.0",
-			toProtocol: "kafka",
-		},
-		{
-			name:         "OpenAPI v3.0 (json) to AsyncAPI v3.0 (http)",
-			inputFile:    "openapi_v3_0.json",
-			expectedFile: "expected/expected_openapi_v3_0_json_to_asyncapi_v3_http.yaml",
-			fromFormat:   format.FormatOpenAPI,
-			toFormat:     format.FormatAsyncAPI,
-			toAsyncAPIVersion: "3.0",
-			toProtocol: "http",
-		},
-		{
-			name:         "OpenAPI v3.0 (json) to OpenAPI v3.1",
-			inputFile:    "openapi_v3_0.json",
-			expectedFile: "expected/expected_openapi_v3_0_json_to_openapi_v3_1.yaml",
-			fromFormat:   format.FormatOpenAPI,
-			toFormat:     format.FormatOpenAPI,
-			toOpenAPIVersion: "3.1",
-		},
-		{
-			name:         "OpenAPI v3.0 (yaml) to API Blueprint",
-			inputFile:    "openapi_v3_0.yaml",
-			expectedFile: "expected/expected_openapi_v3_0_yaml_to_apiblueprint.apib",
-			fromFormat:   format.FormatOpenAPI,
-			toFormat:     format.FormatAPIBlueprint,
-		},
-		{
-			name:         "OpenAPI v3.0 (yaml) to AsyncAPI v2.6",
-			inputFile:    "openapi_v3_0.yaml",
-			expectedFile: "expected/expected_openapi_v3_0_yaml_to_asyncapi_v2.yaml",
-			fromFormat:   format.FormatOpenAPI,
-			toFormat:     format.FormatAsyncAPI,
-			toAsyncAPIVersion: "2.6",
-			toProtocol: "kafka",
-		},
-		{
-			name:         "OpenAPI v3.0 (yaml) to AsyncAPI v3.0 (kafka)",
-			inputFile:    "openapi_v3_0.yaml",
-			expectedFile: "expected/expected_openapi_v3_0_yaml_to_asyncapi_v3.yaml",
-			fromFormat:   format.FormatOpenAPI,
-			toFormat:     format.FormatAsyncAPI,
-			toAsyncAPIVersion: "3.0",
-			toProtocol: "kafka",
-		},
-		{
-			name:         "OpenAPI v3.0 (yaml) to AsyncAPI v3.0 (mqtt)",
-			inputFile:    "openapi_v3_0.yaml",
-			expectedFile: "expected/expected_openapi_v3_0_yaml_to_asyncapi_v3_mqtt.yaml",
-			fromFormat:   format.FormatOpenAPI,
-			toFormat:     format.FormatAsyncAPI,
-			toAsyncAPIVersion: "3.0",
-			toProtocol: "mqtt",
-		},
-		{
-			name:         "OpenAPI v3.0 (yaml) to OpenAPI v3.1",
-			inputFile:    "openapi_v3_0.yaml",
-			expectedFile: "expected/expected_openapi_v3_0_yaml_to_openapi_v3_1.yaml",
-			fromFormat:   format.FormatOpenAPI,
-			toFormat:     format.FormatOpenAPI,
-			toOpenAPIVersion: "3.1",
-		},
-		// OpenAPI v3.1
-		{
-			name:         "OpenAPI v3.1 (json) to API Blueprint",
-			inputFile:    "openapi_v3_1.json",
-			expectedFile: "expected/expected_openapi_v3_1_json_to_apiblueprint.apib",
-			fromFormat:   format.FormatOpenAPI,
-			toFormat:     format.FormatAPIBlueprint,
-		},
-		{
-			name:         "OpenAPI v3.1 (json) to AsyncAPI v2.6",
-			inputFile:    "openapi_v3_1.json",
-			expectedFile: "expected/expected_openapi_v3_1_json_to_asyncapi_v2.yaml",
-			fromFormat:   format.FormatOpenAPI,
-			toFormat:     format.FormatAsyncAPI,
-			toAsyncAPIVersion: "2.6",
-			toProtocol: "kafka",
-		},
-		{
-			name:         "OpenAPI v3.1 (json) to AsyncAPI v3.0",
-			inputFile:    "openapi_v3_1.json",
-			expectedFile: "expected/expected_openapi_v3_1_json_to_asyncapi_v3.yaml",
-			fromFormat:   format.FormatOpenAPI,
-			toFormat:     format.FormatAsyncAPI,
-			toAsyncAPIVersion: "3.0",
-			toProtocol: "kafka",
-		},
-		{
-			name:         "OpenAPI v3.1 (yaml) to API Blueprint",
-			inputFile:    "openapi_v3_1.yaml",
-			expectedFile: "expected/expected_openapi_v3_1_yaml_to_apiblueprint.apib",
-			fromFormat:   format.FormatOpenAPI,
-			toFormat:     format.FormatAPIBlueprint,
-		},
-		{
-			name:         "OpenAPI v3.1 (yaml) to AsyncAPI v2.6",
-			inputFile:    "openapi_v3_1.yaml",
-			expectedFile: "expected/expected_openapi_v3_1_yaml_to_asyncapi_v2.yaml",
-			fromFormat:   format.FormatOpenAPI,
-			toFormat:     format.FormatAsyncAPI,
-			toAsyncAPIVersion: "2.6",
-			toProtocol: "kafka",
-		},
-		{
-			name:         "OpenAPI v3.1 (yaml) to AsyncAPI v3.0",
-			inputFile:    "openapi_v3_1.yaml",
-			expectedFile: "expected/expected_openapi_v3_1_yaml_to_asyncapi_v3.yaml",
-			fromFormat:   format.FormatOpenAPI,
-			toFormat:     format.FormatAsyncAPI,
-			toAsyncAPIVersion: "3.0",
-			toProtocol: "kafka",
-		},
-		// AsyncAPI v2.x
-		{
-			name:         "AsyncAPI v2.x (yaml) to API Blueprint",
-			inputFile:    "asyncapi_v2.yaml",
-			expectedFile: "expected/expected_asyncapi_v2_to_apiblueprint.apib",
-			fromFormat:   format.FormatAsyncAPI,
-			toFormat:     format.FormatAPIBlueprint,
-		},
-		{
-			name:         "AsyncAPI v2.x (yaml) to OpenAPI v3.0",
-			inputFile:    "asyncapi_v2.yaml",
-			expectedFile: "expected/expected_asyncapi_v2_to_openapi_v3_0.yaml",
-			fromFormat:   format.FormatAsyncAPI,
-			toFormat:     format.FormatOpenAPI,
-			toOpenAPIVersion: "3.0",
-		},
-		{
-			name:         "AsyncAPI v2.x (yaml) to OpenAPI v3.1",
-			inputFile:    "asyncapi_v2.yaml",
-			expectedFile: "expected/expected_asyncapi_v2_to_openapi_v3_1.yaml",
-			fromFormat:   format.FormatAsyncAPI,
-			toFormat:     format.FormatOpenAPI,
-			toOpenAPIVersion: "3.1",
-		},
-		{
-			name:         "AsyncAPI v2.x (yaml) to AsyncAPI v3.0",
-			inputFile:    "asyncapi_v2.yaml",
-			expectedFile: "expected/expected_asyncapi_v2_to_asyncapi_v3.yaml",
-			fromFormat:   format.FormatAsyncAPI,
-			toFormat:     format.FormatAsyncAPI,
-			toAsyncAPIVersion: "3.0",
-			toProtocol: "kafka",
-		},
-		{
-			name:         "AsyncAPI v2.x (json) to API Blueprint",
-			inputFile:    "asyncapi_v2.json",
-			expectedFile: "expected/expected_asyncapi_v2_to_apiblueprint.apib",
-			fromFormat:   format.FormatAsyncAPI,
-			toFormat:     format.FormatAPIBlueprint,
-		},
-		{
-			name:         "AsyncAPI v2.x (json) to OpenAPI v3.0",
-			inputFile:    "asyncapi_v2.json",
-			expectedFile: "expected/expected_asyncapi_v2_to_openapi_v3_0.yaml",
-			fromFormat:   format.FormatAsyncAPI,
-			toFormat:     format.FormatOpenAPI,
-			toOpenAPIVersion: "3.0",
-		},
-		{
-			name:         "AsyncAPI v2.x (json) to OpenAPI v3.1",
-			inputFile:    "asyncapi_v2.json",
-			expectedFile: "expected/expected_asyncapi_v2_to_openapi_v3_1.yaml",
-			fromFormat:   format.FormatAsyncAPI,
-			toFormat:     format.FormatOpenAPI,
-			toOpenAPIVersion: "3.1",
-		},
-		{
-			name:         "AsyncAPI v2.x (json) to AsyncAPI v3.0",
-			inputFile:    "asyncapi_v2.json",
-			expectedFile: "expected/expected_asyncapi_v2_to_asyncapi_v3.yaml",
-			fromFormat:   format.FormatAsyncAPI,
-			toFormat:     format.FormatAsyncAPI,
-			toAsyncAPIVersion: "3.0",
-			toProtocol: "kafka",
-		},
-		// AsyncAPI v3.0
-		{
-			name:         "AsyncAPI v3.0 (yaml) to API Blueprint",
-			inputFile:    "asyncapi_v3.yaml",
-			expectedFile: "expected/expected_asyncapi_v3_to_apiblueprint.apib",
-			fromFormat:   format.FormatAsyncAPI,
-			toFormat:     format.FormatAPIBlueprint,
-		},
-		{
-			name:         "AsyncAPI v3.0 (yaml) to OpenAPI v3.0",
-			inputFile:    "asyncapi_v3.yaml",
-			expectedFile: "expected/expected_asyncapi_v3_to_openapi_v3_0.yaml",
-			fromFormat:   format.FormatAsyncAPI,
-			toFormat:     format.FormatOpenAPI,
-			toOpenAPIVersion: "3.0",
-		},
-		{
-			name:         "AsyncAPI v3.0 (yaml) to OpenAPI v3.1",
-			inputFile:    "asyncapi_v3.yaml",
-			expectedFile: "expected/expected_asyncapi_v3_to_openapi_v3_1.yaml",
-			fromFormat:   format.FormatAsyncAPI,
-			toFormat:     format.FormatOpenAPI,
-			toOpenAPIVersion: "3.1",
-		},
-		// API Blueprint
-		{
-			name:         "API Blueprint (apib) to OpenAPI v3.0",
-			inputFile:    "apiblueprint.apib",
-			expectedFile: "expected/expected_apiblueprint_to_openapi_v3_0.yaml",
-			fromFormat:   format.FormatAPIBlueprint,
-			toFormat:     format.FormatOpenAPI,
-			toOpenAPIVersion: "3.0",
-		},
-		{
-			name:         "API Blueprint (apib) to OpenAPI v3.1",
-			inputFile:    "apiblueprint.apib",
-			expectedFile: "expected/expected_apiblueprint_to_openapi_v3_1.yaml",
-			fromFormat:   format.FormatAPIBlueprint,
-			toFormat:     format.FormatOpenAPI,
-			toOpenAPIVersion: "3.1",
-		},
-		{
-			name:         "API Blueprint (apib) to AsyncAPI v2.6 (kafka)",
-			inputFile:    "apiblueprint.apib",
-			expectedFile: "expected/expected_apiblueprint_to_asyncapi_v2.yaml",
-			fromFormat:   format.FormatAPIBlueprint,
-			toFormat:     format.FormatAsyncAPI,
-			toAsyncAPIVersion: "2.6",
-			toProtocol: "kafka",
-		},
-		{
-			name:         "API Blueprint (apib) to AsyncAPI v2.6 (ws)",
-			inputFile:    "apiblueprint.apib",
-			expectedFile: "expected/expected_apiblueprint_to_asyncapi_v2_ws.yaml",
-			fromFormat:   format.FormatAPIBlueprint,
-			toFormat:     format.FormatAsyncAPI,
-			toAsyncAPIVersion: "2.6",
-			toProtocol: "ws",
-		},
-		{
-			name:         "API Blueprint (apib) to AsyncAPI v3.0 (kafka)",
-			inputFile:    "apiblueprint.apib",
-			expectedFile: "expected/expected_apiblueprint_to_asyncapi_v3.yaml",
-			fromFormat:   format.FormatAPIBlueprint,
-			toFormat:     format.FormatAsyncAPI,
-			toAsyncAPIVersion: "3.0",
-			toProtocol: "kafka",
-		},
-		{
-			name:         "API Blueprint (apib) to AsyncAPI v3.0 (wss)",
-			inputFile:    "apiblueprint.apib",
-			expectedFile: "expected/expected_apiblueprint_to_asyncapi_v3_wss.yaml",
-			fromFormat:   format.FormatAPIBlueprint,
-			toFormat:     format.FormatAsyncAPI,
-			toAsyncAPIVersion: "3.0",
-			toProtocol: "wss",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Setup converter
-			conv, err := converter.New()
+	for _, tc := range localConversionCases() {
+		t.Run(tc.name, func(t *testing.T) {
+			inputPath := filepath.Join("testdata", tc.inputFile)
+			input, err := os.ReadFile(inputPath)
 			if err != nil {
-				t.Fatalf("Failed to create converter: %v", err)
-			}
-			conv.RegisterParser(openapi.NewParser())
-			conv.RegisterParser(apiblueprint.NewParser())
-			conv.RegisterParser(asyncapi.NewParser())
-			conv.RegisterWriter(openapi.NewWriter())
-			conv.RegisterWriter(apiblueprint.NewWriter())
-			conv.RegisterWriter(asyncapi.NewWriter())
-
-			// Read input file
-			inputPath := filepath.Join("testdata", tt.inputFile)
-			f, err := os.Open(inputPath)
-			if err != nil {
-				t.Fatalf("Failed to open input file: %v", err)
-			}
-			defer func() {
-				if err := f.Close(); err != nil {
-					t.Errorf("Failed to close input file: %v", err)
-				}
-			}()
-
-			// Create context with default values matching CLI
-			ctx := context.Background()
-			ctx = converter.WithOpenAPIVersion(ctx, "3.0")
-			if tt.toOpenAPIVersion != "" {
-				ctx = converter.WithOpenAPIVersion(ctx, tt.toOpenAPIVersion)
-			}
-			if tt.toAsyncAPIVersion != "" {
-				ctx = converter.WithAsyncAPIVersion(ctx, tt.toAsyncAPIVersion)
-			}
-			if tt.toProtocol != "" {
-				ctx = converter.WithProtocol(ctx, tt.toProtocol)
-			}
-			
-			// Infer encoding from expected file extension
-			ext := filepath.Ext(tt.expectedFile)
-			switch ext {
-			case ".yaml", ".yml":
-				ctx = converter.WithEncoding(ctx, "yaml")
-			case ".json":
-				ctx = converter.WithEncoding(ctx, "json")
+				t.Fatalf("failed to read input file %s: %v", tc.inputFile, err)
 			}
 
-			// Perform conversion
-			var output bytes.Buffer
-			err = conv.Convert(ctx, f, &output, tt.fromFormat, tt.toFormat)
-			if err != nil {
-				t.Fatalf("Conversion failed: %v", err)
-			}
-
-			if output.Len() == 0 {
-				t.Error("Output is empty")
-			}
-
-			// Verify output against expected file
-			expectedPath := filepath.Join("testdata", tt.expectedFile)
-			expectedBytes, err := os.ReadFile(expectedPath)
-			if err != nil {
-				t.Fatalf("Failed to read expected file: %v", err)
-			}
-
-			compareContent(t, tt.expectedFile, expectedBytes, output.Bytes())
+			assertConverts(t, &tc, input)
 		})
 	}
 }
 
-func compareContent(t *testing.T, filename string, expected, actual []byte) {
-	ext := filepath.Ext(filename)
-	switch ext {
-	case ".json":
-		var exp, act interface{}
-		if err := json.Unmarshal(expected, &exp); err != nil {
-			t.Fatalf("Failed to unmarshal expected JSON %s: %v", filename, err)
+func TestValidSpecifications(t *testing.T) {
+	for _, tc := range validSpecificationCases() {
+		t.Run(tc.name, func(t *testing.T) {
+			inputPath := filepath.Join("testdata", tc.inputFile)
+			input, err := os.ReadFile(inputPath)
+			if err != nil {
+				t.Fatalf("failed to read valid fixture %s: %v", tc.inputFile, err)
+			}
+
+			assertConverts(t, &tc, input)
+		})
+	}
+}
+
+func TestInvalidSpecifications(t *testing.T) {
+	for _, tc := range invalidSpecificationCases() {
+		t.Run(tc.name, func(t *testing.T) {
+			inputPath := filepath.Join("testdata", "invalid", tc.inputFile)
+			input, err := os.ReadFile(inputPath)
+			if err != nil {
+				t.Fatalf("failed to read invalid fixture %s: %v", tc.inputFile, err)
+			}
+
+			conv := newTestConverter(t)
+			errs, err := conv.Validate(context.Background(), bytes.NewReader(input), tc.fromFormat)
+			if err == nil && len(errs) == 0 {
+				t.Fatalf("Validate() accepted invalid %s fixture %s", tc.fromFormat, tc.inputFile)
+			}
+		})
+	}
+}
+
+func localConversionCases() []conversionCase {
+	var cases []conversionCase
+	add := func(tc conversionCase) {
+		cases = append(cases, expandEncodingVariants(&tc)...)
+	}
+
+	openAPISources := []struct {
+		label   string
+		version string
+		files   []string
+	}{
+		{label: "OpenAPI v2.0", version: "2.0", files: []string{"openapi_v2.json", "openapi_v2.yaml"}},
+		{label: "OpenAPI v3.0", version: "3.0", files: []string{"openapi_v3_0.json", "openapi_v3_0.yaml"}},
+		{label: "OpenAPI v3.1", version: "3.1", files: []string{"openapi_v3_1.json", "openapi_v3_1.yaml"}},
+	}
+
+	for _, src := range openAPISources {
+		for _, file := range src.files {
+			inputEncoding := filepath.Ext(file)[1:]
+
+			add(conversionCase{
+				name:       fmt.Sprintf("%s (%s) to API Blueprint", src.label, inputEncoding),
+				inputFile:  file,
+				fromFormat: format.FormatOpenAPI,
+				toFormat:   format.FormatAPIBlueprint,
+			})
+			add(conversionCase{
+				name:              fmt.Sprintf("%s (%s) to AsyncAPI v2.6 (kafka)", src.label, inputEncoding),
+				inputFile:         file,
+				fromFormat:        format.FormatOpenAPI,
+				toFormat:          format.FormatAsyncAPI,
+				toAsyncAPIVersion: "2.6",
+				toProtocol:        "kafka",
+			})
+			add(conversionCase{
+				name:              fmt.Sprintf("%s (%s) to AsyncAPI v3.0 (kafka)", src.label, inputEncoding),
+				inputFile:         file,
+				fromFormat:        format.FormatOpenAPI,
+				toFormat:          format.FormatAsyncAPI,
+				toAsyncAPIVersion: "3.0",
+				toProtocol:        "kafka",
+			})
+
+			if src.version != "2.0" {
+				add(conversionCase{
+					name:             fmt.Sprintf("%s (%s) to OpenAPI v2.0", src.label, inputEncoding),
+					inputFile:        file,
+					fromFormat:       format.FormatOpenAPI,
+					toFormat:         format.FormatOpenAPI,
+					toOpenAPIVersion: "2.0",
+				})
+			}
+			switch src.version {
+			case "2.0":
+				add(conversionCase{
+					name:             fmt.Sprintf("%s (%s) to OpenAPI v3.0", src.label, inputEncoding),
+					inputFile:        file,
+					fromFormat:       format.FormatOpenAPI,
+					toFormat:         format.FormatOpenAPI,
+					toOpenAPIVersion: "3.0",
+				})
+				add(conversionCase{
+					name:             fmt.Sprintf("%s (%s) to OpenAPI v3.1", src.label, inputEncoding),
+					inputFile:        file,
+					fromFormat:       format.FormatOpenAPI,
+					toFormat:         format.FormatOpenAPI,
+					toOpenAPIVersion: "3.1",
+				})
+			case "3.0":
+				add(conversionCase{
+					name:             fmt.Sprintf("%s (%s) to OpenAPI v3.1", src.label, inputEncoding),
+					inputFile:        file,
+					fromFormat:       format.FormatOpenAPI,
+					toFormat:         format.FormatOpenAPI,
+					toOpenAPIVersion: "3.1",
+				})
+			}
 		}
-		if err := json.Unmarshal(actual, &act); err != nil {
-			t.Errorf("Failed to unmarshal actual JSON output for %s: %v", filename, err)
-			compareText(t, filename, expected, actual)
+	}
+
+	add(conversionCase{
+		name:              "OpenAPI v2.0 (json) to AsyncAPI v2.6 (amqp)",
+		inputFile:         "openapi_v2.json",
+		fromFormat:        format.FormatOpenAPI,
+		toFormat:          format.FormatAsyncAPI,
+		toAsyncAPIVersion: "2.6",
+		toProtocol:        "amqp",
+	})
+	add(conversionCase{
+		name:              "OpenAPI v3.0 (json) to AsyncAPI v2.6 (http)",
+		inputFile:         "openapi_v3_0.json",
+		fromFormat:        format.FormatOpenAPI,
+		toFormat:          format.FormatAsyncAPI,
+		toAsyncAPIVersion: "2.6",
+		toProtocol:        "http",
+	})
+	add(conversionCase{
+		name:              "OpenAPI v3.0 (json) to AsyncAPI v3.0 (http)",
+		inputFile:         "openapi_v3_0.json",
+		fromFormat:        format.FormatOpenAPI,
+		toFormat:          format.FormatAsyncAPI,
+		toAsyncAPIVersion: "3.0",
+		toProtocol:        "http",
+	})
+	add(conversionCase{
+		name:              "OpenAPI v3.0 (yaml) to AsyncAPI v3.0 (mqtt)",
+		inputFile:         "openapi_v3_0.yaml",
+		fromFormat:        format.FormatOpenAPI,
+		toFormat:          format.FormatAsyncAPI,
+		toAsyncAPIVersion: "3.0",
+		toProtocol:        "mqtt",
+	})
+
+	for _, file := range []string{"asyncapi_v2.yaml", "asyncapi_v2.json"} {
+		inputEncoding := filepath.Ext(file)[1:]
+
+		add(conversionCase{
+			name:       fmt.Sprintf("AsyncAPI v2.x (%s) to API Blueprint", inputEncoding),
+			inputFile:  file,
+			fromFormat: format.FormatAsyncAPI,
+			toFormat:   format.FormatAPIBlueprint,
+		})
+		add(conversionCase{
+			name:             fmt.Sprintf("AsyncAPI v2.x (%s) to OpenAPI v3.0", inputEncoding),
+			inputFile:        file,
+			fromFormat:       format.FormatAsyncAPI,
+			toFormat:         format.FormatOpenAPI,
+			toOpenAPIVersion: "3.0",
+		})
+		add(conversionCase{
+			name:             fmt.Sprintf("AsyncAPI v2.x (%s) to OpenAPI v2.0", inputEncoding),
+			inputFile:        file,
+			fromFormat:       format.FormatAsyncAPI,
+			toFormat:         format.FormatOpenAPI,
+			toOpenAPIVersion: "2.0",
+		})
+		add(conversionCase{
+			name:             fmt.Sprintf("AsyncAPI v2.x (%s) to OpenAPI v3.1", inputEncoding),
+			inputFile:        file,
+			fromFormat:       format.FormatAsyncAPI,
+			toFormat:         format.FormatOpenAPI,
+			toOpenAPIVersion: "3.1",
+		})
+		add(conversionCase{
+			name:              fmt.Sprintf("AsyncAPI v2.x (%s) to AsyncAPI v3.0", inputEncoding),
+			inputFile:         file,
+			fromFormat:        format.FormatAsyncAPI,
+			toFormat:          format.FormatAsyncAPI,
+			toAsyncAPIVersion: "3.0",
+			toProtocol:        "kafka",
+		})
+	}
+
+	add(conversionCase{
+		name:       "AsyncAPI v3.0 (yaml) to API Blueprint",
+		inputFile:  "asyncapi_v3.yaml",
+		fromFormat: format.FormatAsyncAPI,
+		toFormat:   format.FormatAPIBlueprint,
+	})
+	add(conversionCase{
+		name:             "AsyncAPI v3.0 (yaml) to OpenAPI v3.0",
+		inputFile:        "asyncapi_v3.yaml",
+		fromFormat:       format.FormatAsyncAPI,
+		toFormat:         format.FormatOpenAPI,
+		toOpenAPIVersion: "3.0",
+	})
+	add(conversionCase{
+		name:             "AsyncAPI v3.0 (yaml) to OpenAPI v2.0",
+		inputFile:        "asyncapi_v3.yaml",
+		fromFormat:       format.FormatAsyncAPI,
+		toFormat:         format.FormatOpenAPI,
+		toOpenAPIVersion: "2.0",
+	})
+	add(conversionCase{
+		name:             "AsyncAPI v3.0 (yaml) to OpenAPI v3.1",
+		inputFile:        "asyncapi_v3.yaml",
+		fromFormat:       format.FormatAsyncAPI,
+		toFormat:         format.FormatOpenAPI,
+		toOpenAPIVersion: "3.1",
+	})
+
+	add(conversionCase{
+		name:             "API Blueprint (apib) to OpenAPI v3.0",
+		inputFile:        "apiblueprint.apib",
+		fromFormat:       format.FormatAPIBlueprint,
+		toFormat:         format.FormatOpenAPI,
+		toOpenAPIVersion: "3.0",
+	})
+	add(conversionCase{
+		name:             "API Blueprint (apib) to OpenAPI v2.0",
+		inputFile:        "apiblueprint.apib",
+		fromFormat:       format.FormatAPIBlueprint,
+		toFormat:         format.FormatOpenAPI,
+		toOpenAPIVersion: "2.0",
+	})
+	add(conversionCase{
+		name:             "API Blueprint (apib) to OpenAPI v3.1",
+		inputFile:        "apiblueprint.apib",
+		fromFormat:       format.FormatAPIBlueprint,
+		toFormat:         format.FormatOpenAPI,
+		toOpenAPIVersion: "3.1",
+	})
+	add(conversionCase{
+		name:              "API Blueprint (apib) to AsyncAPI v2.6 (kafka)",
+		inputFile:         "apiblueprint.apib",
+		fromFormat:        format.FormatAPIBlueprint,
+		toFormat:          format.FormatAsyncAPI,
+		toAsyncAPIVersion: "2.6",
+		toProtocol:        "kafka",
+	})
+	add(conversionCase{
+		name:              "API Blueprint (apib) to AsyncAPI v2.6 (ws)",
+		inputFile:         "apiblueprint.apib",
+		fromFormat:        format.FormatAPIBlueprint,
+		toFormat:          format.FormatAsyncAPI,
+		toAsyncAPIVersion: "2.6",
+		toProtocol:        "ws",
+	})
+	add(conversionCase{
+		name:              "API Blueprint (apib) to AsyncAPI v3.0 (kafka)",
+		inputFile:         "apiblueprint.apib",
+		fromFormat:        format.FormatAPIBlueprint,
+		toFormat:          format.FormatAsyncAPI,
+		toAsyncAPIVersion: "3.0",
+		toProtocol:        "kafka",
+	})
+	add(conversionCase{
+		name:              "API Blueprint (apib) to AsyncAPI v3.0 (wss)",
+		inputFile:         "apiblueprint.apib",
+		fromFormat:        format.FormatAPIBlueprint,
+		toFormat:          format.FormatAsyncAPI,
+		toAsyncAPIVersion: "3.0",
+		toProtocol:        "wss",
+	})
+
+	return cases
+}
+
+type invalidSpecificationCase struct {
+	name       string
+	inputFile  string
+	fromFormat format.Format
+}
+
+func invalidSpecificationCases() []invalidSpecificationCase {
+	return []invalidSpecificationCase{
+		{
+			name:       "OpenAPI v2.0 missing info",
+			inputFile:  "openapi_v2_missing_info.yaml",
+			fromFormat: format.FormatOpenAPI,
+		},
+		{
+			name:       "OpenAPI v3.0 missing info version",
+			inputFile:  "openapi_v3_missing_info_version.yaml",
+			fromFormat: format.FormatOpenAPI,
+		},
+		{
+			name:       "OpenAPI v2.0 missing paths",
+			inputFile:  "openapi_v2_missing_paths.yaml",
+			fromFormat: format.FormatOpenAPI,
+		},
+		{
+			name:       "OpenAPI v3.1 missing paths",
+			inputFile:  "openapi_v3_1_missing_paths.yaml",
+			fromFormat: format.FormatOpenAPI,
+		},
+		{
+			name:       "AsyncAPI v2.6 missing info version",
+			inputFile:  "asyncapi_v2_missing_info_version.yaml",
+			fromFormat: format.FormatAsyncAPI,
+		},
+		{
+			name:       "AsyncAPI v2.6 missing channels",
+			inputFile:  "asyncapi_v2_missing_channels.yaml",
+			fromFormat: format.FormatAsyncAPI,
+		},
+		{
+			name:       "AsyncAPI v3.0 missing info version",
+			inputFile:  "asyncapi_v3_missing_info_version.yaml",
+			fromFormat: format.FormatAsyncAPI,
+		},
+	}
+}
+
+func validSpecificationCases() []conversionCase {
+	var cases []conversionCase
+	add := func(tc conversionCase) {
+		cases = append(cases, expandEncodingVariants(&tc)...)
+	}
+
+	add(conversionCase{
+		name:       "Valid API Blueprint fixture to OpenAPI v3.0",
+		inputFile:  "valid/warehouse.apib",
+		fromFormat: format.FormatAPIBlueprint,
+		toFormat:   format.FormatOpenAPI,
+	})
+	add(conversionCase{
+		name:              "Valid API Blueprint fixture to AsyncAPI v2.6",
+		inputFile:         "valid/warehouse.apib",
+		fromFormat:        format.FormatAPIBlueprint,
+		toFormat:          format.FormatAsyncAPI,
+		toAsyncAPIVersion: "2.6",
+		toProtocol:        "kafka",
+	})
+	add(conversionCase{
+		name:             "Valid API Blueprint support fixture to OpenAPI v3.1",
+		inputFile:        "valid/support.apib",
+		fromFormat:       format.FormatAPIBlueprint,
+		toFormat:         format.FormatOpenAPI,
+		toOpenAPIVersion: "3.1",
+	})
+	add(conversionCase{
+		name:       "Valid OpenAPI fixture to API Blueprint",
+		inputFile:  "valid/checkout-openapi.yaml",
+		fromFormat: format.FormatOpenAPI,
+		toFormat:   format.FormatAPIBlueprint,
+	})
+	add(conversionCase{
+		name:             "Valid OpenAPI fixture to OpenAPI v2.0",
+		inputFile:        "valid/checkout-openapi.yaml",
+		fromFormat:       format.FormatOpenAPI,
+		toFormat:         format.FormatOpenAPI,
+		toOpenAPIVersion: "2.0",
+	})
+	add(conversionCase{
+		name:              "Valid OpenAPI fixture to AsyncAPI v3.0",
+		inputFile:         "valid/checkout-openapi.yaml",
+		fromFormat:        format.FormatOpenAPI,
+		toFormat:          format.FormatAsyncAPI,
+		toAsyncAPIVersion: "3.0",
+		toProtocol:        "kafka",
+	})
+	add(conversionCase{
+		name:             "Valid OpenAPI v2 fixture to OpenAPI v3.0",
+		inputFile:        "valid/catalog-openapi-v2.json",
+		fromFormat:       format.FormatOpenAPI,
+		toFormat:         format.FormatOpenAPI,
+		toOpenAPIVersion: "3.0",
+	})
+	add(conversionCase{
+		name:              "Valid OpenAPI v2 fixture to AsyncAPI v2.6",
+		inputFile:         "valid/catalog-openapi-v2.json",
+		fromFormat:        format.FormatOpenAPI,
+		toFormat:          format.FormatAsyncAPI,
+		toAsyncAPIVersion: "2.6",
+		toProtocol:        "amqp",
+	})
+	add(conversionCase{
+		name:       "Valid OpenAPI v3.1 fixture to API Blueprint",
+		inputFile:  "valid/subscriptions-openapi-v3_1.yaml",
+		fromFormat: format.FormatOpenAPI,
+		toFormat:   format.FormatAPIBlueprint,
+	})
+	add(conversionCase{
+		name:              "Valid OpenAPI v3.1 fixture to AsyncAPI v3.0",
+		inputFile:         "valid/subscriptions-openapi-v3_1.yaml",
+		fromFormat:        format.FormatOpenAPI,
+		toFormat:          format.FormatAsyncAPI,
+		toAsyncAPIVersion: "3.0",
+		toProtocol:        "http",
+	})
+	add(conversionCase{
+		name:       "Valid AsyncAPI fixture to API Blueprint",
+		inputFile:  "valid/fulfillment-asyncapi.yaml",
+		fromFormat: format.FormatAsyncAPI,
+		toFormat:   format.FormatAPIBlueprint,
+	})
+	add(conversionCase{
+		name:             "Valid AsyncAPI fixture to OpenAPI v3.0",
+		inputFile:        "valid/fulfillment-asyncapi.yaml",
+		fromFormat:       format.FormatAsyncAPI,
+		toFormat:         format.FormatOpenAPI,
+		toOpenAPIVersion: "3.0",
+	})
+	add(conversionCase{
+		name:              "Valid AsyncAPI fixture to AsyncAPI v3.0",
+		inputFile:         "valid/fulfillment-asyncapi.yaml",
+		fromFormat:        format.FormatAsyncAPI,
+		toFormat:          format.FormatAsyncAPI,
+		toAsyncAPIVersion: "3.0",
+		toProtocol:        "kafka",
+	})
+	add(conversionCase{
+		name:       "Valid AsyncAPI v3 fixture to API Blueprint",
+		inputFile:  "valid/notifications-asyncapi-v3.yaml",
+		fromFormat: format.FormatAsyncAPI,
+		toFormat:   format.FormatAPIBlueprint,
+	})
+	add(conversionCase{
+		name:             "Valid AsyncAPI v3 fixture to OpenAPI v3.1",
+		inputFile:        "valid/notifications-asyncapi-v3.yaml",
+		fromFormat:       format.FormatAsyncAPI,
+		toFormat:         format.FormatOpenAPI,
+		toOpenAPIVersion: "3.1",
+	})
+
+	return cases
+}
+
+func assertConverts(t *testing.T, tc *conversionCase, input []byte) {
+	t.Helper()
+
+	conv := newTestConverter(t)
+	ctx := testContext(tc)
+
+	sourceModel, err := conv.ParseToModel(ctx, bytes.NewReader(input), tc.fromFormat)
+	if err != nil {
+		t.Fatalf("failed to parse source %s: %v", tc.fromFormat, err)
+	}
+	assertMeaningfulModel(t, "source", sourceModel)
+
+	var output bytes.Buffer
+	if err := conv.Convert(ctx, bytes.NewReader(input), &output, tc.fromFormat, tc.toFormat); err != nil {
+		t.Fatalf("conversion failed: %v", err)
+	}
+	if output.Len() == 0 {
+		t.Fatal("conversion produced empty output")
+	}
+
+	assertFormatMarker(t, tc, output.Bytes())
+
+	convertedModel, err := conv.ParseToModel(ctx, bytes.NewReader(output.Bytes()), tc.toFormat)
+	if err != nil {
+		t.Fatalf("failed to parse converted %s output: %v\n%s", tc.toFormat, err, output.String())
+	}
+	assertMeaningfulModel(t, "converted output", convertedModel)
+	assertSemanticShape(t, sourceModel, convertedModel, tc)
+
+	errs, err := conv.Validate(ctx, bytes.NewReader(output.Bytes()), tc.toFormat)
+	if err != nil {
+		t.Fatalf("failed to validate converted %s output: %v", tc.toFormat, err)
+	}
+	if len(errs) > 0 {
+		t.Fatalf("converted %s output has validation errors: %v", tc.toFormat, errs)
+	}
+}
+
+func expandEncodingVariants(tc *conversionCase) []conversionCase {
+	if tc.encoding != "" || (tc.toFormat != format.FormatOpenAPI && tc.toFormat != format.FormatAsyncAPI) {
+		return []conversionCase{*tc}
+	}
+
+	yamlCase := *tc
+	yamlCase.name = tc.name + " (yaml output)"
+	yamlCase.encoding = "yaml"
+
+	jsonCase := *tc
+	jsonCase.name = tc.name + " (json output)"
+	jsonCase.encoding = "json"
+
+	return []conversionCase{yamlCase, jsonCase}
+}
+
+func newTestConverter(t *testing.T) *converter.Converter {
+	t.Helper()
+
+	conv, err := converter.New()
+	if err != nil {
+		t.Fatalf("failed to create converter: %v", err)
+	}
+	conv.RegisterParser(openapi.NewParser())
+	conv.RegisterParser(apiblueprint.NewParser())
+	conv.RegisterParser(asyncapi.NewParser())
+	conv.RegisterWriter(openapi.NewWriter())
+	conv.RegisterWriter(apiblueprint.NewWriter())
+	conv.RegisterWriter(asyncapi.NewWriter())
+
+	return conv
+}
+
+func testContext(tc *conversionCase) context.Context {
+	ctx := context.Background()
+	if tc.encoding != "" {
+		ctx = converter.WithEncoding(ctx, tc.encoding)
+	}
+	if tc.toOpenAPIVersion != "" {
+		ctx = converter.WithOpenAPIVersion(ctx, tc.toOpenAPIVersion)
+	}
+	if tc.toAsyncAPIVersion != "" {
+		ctx = converter.WithAsyncAPIVersion(ctx, tc.toAsyncAPIVersion)
+	}
+	if tc.toProtocol != "" {
+		ctx = converter.WithProtocol(ctx, tc.toProtocol)
+	}
+	return ctx
+}
+
+func assertFormatMarker(t *testing.T, tc *conversionCase, output []byte) {
+	t.Helper()
+
+	switch tc.toFormat {
+	case format.FormatAPIBlueprint:
+		if !strings.HasPrefix(strings.TrimSpace(string(output)), "FORMAT: 1A") {
+			t.Fatalf("API Blueprint output does not start with FORMAT: 1A:\n%s", string(output))
+		}
+	case format.FormatOpenAPI:
+		doc := decodeObject(t, output)
+		version := normalizeOpenAPIVersion(tc.toOpenAPIVersion)
+		if version == "2.0" {
+			assertFieldEquals(t, doc, "swagger", "2.0")
 			return
 		}
-		// Normalize
-		exp = normalize(exp)
-		act = normalize(act)
-		
-		if !reflect.DeepEqual(exp, act) {
-			t.Errorf("JSON output does not match expected file %s", filename)
-			compareText(t, filename, expected, actual)
-		}
-	case ".yaml", ".yml":
-		compareYAML(t, filename, expected, actual)
+		assertFieldEquals(t, doc, "openapi", version)
+	case format.FormatAsyncAPI:
+		doc := decodeObject(t, output)
+		assertFieldEquals(t, doc, "asyncapi", normalizeAsyncAPIVersion(tc.toAsyncAPIVersion))
 	default:
-		compareText(t, filename, expected, actual)
+		t.Fatalf("unsupported target format in test: %s", tc.toFormat)
 	}
 }
 
-func compareYAML(t *testing.T, filename string, expected, actual []byte) {
-	var expNode, actNode yaml.Node
-	if err := yaml.Unmarshal(expected, &expNode); err != nil {
-		t.Fatalf("Failed to unmarshal expected YAML %s: %v", filename, err)
+func decodeObject(t *testing.T, data []byte) map[string]interface{} {
+	t.Helper()
+
+	var doc map[string]interface{}
+	if err := yaml.Unmarshal(data, &doc); err != nil {
+		t.Fatalf("failed to decode generated document: %v\n%s", err, string(data))
 	}
-	if err := yaml.Unmarshal(actual, &actNode); err != nil {
-		t.Errorf("Failed to unmarshal actual YAML output for %s: %v", filename, err)
-		compareText(t, filename, expected, actual)
+	if len(doc) == 0 {
+		t.Fatalf("generated document decoded to an empty object:\n%s", string(data))
+	}
+	return doc
+}
+
+func assertFieldEquals(t *testing.T, doc map[string]interface{}, field, want string) {
+	t.Helper()
+
+	got, ok := doc[field]
+	if !ok {
+		t.Fatalf("generated document is missing %q", field)
+	}
+	if fmt.Sprint(got) != want {
+		t.Fatalf("generated document %q = %q, want %q", field, got, want)
+	}
+}
+
+func normalizeOpenAPIVersion(version string) string {
+	switch version {
+	case "", "3.0":
+		return "3.0.0"
+	case "3.1":
+		return "3.1.0"
+	case "2.0", "2.0.0":
+		return "2.0"
+	default:
+		return version
+	}
+}
+
+func normalizeAsyncAPIVersion(version string) string {
+	switch version {
+	case "", "2.6":
+		return "2.6.0"
+	case "3.0":
+		return "3.0.0"
+	default:
+		return version
+	}
+}
+
+func assertMeaningfulModel(t *testing.T, label string, api *model.API) {
+	t.Helper()
+
+	if api == nil {
+		t.Fatalf("%s parsed to nil model", label)
+	}
+	if len(api.Paths) == 0 && len(api.Webhooks) == 0 && len(api.Components.Schemas) == 0 {
+		t.Fatalf("%s has no paths, webhooks, or schemas", label)
+	}
+	if countOperations(api) == 0 && len(api.Components.Schemas) == 0 {
+		t.Fatalf("%s has no operations or schemas", label)
+	}
+}
+
+func assertSemanticShape(t *testing.T, source, converted *model.API, tc *conversionCase) {
+	t.Helper()
+
+	if countOperations(source) > 0 && countOperations(converted) == 0 {
+		t.Fatalf("converted output lost all operations from source")
+	}
+
+	if tc.fromFormat == tc.toFormat && (tc.toFormat == format.FormatOpenAPI || tc.toFormat == format.FormatAsyncAPI) {
+		assertPathCountPreserved(t, source, converted)
+	}
+
+	if tc.fromFormat == format.FormatOpenAPI && tc.toFormat == format.FormatOpenAPI {
+		assertSchemaNamesPreserved(t, source, converted)
+		assertOperationIDsPreserved(t, source, converted)
+	}
+}
+
+func assertPathCountPreserved(t *testing.T, source, converted *model.API) {
+	t.Helper()
+
+	if len(source.Paths) == 0 {
 		return
 	}
-
-	if diff := diffNodes(&expNode, &actNode); diff != "" {
-		t.Errorf("YAML output does not match expected file %s: %s", filename, diff)
-		compareText(t, filename, expected, actual)
+	if len(converted.Paths) != len(source.Paths) {
+		t.Fatalf("converted output path count = %d, want %d", len(converted.Paths), len(source.Paths))
 	}
 }
 
-func diffNodes(exp, act *yaml.Node) string {
-	if exp.Kind != act.Kind {
-		return fmt.Sprintf("Kind mismatch: %v vs %v", exp.Kind, act.Kind)
-	}
+func assertSchemaNamesPreserved(t *testing.T, source, converted *model.API) {
+	t.Helper()
 
-	if exp.Kind == yaml.ScalarNode {
-		if exp.Value != act.Value {
-			return fmt.Sprintf("Value mismatch: %q vs %q", exp.Value, act.Value)
+	for name := range source.Components.Schemas {
+		if _, ok := converted.Components.Schemas[name]; !ok {
+			t.Fatalf("converted output is missing schema %q", name)
 		}
 	}
-
-	if exp.Kind == yaml.SequenceNode {
-		if len(exp.Content) != len(act.Content) {
-			return fmt.Sprintf("Sequence length mismatch: %d vs %d", len(exp.Content), len(act.Content))
-		}
-		for i := range exp.Content {
-			if d := diffNodes(exp.Content[i], act.Content[i]); d != "" {
-				return fmt.Sprintf("Index %d: %s", i, d)
-			}
-		}
-	}
-
-	if exp.Kind == yaml.MappingNode {
-		// Content is [key, val, key, val...]
-		// Sort keys to compare
-		expMap := make(map[string]*yaml.Node)
-		actMap := make(map[string]*yaml.Node)
-
-		for i := 0; i < len(exp.Content); i += 2 {
-			expMap[exp.Content[i].Value] = exp.Content[i+1]
-		}
-		for i := 0; i < len(act.Content); i += 2 {
-			actMap[act.Content[i].Value] = act.Content[i+1]
-		}
-
-		if len(expMap) != len(actMap) {
-			// Find missing keys
-			var missing []string
-			for k := range expMap {
-				if _, ok := actMap[k]; !ok {
-					missing = append(missing, "-"+k)
-				}
-			}
-			for k := range actMap {
-				if _, ok := expMap[k]; !ok {
-					missing = append(missing, "+"+k)
-				}
-			}
-			sort.Strings(missing)
-			return fmt.Sprintf("Map size mismatch: %d vs %d. Diff keys: %v", len(expMap), len(actMap), missing)
-		}
-
-		for k, vExp := range expMap {
-			vAct, ok := actMap[k]
-			if !ok {
-				return fmt.Sprintf("Missing key: %s", k)
-			}
-			if d := diffNodes(vExp, vAct); d != "" {
-				return fmt.Sprintf("Key %s: %s", k, d)
-			}
-		}
-	}
-	
-	if exp.Kind == yaml.DocumentNode {
-		if len(exp.Content) > 0 && len(act.Content) > 0 {
-			return diffNodes(exp.Content[0], act.Content[0])
-		}
-	}
-
-	return ""
 }
 
-func normalize(i interface{}) interface{} {
-	b, err := json.Marshal(i)
-	if err != nil {
-		return i 
+func assertOperationIDsPreserved(t *testing.T, source, converted *model.API) {
+	t.Helper()
+
+	convertedIDs := operationIDs(converted)
+	for id := range operationIDs(source) {
+		if _, ok := convertedIDs[id]; !ok {
+			t.Fatalf("converted output is missing operation ID %q", id)
+		}
 	}
-	var res interface{}
-	if err := json.Unmarshal(b, &res); err != nil {
-		return i
-	}
-	return res
 }
 
-func compareText(t *testing.T, filename string, expected, actual []byte) {
-	// Normalize line endings
-	expStr := strings.ReplaceAll(string(expected), "\r\n", "\n")
-	actStr := strings.ReplaceAll(string(actual), "\r\n", "\n")
-
-	// Trim spaces
-	expStr = strings.TrimSpace(expStr)
-	actStr = strings.TrimSpace(actStr)
-
-	if expStr != actStr {
-		// Find first difference
-		minLen := len(expStr)
-		if len(actStr) < minLen {
-			minLen = len(actStr)
-		}
-		diffIdx := 0
-		for i := 0; i < minLen; i++ {
-			if expStr[i] != actStr[i] {
-				diffIdx = i
-				break
+func operationIDs(api *model.API) map[string]struct{} {
+	ids := make(map[string]struct{})
+	collectOperationIDs := func(item model.PathItem) {
+		for _, op := range pathItemOperations(&item) {
+			if op.OperationID != "" {
+				ids[op.OperationID] = struct{}{}
 			}
 		}
-		
-		// Context around diff
-		start := diffIdx - 50
-		if start < 0 { start = 0 }
-		end := diffIdx + 50
-		if end > len(expStr) { end = len(expStr) }
-		expCtx := expStr[start:end]
-		
-		endAct := diffIdx + 50
-		if endAct > len(actStr) { endAct = len(actStr) }
-		actCtx := actStr[start:endAct]
-
-		t.Logf("First difference at index %d:\nExpected: ...%q...\nGot:      ...%q...", diffIdx, expCtx, actCtx)
 	}
+	for path := range api.Paths {
+		collectOperationIDs(api.Paths[path])
+	}
+	return ids
+}
+
+func countOperations(api *model.API) int {
+	total := 0
+	for path := range api.Paths {
+		item := api.Paths[path]
+		total += len(pathItemOperations(&item))
+	}
+	for name := range api.Webhooks {
+		item := api.Webhooks[name]
+		total += len(pathItemOperations(&item))
+	}
+	return total
+}
+
+func pathItemOperations(item *model.PathItem) []*model.Operation {
+	operations := make([]*model.Operation, 0, 8)
+	if item.Get != nil {
+		operations = append(operations, item.Get)
+	}
+	if item.Put != nil {
+		operations = append(operations, item.Put)
+	}
+	if item.Post != nil {
+		operations = append(operations, item.Post)
+	}
+	if item.Delete != nil {
+		operations = append(operations, item.Delete)
+	}
+	if item.Options != nil {
+		operations = append(operations, item.Options)
+	}
+	if item.Head != nil {
+		operations = append(operations, item.Head)
+	}
+	if item.Patch != nil {
+		operations = append(operations, item.Patch)
+	}
+	if item.Trace != nil {
+		operations = append(operations, item.Trace)
+	}
+	return operations
 }

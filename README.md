@@ -86,7 +86,8 @@ Options:
       Output encoding: json, yaml (default: auto-detected from output extension)
   
   --validate
-      Validate input without converting
+      Validate input without converting. Pinned OpenAPI and AsyncAPI versions
+      are checked against specification JSON Schemas plus model validation
   
   -v, --version
       Print version information
@@ -103,7 +104,7 @@ AsyncAPI Options:
 
 OpenAPI Options:
   --openapi-version VERSION
-      Version: 3.0, 3.1 (default: "3.0")
+      Version: 2.0, 3.0, 3.1 (default: "3.0")
 
 Examples:
   apibconv -o output.json spec.apib

@@ -202,7 +202,11 @@ components:
     "title": "Swagger API",
     "version": "1.0.0"
   },
-  "host": "http://api.example.com",
+  "host": "api.example.com",
+  "basePath": "/",
+  "schemes": [
+    "http"
+  ],
   "paths": {
     "/users": {
       "post": {
@@ -356,6 +360,71 @@ func TestWriterFormat(t *testing.T) {
 	if w.Format() != format.FormatOpenAPI {
 		t.Errorf("Format() = %v, want %v", w.Format(), format.FormatOpenAPI)
 	}
+}
+
+func TestConvertOperationV2ScansPastSchemaLessRequestContent(t *testing.T) {
+	api := &model.API{
+		Info: model.Info{
+			Title:   "Media API",
+			Version: "1.0.0",
+		},
+		Paths: map[string]model.PathItem{
+			"/media": {
+				Post: &model.Operation{
+					RequestBody: &model.RequestBody{
+						Required: true,
+						Content: map[string]model.MediaType{
+							"application/json": {
+								Example: map[string]string{"example": "only"},
+							},
+							"application/xml": {
+								Schema: &model.Schema{Type: model.TypeObject},
+							},
+						},
+					},
+					Responses: model.Responses{
+						"200": {Description: "OK"},
+					},
+				},
+			},
+		},
+	}
+
+	w := NewWriter(WithJSONOutput(true), WithWriterVersion("2.0"))
+	var buf bytes.Buffer
+	if err := w.Write(context.Background(), api, &buf); err != nil {
+		t.Fatalf("Write() error = %v", err)
+	}
+
+	var doc map[string]interface{}
+	if err := json.Unmarshal(buf.Bytes(), &doc); err != nil {
+		t.Fatalf("failed to decode generated JSON: %v\n%s", err, buf.String())
+	}
+
+	paths := doc["paths"].(map[string]interface{})
+	pathItem := paths["/media"].(map[string]interface{})
+	post := pathItem["post"].(map[string]interface{})
+	params, ok := post["parameters"].([]interface{})
+	if !ok {
+		t.Fatalf("generated operation has no parameters:\n%s", buf.String())
+	}
+
+	for _, rawParam := range params {
+		param := rawParam.(map[string]interface{})
+		if param["in"] != "body" {
+			continue
+		}
+		schema, ok := param["schema"].(map[string]interface{})
+		if !ok {
+			t.Fatalf("body parameter has no schema: %#v", param)
+		}
+		if schema["type"] != "object" {
+			t.Fatalf("body parameter schema type = %q, want object", schema["type"])
+		}
+		return
+	}
+
+	t.Fatalf("generated operation has no body parameter:\n%s", buf.String())
 }
 
 func TestWriterVersion(t *testing.T) {

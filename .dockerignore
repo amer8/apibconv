@@ -23,6 +23,7 @@ benchmark*.txt
 # Documentation
 *.md
 !README.md
+!THIRD_PARTY_NOTICES.md
 
 # IDE
 .idea/
