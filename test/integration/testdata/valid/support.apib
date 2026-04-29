@@ -1,0 +1,58 @@
+FORMAT: 1A
+HOST: https://support.example.test
+
+# Support API
+
+Valid integration fixture for tickets and customer messages.
+
+# Group Tickets
+
+## Tickets Collection [/tickets{?state,priority}]
+
+### List tickets [GET]
++ Parameters
+    + state: open (string, optional) - Ticket state filter
+    + priority: urgent (string, optional) - Priority filter
+
++ Response 200 (application/json)
+    + Attributes (array[Ticket])
+
+### Create ticket [POST]
++ Request (application/json)
+    + Attributes (TicketCreate)
+
++ Response 201 (application/json)
+    + Attributes (Ticket)
+
+## Ticket Messages [/tickets/{ticketId}/messages]
++ Parameters
+    + ticketId: ticket-100 (string, required) - Ticket identifier
+
+### Add ticket message [POST]
++ Request (application/json)
+    + Attributes (TicketMessageCreate)
+
++ Response 201 (application/json)
+    + Attributes (TicketMessage)
+
+# Data Structures
+
+## Ticket (object)
++ id: ticket-100 (string, required)
++ subject: Cannot sign in (string, required)
++ state: open (string, required)
++ priority: urgent (string, optional)
+
+## TicketCreate (object)
++ subject: Cannot sign in (string, required)
++ customerId: cust-42 (string, required)
++ priority: urgent (string, optional)
+
+## TicketMessage (object)
++ id: msg-200 (string, required)
++ body: We are checking the account. (string, required)
++ authorId: agent-7 (string, required)
+
+## TicketMessageCreate (object)
++ body: We are checking the account. (string, required)
++ authorId: agent-7 (string, required)

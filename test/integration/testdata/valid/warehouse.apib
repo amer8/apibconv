@@ -1,0 +1,79 @@
+FORMAT: 1A
+HOST: https://warehouse.example.test
+
+# Warehouse API
+
+Valid integration fixture for inventory and shipment endpoints.
+
+# Group Inventory
+
+## Stock Items [/stock{?sku,warehouse}]
+
+### List stock items [GET]
++ Parameters
+    + sku: tea-001 (string, optional) - Filter by product SKU
+    + warehouse: north (string, optional) - Filter by warehouse code
+
++ Response 200 (application/json)
+    + Attributes (array[StockItem])
+
+### Create a stock item [POST]
++ Request (application/json)
+    + Attributes (StockItemCreate)
+
++ Response 201 (application/json)
+    + Attributes (StockItem)
+
+## Stock Item [/stock/{stockId}]
++ Parameters
+    + stockId: stock-123 (string, required) - Stock item identifier
+
+### Get a stock item [GET]
++ Response 200 (application/json)
+    + Attributes (StockItem)
+
+### Adjust stock quantity [PATCH]
++ Request (application/json)
+    + Attributes (StockAdjustment)
+
++ Response 200 (application/json)
+    + Attributes (StockItem)
+
+# Group Shipments
+
+## Shipments [/shipments]
+
+### Schedule a shipment [POST]
++ Request (application/json)
+    + Attributes (ShipmentCreate)
+
++ Response 202 (application/json)
+    + Attributes (Shipment)
+
+# Data Structures
+
+## StockItem (object)
++ id: stock-123 (string, required)
++ sku: tea-001 (string, required)
++ warehouse: north (string, required)
++ quantity: 42 (number, required)
++ reserved: 5 (number, optional)
+
+## StockItemCreate (object)
++ sku: tea-001 (string, required)
++ warehouse: north (string, required)
++ quantity: 42 (number, required)
+
+## StockAdjustment (object)
++ delta: -3 (number, required)
++ reason: order allocated (string, required)
+
+## Shipment (object)
++ id: ship-456 (string, required)
++ status: scheduled (string, required)
++ carrier: groundline (string, optional)
+
+## ShipmentCreate (object)
++ stockId: stock-123 (string, required)
++ destination: store-9 (string, required)
++ quantity: 3 (number, required)

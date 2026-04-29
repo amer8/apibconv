@@ -88,7 +88,7 @@ func (w *Writer) Write(ctx context.Context, api *model.API, wr io.Writer) error 
 	sort.Strings(groupNames)
 
 	for _, group := range groupNames {
-		builder.WriteString(fmt.Sprintf("\n# Group %s\n", group))
+		fmt.Fprintf(&builder, "\n# Group %s\n", group)
 		for _, path := range groups[group] {
 			item := api.Paths[path]
 			displayPath := path
@@ -120,7 +120,7 @@ func (w *Writer) writeHeader(api *model.API) string {
 	var sb strings.Builder
 	sb.WriteString("FORMAT: 1A\n")
 	if len(api.Servers) > 0 {
-		sb.WriteString(fmt.Sprintf("HOST: %s\n", api.Servers[0].URL))
+		fmt.Fprintf(&sb, "HOST: %s\n", api.Servers[0].URL)
 	}
 	sb.WriteString("\n")
 
@@ -128,7 +128,7 @@ func (w *Writer) writeHeader(api *model.API) string {
 	if title == "" {
 		title = "API Documentation"
 	}
-	sb.WriteString(fmt.Sprintf("# %s\n", title))
+	fmt.Fprintf(&sb, "# %s\n", title)
 
 	if api.Info.Description != "" {
 		sb.WriteString(api.Info.Description + "\n")
@@ -145,7 +145,7 @@ func (w *Writer) writeResource(path string, item *model.PathItem) string {
 		summary = "Resource"
 	}
 
-	sb.WriteString(fmt.Sprintf("\n## %s [%s]\n", summary, path))
+	fmt.Fprintf(&sb, "\n## %s [%s]\n", summary, path)
 	if item.Description != "" {
 		sb.WriteString(item.Description + "\n")
 	}
@@ -171,7 +171,7 @@ func (w *Writer) writeAction(method string, op *model.Operation) string {
 		summary = method // Default summary
 	}
 
-	sb.WriteString(fmt.Sprintf("\n### %s [%s]\n", summary, method))
+	fmt.Fprintf(&sb, "\n### %s [%s]\n", summary, method)
 	if op.Description != "" {
 		sb.WriteString(op.Description + "\n")
 	}
@@ -215,15 +215,15 @@ func (w *Writer) writeAction(method string, op *model.Operation) string {
 		sb.WriteString("\n+ Request\n")
 		// Assuming JSON content for simplicity based on previous examples
 		for contentType, mediaType := range op.RequestBody.Content {
-			sb.WriteString(fmt.Sprintf("    + Body (%s)\n", contentType))
+			fmt.Fprintf(&sb, "    + Body (%s)\n", contentType)
 			if mediaType.Example != nil {
 				sb.WriteString("            ")
-				sb.WriteString(fmt.Sprintf("%v\n", mediaType.Example))
+				fmt.Fprintf(&sb, "%v\n", mediaType.Example)
 				sb.WriteString("\n")
 			}
 			// If schema is present, we should reference it if Data Structures are implemented
 			if mediaType.Schema != nil && mediaType.Schema.Ref != "" {
-				sb.WriteString(fmt.Sprintf("            + Attributes (array[%s])\n", strings.TrimPrefix(mediaType.Schema.Ref, "#/components/schemas/")))
+				fmt.Fprintf(&sb, "            + Attributes (array[%s])\n", strings.TrimPrefix(mediaType.Schema.Ref, "#/components/schemas/"))
 			}
 		}
 	}
@@ -245,15 +245,15 @@ func (w *Writer) writeAction(method string, op *model.Operation) string {
 			break
 		}
 
-		sb.WriteString(fmt.Sprintf("\n+ Response %s (%s)\n", code, ct))
+		fmt.Fprintf(&sb, "\n+ Response %s (%s)\n", code, ct)
 		if resp.Description != "" {
-			sb.WriteString(fmt.Sprintf("\n    %s\n", resp.Description))
+			fmt.Fprintf(&sb, "\n    %s\n", resp.Description)
 		}
 
 		// Write response body example if available
 		if mt, ok := resp.Content[ct]; ok && mt.Example != nil {
 			sb.WriteString("\n        ") // Indentation for body
-			sb.WriteString(fmt.Sprintf("%v", mt.Example))
+			fmt.Fprint(&sb, mt.Example)
 			sb.WriteString("\n")
 		}
 	}
@@ -275,9 +275,9 @@ func (w *Writer) writeSchemas(api *model.API) string {
 
 		for _, name := range schemaNames {
 			schema := api.Components.Schemas[name]
-			sb.WriteString(fmt.Sprintf("\n### %s (object)\n", name))
+			fmt.Fprintf(&sb, "\n### %s (object)\n", name)
 			if schema.Description != "" {
-				sb.WriteString(fmt.Sprintf("    %s\n", schema.Description))
+				fmt.Fprintf(&sb, "    %s\n", schema.Description)
 			}
 			sb.WriteString(w.writeMSONSchema(schema, 1)) // Start with 1 indentation level
 		}
@@ -293,7 +293,7 @@ func (w *Writer) writeMSONSchema(schema *model.Schema, indentLevel int) string {
 	if schema.Ref != "" {
 		// If it's a local reference, just use the name
 		refName := strings.TrimPrefix(schema.Ref, "#/components/schemas/")
-		sb.WriteString(fmt.Sprintf("%s+ Attributes (array[%s])\n", indent, refName))
+		fmt.Fprintf(&sb, "%s+ Attributes (array[%s])\n", indent, refName)
 		return sb.String()
 	}
 
@@ -301,7 +301,7 @@ func (w *Writer) writeMSONSchema(schema *model.Schema, indentLevel int) string {
 	for _, allOfSchema := range schema.AllOf {
 		if allOfSchema.Ref != "" {
 			refName := strings.TrimPrefix(allOfSchema.Ref, "#/components/schemas/")
-			sb.WriteString(fmt.Sprintf("%s+ Attributes (array[%s])\n", indent, refName)) // Assuming allOf with ref is like extending
+			fmt.Fprintf(&sb, "%s+ Attributes (array[%s])\n", indent, refName) // Assuming allOf with ref is like extending
 		} else {
 			// Inline allOf schema properties
 			sb.WriteString(w.writeMSONSchema(allOfSchema, indentLevel)) // Recursive call for inline schemas
@@ -338,10 +338,9 @@ func (w *Writer) writeMSONSchema(schema *model.Schema, indentLevel int) string {
 				requiredStr = " (required)"
 			}
 
-			line := fmt.Sprintf("%s+ %s (%s)%s\n", indent, propName, propType, requiredStr)
-			sb.WriteString(line)
+			fmt.Fprintf(&sb, "%s+ %s (%s)%s\n", indent, propName, propType, requiredStr)
 			if propSchema.Description != "" {
-				sb.WriteString(fmt.Sprintf("%s    %s\n", indent, propSchema.Description))
+				fmt.Fprintf(&sb, "%s    %s\n", indent, propSchema.Description)
 			}
 
 			// Recursively write nested properties for objects or items for arrays

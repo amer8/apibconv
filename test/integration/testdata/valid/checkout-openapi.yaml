@@ -1,0 +1,160 @@
+openapi: 3.0.3
+info:
+  title: Checkout API
+  version: 1.0.0
+  description: Valid integration fixture for carts, payments, and receipts.
+servers:
+  - url: https://checkout.example.test/v1
+paths:
+  /carts:
+    post:
+      summary: Create a cart
+      operationId: createCart
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CartCreate'
+      responses:
+        '201':
+          description: Cart created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cart'
+  /carts/{cartId}:
+    get:
+      summary: Get a cart
+      operationId: getCart
+      parameters:
+        - name: cartId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Cart details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cart'
+  /carts/{cartId}/items:
+    post:
+      summary: Add an item to a cart
+      operationId: addCartItem
+      parameters:
+        - name: cartId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CartItemCreate'
+      responses:
+        '201':
+          description: Item added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cart'
+  /payments:
+    post:
+      summary: Authorize a payment
+      operationId: authorizePayment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentRequest'
+      responses:
+        '202':
+          description: Payment accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+components:
+  schemas:
+    CartCreate:
+      type: object
+      required:
+        - customerId
+      properties:
+        customerId:
+          type: string
+        currency:
+          type: string
+          default: USD
+    CartItemCreate:
+      type: object
+      required:
+        - sku
+        - quantity
+      properties:
+        sku:
+          type: string
+        quantity:
+          type: integer
+          minimum: 1
+    Cart:
+      type: object
+      required:
+        - id
+        - customerId
+        - items
+      properties:
+        id:
+          type: string
+        customerId:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CartItem'
+        total:
+          type: number
+          format: double
+    CartItem:
+      type: object
+      properties:
+        sku:
+          type: string
+        quantity:
+          type: integer
+        unitPrice:
+          type: number
+          format: double
+    PaymentRequest:
+      type: object
+      required:
+        - cartId
+        - amount
+      properties:
+        cartId:
+          type: string
+        amount:
+          type: number
+          format: double
+        method:
+          type: string
+          enum:
+            - card
+            - bank_transfer
+    Payment:
+      type: object
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+          enum:
+            - authorized
+            - declined
+            - settled
