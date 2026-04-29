@@ -350,7 +350,7 @@ func (w *Writer) writeV2(api *model.API, wr io.Writer, targetProtocol string, js
 
 			// Try to find response payload
 			if len(item.Get.Responses) > 0 {
-				var codes []string
+				codes := make([]string, 0, len(item.Get.Responses))
 				for code := range item.Get.Responses {
 					codes = append(codes, code)
 				}

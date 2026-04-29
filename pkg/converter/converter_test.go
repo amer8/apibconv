@@ -209,7 +209,14 @@ func TestValidateSkipsAsyncAPIPathRule(t *testing.T) {
 		},
 	})
 
-	errs, err := c.Validate(context.Background(), bytes.NewReader([]byte("dummy input")), format.FormatAsyncAPI)
+	input := []byte(`
+asyncapi: 2.6.0
+info:
+  title: Example
+  version: 1.0.0
+channels: {}
+`)
+	errs, err := c.Validate(context.Background(), bytes.NewReader(input), format.FormatAsyncAPI)
 	if err != nil {
 		t.Fatalf("Validate() error = %v", err)
 	}
@@ -229,7 +236,14 @@ func TestValidateStillChecksOpenAPIPaths(t *testing.T) {
 		},
 	})
 
-	errs, err := c.Validate(context.Background(), bytes.NewReader([]byte("dummy input")), format.FormatOpenAPI)
+	input := []byte(`
+openapi: 3.0.0
+info:
+  title: Example
+  version: 1.0.0
+paths: {}
+`)
+	errs, err := c.Validate(context.Background(), bytes.NewReader(input), format.FormatOpenAPI)
 	if err != nil {
 		t.Fatalf("Validate() error = %v", err)
 	}
@@ -238,6 +252,22 @@ func TestValidateStillChecksOpenAPIPaths(t *testing.T) {
 	}
 	if errs[0].Message != "Path must start with /" {
 		t.Fatalf("Validate() error message = %q, want %q", errs[0].Message, "Path must start with /")
+	}
+}
+
+func TestValidateHonorsCanceledContextBeforeRead(t *testing.T) {
+	c, _ := New()
+	c.RegisterParser(&mockParser{
+		fmt: format.FormatOpenAPI,
+		api: &model.API{},
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := c.Validate(ctx, bytes.NewReader([]byte("openapi: 3.0.0")), format.FormatOpenAPI)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("Validate() error = %v, want context.Canceled", err)
 	}
 }
 

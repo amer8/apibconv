@@ -327,6 +327,53 @@ func TestFormat(t *testing.T) {
 	}
 }
 
+func TestParseV2ResponseHeaderSchema(t *testing.T) {
+	input := `
+swagger: "2.0"
+info:
+  title: Header API
+  version: 1.0.0
+paths:
+  /items:
+    get:
+      responses:
+        "200":
+          description: OK
+          headers:
+            X-Rate-Limit:
+              description: Requests remaining
+              type: integer
+              format: int32
+            X-Tags:
+              description: Tag list
+              type: array
+              items:
+                type: string
+`
+
+	api, err := NewParser().Parse(context.Background(), strings.NewReader(input))
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+
+	headers := api.Paths["/items"].Get.Responses["200"].Headers
+	rateLimit := headers["X-Rate-Limit"].Schema
+	if rateLimit == nil {
+		t.Fatal("X-Rate-Limit header schema is nil")
+	}
+	if rateLimit.Type != model.TypeInteger || rateLimit.Format != "int32" {
+		t.Fatalf("X-Rate-Limit schema = (%q, %q), want (integer, int32)", rateLimit.Type, rateLimit.Format)
+	}
+
+	tags := headers["X-Tags"].Schema
+	if tags == nil || tags.Items == nil {
+		t.Fatalf("X-Tags header schema/items missing: %#v", tags)
+	}
+	if tags.Type != model.TypeArray || tags.Items.Type != model.TypeString {
+		t.Fatalf("X-Tags schema = (%q, %q), want (array, string)", tags.Type, tags.Items.Type)
+	}
+}
+
 func TestSupportsVersion(t *testing.T) {
 	p := NewParser()
 	tests := []struct {

@@ -172,6 +172,11 @@ type Header struct {
 	Required    bool    `yaml:"required,omitempty" json:"required,omitempty"`
 	Deprecated  bool    `yaml:"deprecated,omitempty" json:"deprecated,omitempty"`
 	Schema      *Schema `yaml:"schema,omitempty" json:"schema,omitempty"`
+
+	// V2 specific fields
+	Type   string  `yaml:"type,omitempty" json:"type,omitempty"`
+	Format string  `yaml:"format,omitempty" json:"format,omitempty"`
+	Items  *Schema `yaml:"items,omitempty" json:"items,omitempty"`
 }
 
 // SecurityScheme defines a security scheme that can be used by the operations.

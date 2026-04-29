@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/url"
+	"sort"
 	"strings"
 
 	"go.yaml.in/yaml/v3"
@@ -330,14 +332,21 @@ func (w *Writer) convertParameters(params []model.Parameter, api *model.API) []P
 				p.Content[k] = w.convertMediaType(v, api)
 			}
 		}
+		if p.Schema == nil && len(p.Content) == 0 {
+			p.Schema = &Schema{Type: "string"}
+		}
 		result = append(result, p)
 	}
 	return result
 }
 
 func (w *Writer) convertResponse(resp model.Response, api *model.API) Response {
+	description := resp.Description
+	if description == "" {
+		description = "OK"
+	}
 	res := Response{
-		Description: resp.Description,
+		Description: description,
 		Content:     make(map[string]MediaType),
 		Headers:     make(map[string]Header),
 	}
@@ -371,6 +380,233 @@ func (w *Writer) convertMediaType(mt model.MediaType, api *model.API) MediaType 
 	return res
 }
 
+func (w *Writer) convertOperationV2(op *model.Operation, api *model.API) *Operation {
+	if op == nil {
+		return nil
+	}
+
+	res := &Operation{
+		Tags:        op.Tags,
+		Summary:     op.Summary,
+		Description: op.Description,
+		OperationID: op.OperationID,
+		Deprecated:  op.Deprecated,
+		Parameters:  w.convertParametersV2(op.Parameters, api),
+	}
+
+	if op.RequestBody != nil {
+		contentTypes := sortedOpenAPIContentTypes(op.RequestBody.Content)
+		if len(contentTypes) > 0 {
+			res.Consumes = contentTypes
+			for _, contentType := range contentTypes {
+				if schema := op.RequestBody.Content[contentType].Schema; schema != nil {
+					res.Parameters = append(res.Parameters, Parameter{
+						Name:        "body",
+						In:          "body",
+						Description: op.RequestBody.Description,
+						Required:    op.RequestBody.Required,
+						Schema:      w.convertSchema(schema, api),
+					})
+					break
+				}
+			}
+		}
+	}
+
+	res.Responses = make(map[string]Response)
+	found4xx := false
+	if len(op.Responses) > 0 {
+		for status, resp := range op.Responses {
+			if len(status) == 3 && status[0] == '4' {
+				found4xx = true
+			}
+			response := w.convertResponseV2(resp, api)
+			for _, contentType := range sortedOpenAPIContentTypes(resp.Content) {
+				if !containsString(res.Produces, contentType) {
+					res.Produces = append(res.Produces, contentType)
+				}
+			}
+			res.Responses[status] = response
+		}
+	}
+
+	if !found4xx {
+		res.Responses["404"] = Response{
+			Description: "Not Found",
+			Schema: &Schema{
+				Ref: "#/definitions/Error",
+			},
+		}
+	}
+
+	return res
+}
+
+func (w *Writer) convertParametersV2(params []model.Parameter, api *model.API) []Parameter {
+	result := make([]Parameter, 0, len(params))
+	for _, param := range params {
+		p := Parameter{
+			Name:            param.Name,
+			In:              string(param.In),
+			Description:     param.Description,
+			Required:        param.Required,
+			AllowEmptyValue: param.AllowEmptyValue,
+		}
+		if p.In == "" {
+			p.In = "query"
+		}
+
+		schema := param.Schema
+		if schema == nil {
+			schema = &model.Schema{Type: model.TypeString}
+		}
+		assignV2ParameterSchema(&p, w.convertSchema(schema, api))
+		result = append(result, p)
+	}
+	return result
+}
+
+func (w *Writer) convertResponseV2(resp model.Response, api *model.API) Response {
+	description := resp.Description
+	if description == "" {
+		description = "OK"
+	}
+	res := Response{
+		Description: description,
+		Headers:     make(map[string]Header),
+	}
+
+	for _, contentType := range sortedOpenAPIContentTypes(resp.Content) {
+		mt := resp.Content[contentType]
+		if mt.Schema != nil {
+			res.Schema = w.convertSchema(mt.Schema, api)
+			break
+		}
+	}
+
+	for name, h := range resp.Headers {
+		header := Header{
+			Description: h.Description,
+		}
+		if h.Schema != nil {
+			assignV2HeaderSchema(&header, w.convertSchema(h.Schema, api))
+		} else {
+			assignV2HeaderSchema(&header, nil)
+		}
+		res.Headers[name] = header
+	}
+
+	return res
+}
+
+func assignV2ParameterSchema(param *Parameter, schema *Schema) {
+	if schema == nil {
+		param.Type = "string"
+		return
+	}
+	if schema.Ref != "" {
+		param.Type = "string"
+		return
+	}
+
+	switch value := schema.Type.(type) {
+	case string:
+		if value == "object" {
+			param.Type = "string"
+		} else {
+			param.Type = value
+		}
+	case []interface{}:
+		for _, item := range value {
+			if typ, ok := item.(string); ok && typ != "null" {
+				param.Type = typ
+				break
+			}
+		}
+	default:
+		param.Type = "string"
+	}
+	if param.Type == "" {
+		param.Type = "string"
+	}
+
+	param.Format = schema.Format
+	if param.Type == "array" && schema.Items != nil {
+		param.Items = schema.Items
+	}
+}
+
+func assignV2HeaderSchema(header *Header, schema *Schema) {
+	if schema == nil {
+		header.Type = "string"
+		return
+	}
+	if schema.Ref != "" {
+		header.Type = "string"
+		return
+	}
+
+	switch value := schema.Type.(type) {
+	case string:
+		if value == "object" {
+			header.Type = "string"
+		} else {
+			header.Type = value
+		}
+	case []interface{}:
+		for _, item := range value {
+			if typ, ok := item.(string); ok && typ != "null" {
+				header.Type = typ
+				break
+			}
+		}
+	default:
+		header.Type = "string"
+	}
+	if header.Type == "" {
+		header.Type = "string"
+	}
+
+	header.Format = schema.Format
+	if header.Type == "array" && schema.Items != nil {
+		header.Items = schema.Items
+	}
+}
+
+func sortedOpenAPIContentTypes(content map[string]model.MediaType) []string {
+	contentTypes := make([]string, 0, len(content))
+	for contentType := range content {
+		contentTypes = append(contentTypes, contentType)
+	}
+	sort.Strings(contentTypes)
+	return contentTypes
+}
+
+func containsString(values []string, needle string) bool {
+	for _, value := range values {
+		if value == needle {
+			return true
+		}
+	}
+	return false
+}
+
+func convertServerToV2(rawURL string) (host, basePath string, schemes []string) {
+	parsed, err := url.Parse(rawURL)
+	if err != nil || parsed.Host == "" {
+		return rawURL, "", nil
+	}
+
+	if parsed.Scheme != "" {
+		schemes = []string{parsed.Scheme}
+	}
+	basePath = parsed.EscapedPath()
+	if basePath == "" {
+		basePath = "/"
+	}
+	return parsed.Host, basePath, schemes
+}
+
 func (w *Writer) convertSchema(s *model.Schema, api *model.API) *Schema {
 	if s == nil {
 		return nil
@@ -387,7 +623,7 @@ func (w *Writer) convertSchema(s *model.Schema, api *model.API) *Schema {
 	// Rewrite References
 	if s.Ref != "" {
 		ref := s.Ref
-		
+
 		// Attempt to resolve aliases (e.g. Message wrapper -> underlying Schema)
 		if strings.HasPrefix(ref, "#/components/messages/") && api != nil && api.Components.Schemas != nil {
 			name := strings.TrimPrefix(ref, "#/components/messages/")
@@ -478,7 +714,7 @@ func (w *Writer) convertV2(api *model.API) (interface{}, error) {
 	// Basic Server mapping (V2 supports one Host+BasePath or Schemes)
 	if len(api.Servers) > 0 {
 		// Just take the first one for now as V2 is more restrictive
-		doc.Host = api.Servers[0].URL
+		doc.Host, doc.BasePath, doc.Schemes = convertServerToV2(api.Servers[0].URL)
 	}
 
 	// Components -> Definitions
@@ -507,37 +743,29 @@ func (w *Writer) convertV2(api *model.API) (interface{}, error) {
 	for path := range api.Paths {
 		item := api.Paths[path] // Access by key to avoid rangeValCopy
 		pi := PathItemV2{
-			Parameters: w.convertParameters(item.Parameters, api),
-		}
-
-		convertOp := func(op *model.Operation) *Operation {
-			if op == nil {
-				return nil
-			}
-			res := w.convertOperation(op, api)
-			return res
+			Parameters: w.convertParametersV2(item.Parameters, api),
 		}
 
 		if item.Get != nil {
-			pi.Get = convertOp(item.Get)
+			pi.Get = w.convertOperationV2(item.Get, api)
 		}
 		if item.Post != nil {
-			pi.Post = convertOp(item.Post)
+			pi.Post = w.convertOperationV2(item.Post, api)
 		}
 		if item.Put != nil {
-			pi.Put = convertOp(item.Put)
+			pi.Put = w.convertOperationV2(item.Put, api)
 		}
 		if item.Delete != nil {
-			pi.Delete = convertOp(item.Delete)
+			pi.Delete = w.convertOperationV2(item.Delete, api)
 		}
 		if item.Patch != nil {
-			pi.Patch = convertOp(item.Patch)
+			pi.Patch = w.convertOperationV2(item.Patch, api)
 		}
 		if item.Head != nil {
-			pi.Head = convertOp(item.Head)
+			pi.Head = w.convertOperationV2(item.Head, api)
 		}
 		if item.Options != nil {
-			pi.Options = convertOp(item.Options)
+			pi.Options = w.convertOperationV2(item.Options, api)
 		}
 
 		key := path

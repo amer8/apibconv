@@ -1,0 +1,96 @@
+asyncapi: 2.6.0
+info:
+  title: Fulfillment Events
+  version: 1.0.0
+  description: Valid integration fixture for order fulfillment messages.
+servers:
+  production:
+    url: kafka.example.test:9092
+    protocol: kafka
+channels:
+  orders/created:
+    subscribe:
+      operationId: onOrderCreated
+      summary: Receive newly created orders.
+      message:
+        $ref: '#/components/messages/OrderCreated'
+  orders/packed:
+    publish:
+      operationId: publishOrderPacked
+      summary: Publish packed order events.
+      message:
+        $ref: '#/components/messages/OrderPacked'
+  inventory/adjusted:
+    publish:
+      operationId: publishInventoryAdjusted
+      summary: Publish inventory adjustment events.
+      message:
+        $ref: '#/components/messages/InventoryAdjusted'
+components:
+  messages:
+    OrderCreated:
+      name: OrderCreated
+      title: Order Created
+      payload:
+        $ref: '#/components/schemas/OrderCreatedPayload'
+    OrderPacked:
+      name: OrderPacked
+      title: Order Packed
+      payload:
+        $ref: '#/components/schemas/OrderPackedPayload'
+    InventoryAdjusted:
+      name: InventoryAdjusted
+      title: Inventory Adjusted
+      payload:
+        $ref: '#/components/schemas/InventoryAdjustedPayload'
+  schemas:
+    OrderCreatedPayload:
+      type: object
+      required:
+        - orderId
+        - customerId
+        - items
+      properties:
+        orderId:
+          type: string
+        customerId:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItem'
+    OrderPackedPayload:
+      type: object
+      required:
+        - orderId
+        - packageId
+      properties:
+        orderId:
+          type: string
+        packageId:
+          type: string
+        packedAt:
+          type: string
+          format: date-time
+    InventoryAdjustedPayload:
+      type: object
+      required:
+        - sku
+        - delta
+      properties:
+        sku:
+          type: string
+        delta:
+          type: integer
+        reason:
+          type: string
+    OrderItem:
+      type: object
+      required:
+        - sku
+        - quantity
+      properties:
+        sku:
+          type: string
+        quantity:
+          type: integer

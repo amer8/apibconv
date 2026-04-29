@@ -212,20 +212,13 @@ func (p *Parser) convertV2Parameters(params []Parameter) []model.Parameter {
 			// For non-body parameters in V2, type/format/items are direct fields.
 			// In V3/Model, they must be wrapped in a Schema.
 			if param.Type != "" {
-				schema := &model.Schema{
-					Type:   model.SchemaType(param.Type),
-					Format: param.Format,
-				}
-				if param.Items != nil {
-					schema.Items = p.convertSchema(param.Items)
-				}
-				mp.Schema = schema
+				mp.Schema = p.convertV2SchemaFields(param.Type, param.Format, param.Items)
 			} else if param.Schema != nil {
 				// Fallback if schema is somehow used
 				mp.Schema = p.convertSchema(param.Schema)
 			}
 		}
-		
+
 		result = append(result, mp)
 	}
 	return result
@@ -256,9 +249,22 @@ func (p *Parser) convertV2Response(resp Response, produces []string) model.Respo
 		}
 		if h.Schema != nil {
 			header.Schema = p.convertSchema(h.Schema)
+		} else if h.Type != "" {
+			header.Schema = p.convertV2SchemaFields(h.Type, h.Format, h.Items)
 		}
 		res.Headers[name] = header
 	}
 
 	return res
+}
+
+func (p *Parser) convertV2SchemaFields(schemaType, format string, items *Schema) *model.Schema {
+	schema := &model.Schema{
+		Type:   model.SchemaType(schemaType),
+		Format: format,
+	}
+	if items != nil {
+		schema.Items = p.convertSchema(items)
+	}
+	return schema
 }

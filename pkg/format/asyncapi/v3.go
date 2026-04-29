@@ -201,7 +201,7 @@ func (w *Writer) writeV3(api *model.API, wr io.Writer, targetProtocol string, js
 
 	for _, path := range paths {
 		item := api.Paths[path]
-		
+
 		// AsyncAPI channel addresses should not contain query params or fragments
 		cleanPath := path
 		if idx := strings.Index(path, "{?"); idx != -1 {
@@ -216,7 +216,7 @@ func (w *Writer) writeV3(api *model.API, wr io.Writer, targetProtocol string, js
 		if channelID == "" {
 			channelID = cleanPath
 		}
-		
+
 		// Escape Channel ID for JSON Pointer
 		escapedChannelID := strings.ReplaceAll(channelID, "~", "~0")
 		escapedChannelID = strings.ReplaceAll(escapedChannelID, "/", "~1")
@@ -239,7 +239,8 @@ func (w *Writer) writeV3(api *model.API, wr io.Writer, targetProtocol string, js
 
 			// Add Messages
 			if item.Post.RequestBody != nil {
-				for i, mt := range item.Post.RequestBody.Content {
+				for _, contentType := range sortedContentTypes(item.Post.RequestBody.Content) {
+					mt := item.Post.RequestBody.Content[contentType]
 					if mt.Schema == nil {
 						continue
 					}
@@ -257,7 +258,7 @@ func (w *Writer) writeV3(api *model.API, wr io.Writer, targetProtocol string, js
 							if len(parts) > 0 {
 								msgKey = parts[len(parts)-1]
 							} else {
-								msgKey = fmt.Sprintf("message_%%!d(string=%s)", i)
+								msgKey = asyncMessageKey("message", contentType)
 							}
 						}
 					} else {
@@ -265,7 +266,7 @@ func (w *Writer) writeV3(api *model.API, wr io.Writer, targetProtocol string, js
 						var payload interface{}
 						_ = json.Unmarshal(data, &payload)
 						msg.Payload = payload
-						msgKey = fmt.Sprintf("message_%%!d(string=%s)", i)
+						msgKey = asyncMessageKey("message", contentType)
 					}
 
 					// Add to channel
@@ -301,7 +302,7 @@ func (w *Writer) writeV3(api *model.API, wr io.Writer, targetProtocol string, js
 
 			// Add Messages
 			if len(item.Get.Responses) > 0 {
-				var codes []string
+				codes := make([]string, 0, len(item.Get.Responses))
 				for code := range item.Get.Responses {
 					codes = append(codes, code)
 				}
@@ -309,7 +310,8 @@ func (w *Writer) writeV3(api *model.API, wr io.Writer, targetProtocol string, js
 
 				for _, code := range codes {
 					resp := item.Get.Responses[code]
-					for i, mt := range resp.Content {
+					for _, contentType := range sortedContentTypes(resp.Content) {
+						mt := resp.Content[contentType]
 						if mt.Schema == nil {
 							continue
 						}
@@ -327,7 +329,7 @@ func (w *Writer) writeV3(api *model.API, wr io.Writer, targetProtocol string, js
 								if len(parts) > 0 {
 									msgKey = parts[len(parts)-1]
 								} else {
-									msgKey = fmt.Sprintf("message_%s_%%!d(string=%s)", code, i)
+									msgKey = asyncMessageKey("message_"+code, contentType)
 								}
 							}
 						} else {
@@ -335,7 +337,7 @@ func (w *Writer) writeV3(api *model.API, wr io.Writer, targetProtocol string, js
 							var payload interface{}
 							_ = json.Unmarshal(data, &payload)
 							msg.Payload = payload
-							msgKey = fmt.Sprintf("message_%s_%%!d(string=%s)", code, i)
+							msgKey = asyncMessageKey("message_"+code, contentType)
 						}
 
 						// Add to channel
@@ -374,4 +376,43 @@ func (w *Writer) writeV3(api *model.API, wr io.Writer, targetProtocol string, js
 	encoder := yaml.NewEncoder(wr)
 	encoder.SetIndent(2)
 	return encoder.Encode(doc)
+}
+
+func sortedContentTypes(content map[string]model.MediaType) []string {
+	contentTypes := make([]string, 0, len(content))
+	for contentType := range content {
+		contentTypes = append(contentTypes, contentType)
+	}
+	sort.Strings(contentTypes)
+	return contentTypes
+}
+
+func asyncMessageKey(prefix, contentType string) string {
+	contentType = strings.TrimSpace(contentType)
+	if contentType == "" {
+		return prefix
+	}
+	return prefix + "_" + sanitizeIdentifier(contentType)
+}
+
+func sanitizeIdentifier(value string) string {
+	var b strings.Builder
+	previousUnderscore := false
+	for _, r := range value {
+		valid := r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9'
+		if valid {
+			b.WriteRune(r)
+			previousUnderscore = false
+			continue
+		}
+		if !previousUnderscore {
+			b.WriteByte('_')
+			previousUnderscore = true
+		}
+	}
+	result := strings.Trim(b.String(), "_")
+	if result == "" {
+		return "default"
+	}
+	return result
 }

@@ -2,12 +2,14 @@
 package converter
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
 
 	"github.com/amer8/apibconv/internal/detect"
 	"github.com/amer8/apibconv/internal/fs"
+	"github.com/amer8/apibconv/internal/specschema"
 	"github.com/amer8/apibconv/pkg/format"
 	"github.com/amer8/apibconv/pkg/model"
 	"github.com/amer8/apibconv/pkg/validator"
@@ -114,12 +116,24 @@ func (c *Converter) WriteFromModel(ctx context.Context, api *model.API, output i
 
 // Validate validates the input specification.
 func (c *Converter) Validate(ctx context.Context, input io.Reader, formatType format.Format) ([]format.ValidationError, error) {
-	// This would parse then validate.
-	api, err := c.ParseToModel(ctx, input, formatType)
+	data, err := fs.ReadAll(ctx, input)
 	if err != nil {
 		return nil, err
 	}
-	return c.validator.Validate(validator.WithFormat(ctx, formatType), api)
+
+	allErrors := specschema.Validate(formatType, data)
+
+	api, err := c.ParseToModel(ctx, bytes.NewReader(data), formatType)
+	if err != nil {
+		return allErrors, err
+	}
+
+	modelErrors, err := c.validator.Validate(validator.WithFormat(ctx, formatType), api)
+	if err != nil {
+		return allErrors, err
+	}
+	allErrors = append(allErrors, modelErrors...)
+	return allErrors, nil
 }
 
 // SupportedFormats returns the list of supported input and output formats.
