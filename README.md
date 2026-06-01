@@ -19,6 +19,15 @@ Convert between API Blueprint (*.apib), OpenAPI 2.0/3.0/3.1, and AsyncAPI 2.x/3.
 
 ## Installation
 
+### Using Homebrew
+
+Install from the [amer8/homebrew-tap](https://github.com/amer8/homebrew-tap):
+
+```sh
+brew tap amer8/tap
+brew install amer8/tap/apibconv
+```
+
 ### Using Go
 
 ```sh
