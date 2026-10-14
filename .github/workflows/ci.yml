@@ -13,6 +13,8 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
+    env:
+      GOLANGCI_LINT_VERSION: v2.11.4
     steps:
       - name: Checkout code
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -25,14 +27,27 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
-      - name: golangci-lint
+      - name: Install golangci-lint
         uses: golangci/golangci-lint-action@82606bf257cbaff209d206a39f5134f0cfbfd2ee # v9.2.1
         with:
-          version: v2.6.2
-          args: --timeout=5m
+          version: ${{ env.GOLANGCI_LINT_VERSION }}
+          install-only: true
+          verify: false
+
+      - name: Verify lint configuration
+        run: |
+          # Avoid the verifier's two-second HTTP timeout while retaining schema validation.
+          curl --fail --silent --show-error --location --retry 3 --retry-all-errors \
+            --connect-timeout 10 --max-time 30 \
+            --output "$RUNNER_TEMP/golangci-lint.schema.json" \
+            "https://raw.githubusercontent.com/golangci/golangci-lint/${GOLANGCI_LINT_VERSION}/jsonschema/golangci.jsonschema.json"
+          golangci-lint config verify --schema "$RUNNER_TEMP/golangci-lint.schema.json"
+
+      - name: Run golangci-lint
+        run: golangci-lint run --timeout=5m
 
   test:
-    name: Test
+    name: Test (Go ${{ matrix.go-version }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -40,6 +55,8 @@ jobs:
           - go-version: "1.25"
             extended_checks: false
           - go-version: "1.26"
+            extended_checks: true
+          - go-version: "1.27"
             extended_checks: true
     steps:
       - name: Checkout code
@@ -55,18 +72,15 @@ jobs:
 
       - name: Run compatibility tests
         if: ${{ !matrix.extended_checks }}
-        run: go test -v $(go list ./... | grep -v /examples/)
+        run: |
+          mapfile -t packages < <(go list ./... | grep -v /examples/)
+          go test -v "${packages[@]}"
 
       - name: Run race tests with coverage
         if: ${{ matrix.extended_checks }}
-        run: go test -v -race -coverprofile=coverage.txt -covermode=atomic -coverpkg=./... $(go list ./... | grep -v /examples/)
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage.txt
-        if: ${{ matrix.extended_checks }}
+        run: |
+          mapfile -t packages < <(go list ./... | grep -v /examples/)
+          go test -v -race -coverprofile=coverage.txt -covermode=atomic -coverpkg=./... "${packages[@]}"
 
   security:
     name: Security Scan
