@@ -44,23 +44,6 @@ func (r *Runner) Convert(ctx context.Context, cfg *Config) error {
 		input = f
 	}
 
-	// 2. Prepare Output
-	var output io.Writer
-	if cfg.OutputPath == "" || cfg.OutputPath == "-" {
-		output = os.Stdout
-	} else {
-		f, err := os.Create(cfg.OutputPath)
-		if err != nil {
-			return fmt.Errorf("failed to create output file: %w", err)
-		}
-		defer func() {
-			if cerr := f.Close(); cerr != nil {
-				fmt.Fprintf(os.Stderr, "Error closing output file %s: %v\n", cfg.OutputPath, cerr)
-			}
-		}()
-		output = f
-	}
-
 	// 3. Determine Formats
 	inputFormat := cfg.InputFormat
 	if inputFormat == "" {
@@ -145,9 +128,27 @@ func (r *Runner) Convert(ctx context.Context, cfg *Config) error {
 		})
 	}
 
+	var output io.Writer = os.Stdout
+	var destination *atomicOutput
+	if cfg.OutputPath != "" && cfg.OutputPath != "-" {
+		var err error
+		destination, err = newAtomicOutput(cfg.InputPath, cfg.OutputPath)
+		if err != nil {
+			return err
+		}
+		defer destination.cleanup()
+		output = destination.file
+	}
+
 	err := r.conv.Convert(ctx, input, output, inputFormat, outputFormat)
 	if err != nil {
 		return errors.Wrap("convert", string(outputFormat), errors.ErrConversionFailed)
+	}
+
+	if destination != nil {
+		if err := destination.commit(); err != nil {
+			return err
+		}
 	}
 
 	if cfg.Verbose {
