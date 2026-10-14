@@ -115,17 +115,24 @@ jobs:
           go-version: "1.27.2"
 
       - name: Build
-        run: go build -v -o apibconv ./cmd/apibconv
+        run: go build -v -ldflags="-X main.version=0.0.0-ci" -o apibconv ./cmd/apibconv
 
       - name: Test binary
         run: |
-          ./apibconv -v
+          for flag in -v --version; do
+            actual_version=$(./apibconv "$flag")
+            test "$actual_version" = "apibconv v0.0.0-ci"
+          done
 
       - name: Build Docker image
-        run: docker build --build-arg VERSION=ci --tag apibconv:ci .
+        run: docker build --build-arg VERSION=0.0.0-ci --tag apibconv:ci .
 
       - name: Test Docker image
         run: |
+          for flag in -v --version; do
+            actual_version=$(docker run --rm apibconv:ci "$flag")
+            test "$actual_version" = "apibconv v0.0.0-ci"
+          done
           docker run --rm apibconv:ci --help
           docker run --rm -i apibconv:ci --from apiblueprint --to openapi --encoding json \
             < test/integration/testdata/apiblueprint.apib > "$RUNNER_TEMP/docker-openapi.json"
