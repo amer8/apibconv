@@ -100,6 +100,8 @@ release:
 
     ### Installation
 
+    Prebuilt macOS binaries require **macOS 13 Ventura or newer**.
+
     **Using Go**
     ```sh
     go install github.com/amer8/apibconv/cmd/apibconv@{{ .Tag }}
