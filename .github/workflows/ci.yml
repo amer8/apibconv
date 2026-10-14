@@ -47,7 +47,8 @@ jobs:
         run: golangci-lint run --timeout=5m
 
   test:
-    name: Test (Go ${{ matrix.go-version }})
+    # Keep these names aligned with the required checks in the main ruleset.
+    name: Test (${{ matrix.go-version }}, ${{ matrix.extended_checks }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
