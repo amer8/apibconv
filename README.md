@@ -48,7 +48,9 @@ docker run --rm -v $(pwd):/data -w /data ghcr.io/amer8/apibconv -o openapi.json 
 
 ### Download Binary
 
-Download pre-built binaries from [GitHub Releases](https://github.com/amer8/apibconv/releases):
+Download pre-built binaries from [GitHub Releases](https://github.com/amer8/apibconv/releases).
+
+Prebuilt macOS binaries require **macOS 13 Ventura or newer**.
 
 - published release assets cover Linux, macOS, and Windows on `x64` and `arm64`
 - each platform archive ships with a matching `*_checksums.txt` file for targeted verification
