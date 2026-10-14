@@ -13,13 +13,15 @@ import (
 type App struct {
 	converter *converter.Converter
 	runner    *Runner
+	version   string
 }
 
 // NewApp creates a new CLI application instance.
-func NewApp(conv *converter.Converter) *App {
+func NewApp(conv *converter.Converter, version string) *App {
 	return &App{
 		converter: conv,
 		runner:    NewRunner(conv),
+		version:   version,
 	}
 }
 
@@ -245,7 +247,7 @@ Protocol Specification (AsyncAPI):
 }
 
 func (a *App) printVersion() error {
-	fmt.Println("apibconv v1.0.0")
+	fmt.Printf("apibconv %s\n", a.version)
 	return nil
 }
 

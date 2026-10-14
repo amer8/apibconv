@@ -5,6 +5,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"runtime/debug"
+	"strings"
 
 	"github.com/amer8/apibconv/internal/cli"
 	"github.com/amer8/apibconv/pkg/converter"
@@ -13,6 +15,9 @@ import (
 	"github.com/amer8/apibconv/pkg/format/asyncapi"
 	"github.com/amer8/apibconv/pkg/format/openapi"
 )
+
+// version is set by GoReleaser and Docker using -X main.version.
+var version = "dev"
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
@@ -37,7 +42,8 @@ func run(args []string) error {
 		return err
 	}
 
-	app := cli.NewApp(conv)
+	info, _ := debug.ReadBuildInfo()
+	app := cli.NewApp(conv, resolveVersion(version, info))
 	return app.Run(context.Background(), args)
 }
 
@@ -58,4 +64,18 @@ func setupConverter() (*converter.Converter, error) {
 	conv.RegisterWriter(asyncapi.NewWriter(asyncapi.WithJSONOutput(jsonOutput)))
 
 	return conv, nil
+}
+
+// resolveVersion prefers an explicit release version, then embedded module metadata.
+func resolveVersion(buildVersion string, info *debug.BuildInfo) string {
+	if buildVersion == "" || buildVersion == "dev" {
+		buildVersion = "dev"
+		if info != nil && info.Main.Version != "" && info.Main.Version != "(devel)" {
+			buildVersion = info.Main.Version
+		}
+	}
+	if buildVersion == "dev" {
+		return buildVersion
+	}
+	return "v" + strings.TrimPrefix(buildVersion, "v")
 }
