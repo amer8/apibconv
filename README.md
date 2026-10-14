@@ -28,6 +28,8 @@ brew install amer8/tap/apibconv
 
 ### Using Go
 
+Building from source requires Go 1.26 or newer. CI tests Go 1.26 and Go 1.27.
+
 ```sh
 go install github.com/amer8/apibconv/cmd/apibconv@latest
 ```
