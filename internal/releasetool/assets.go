@@ -75,7 +75,7 @@ func requireFile(path string) error {
 }
 
 func digestFile(path string) (string, error) {
-	file, err := os.Open(path)
+	file, err := os.Open(path) // #nosec G304 -- The release CLI intentionally hashes caller-selected artifact paths.
 	if err != nil {
 		return "", err
 	}
@@ -88,12 +88,12 @@ func digestFile(path string) (string, error) {
 }
 
 func copyFile(source, destination string) error {
-	input, err := os.Open(source)
+	input, err := os.Open(source) // #nosec G304 -- Callers select the source from the validated release inventory.
 	if err != nil {
 		return err
 	}
 	defer func() { _ = input.Close() }()
-	output, err := os.Create(destination)
+	output, err := os.OpenFile(destination, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600) // #nosec G304 -- The destination is in the caller-selected staging directory or our private temporary directory.
 	if err != nil {
 		return err
 	}
@@ -115,7 +115,7 @@ func (s releaseSpec) assetDigests(directory string) (map[string]string, error) {
 
 func (s releaseSpec) checkChecksums(directory string) error {
 	for _, archive := range s.archives {
-		data, err := os.ReadFile(filepath.Join(directory, archive+"_checksums.txt"))
+		data, err := os.ReadFile(filepath.Join(directory, archive+"_checksums.txt")) // #nosec G304 -- The basename comes from the validated release inventory in a caller-selected directory.
 		if err != nil {
 			return err
 		}
@@ -150,10 +150,10 @@ func (s releaseSpec) checkChecksums(directory string) error {
 }
 
 func (s releaseSpec) prepare(directory, dist, sbom, subjects string) error {
-	if err := os.MkdirAll(filepath.Dir(directory), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(directory), 0o700); err != nil {
 		return err
 	}
-	if err := os.Mkdir(directory, 0o755); err != nil {
+	if err := os.Mkdir(directory, 0o700); err != nil {
 		return err
 	}
 	for _, name := range s.assetNames(false) {
@@ -179,10 +179,10 @@ func (s releaseSpec) prepare(directory, dist, sbom, subjects string) error {
 	for _, name := range s.assetNames(false) {
 		fmt.Fprintf(&checksums, "%s  %s\n", digests[name], name)
 	}
-	if err := os.MkdirAll(filepath.Dir(subjects), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(subjects), 0o700); err != nil {
 		return err
 	}
-	return os.WriteFile(subjects, []byte(checksums.String()), 0o644)
+	return os.WriteFile(subjects, []byte(checksums.String()), 0o600)
 }
 
 type envelope struct {
@@ -245,7 +245,7 @@ func (s releaseSpec) checkBundle(data []byte, directory string) (json.RawMessage
 }
 
 func (s releaseSpec) exportBundle(directory, source string) error {
-	data, err := os.ReadFile(source)
+	data, err := os.ReadFile(source) // #nosec G304 -- The workflow explicitly supplies the attestation action's bundle path.
 	if err != nil {
 		return err
 	}
@@ -253,7 +253,7 @@ func (s releaseSpec) exportBundle(directory, source string) error {
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(directory, s.bundleName), data, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(directory, s.bundleName), data, 0o600); err != nil { // #nosec G703 -- The directory is a trusted CLI flag; the basename is derived from a validated version tag.
 		return err
 	}
 	// Compact the original envelope without changing its signed payload or
@@ -263,11 +263,11 @@ func (s releaseSpec) exportBundle(directory, source string) error {
 		return err
 	}
 	line.WriteByte('\n')
-	return os.WriteFile(filepath.Join(directory, s.envelopeName), line.Bytes(), 0o644)
+	return os.WriteFile(filepath.Join(directory, s.envelopeName), line.Bytes(), 0o600)
 }
 
 func readJSON(path string, target any) error {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) // #nosec G304 -- The release CLI intentionally reads JSON from caller-selected artifact paths.
 	if err != nil {
 		return err
 	}
@@ -298,7 +298,7 @@ func (s releaseSpec) checkInventory(directory string) error {
 	if err := s.checkChecksums(directory); err != nil {
 		return err
 	}
-	data, err := os.ReadFile(filepath.Join(directory, s.bundleName))
+	data, err := os.ReadFile(filepath.Join(directory, s.bundleName)) // #nosec G304 -- The basename comes from the validated release inventory in a caller-selected directory.
 	if err != nil {
 		return err
 	}
@@ -306,7 +306,7 @@ func (s releaseSpec) checkInventory(directory string) error {
 	if err != nil {
 		return err
 	}
-	exported, err := os.ReadFile(filepath.Join(directory, s.envelopeName))
+	exported, err := os.ReadFile(filepath.Join(directory, s.envelopeName)) // #nosec G304 -- The basename comes from the validated release inventory in a caller-selected directory.
 	if err != nil {
 		return err
 	}

@@ -25,10 +25,11 @@ type commandResult struct {
 type commandRunner func(name string, args ...string) (commandResult, error)
 
 func executeCommand(name string, args ...string) (commandResult, error) {
+	if name != "gh" && name != "cosign" {
+		return commandResult{}, fmt.Errorf("unsupported release executable %q", name)
+	}
 	var stdout, stderr bytes.Buffer
-	// Executable names are fixed by the callers; arguments are passed directly,
-	// without shell expansion.
-	command := exec.Command(name, args...)
+	command := exec.Command(name, args...) // #nosec G204 -- Only gh and cosign are allowed; arguments are passed without a shell.
 	command.Stdout = &stdout
 	command.Stderr = &stderr
 	err := command.Run()
@@ -83,6 +84,7 @@ func (h *helper) api(endpoint string, target any, missingOK bool) (bool, error) 
 }
 
 type releaseMetadata struct {
+	TagName   string         `json:"tag_name"`
 	Draft     *bool          `json:"draft"`
 	Immutable bool           `json:"immutable"`
 	Assets    []releaseAsset `json:"assets"`
@@ -94,9 +96,35 @@ type releaseAsset struct {
 
 func (h *helper) getRelease(missingOK bool) (*releaseMetadata, error) {
 	var metadata releaseMetadata
-	found, err := h.api("repos/"+h.repo+"/releases/tags/"+url.PathEscape(h.spec.tag), &metadata, missingOK)
-	if err != nil || !found {
+	found, err := h.api("repos/"+h.repo+"/releases/tags/"+url.PathEscape(h.spec.tag), &metadata, true)
+	if err != nil {
 		return nil, err
+	}
+	if !found {
+		// The tag endpoint only returns published releases. Authenticated release
+		// listings also contain drafts, including those left by a failed run.
+		for page := 1; ; page++ {
+			var releases []releaseMetadata
+			endpoint := fmt.Sprintf("repos/%s/releases?per_page=100&page=%d", h.repo, page)
+			if _, err := h.api(endpoint, &releases, false); err != nil {
+				return nil, err
+			}
+			for _, release := range releases {
+				if release.TagName == h.spec.tag {
+					metadata, found = release, true
+					break
+				}
+			}
+			if found || len(releases) < 100 {
+				break
+			}
+		}
+	}
+	if !found {
+		if missingOK {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("release %s not found", h.spec.tag)
 	}
 	if metadata.Draft == nil {
 		return nil, errors.New("GitHub release metadata is missing draft status")
@@ -208,7 +236,7 @@ func (h *helper) verifyTamperRejection(directory, bundle string, policy []string
 	if err := copyFile(filepath.Join(directory, h.spec.archives[0]), changed); err != nil {
 		return err
 	}
-	file, err := os.OpenFile(changed, os.O_APPEND|os.O_WRONLY, 0o644)
+	file, err := os.OpenFile(changed, os.O_APPEND|os.O_WRONLY, 0o600) // #nosec G304 -- The path is a fixed archive name inside our private temporary directory.
 	if err != nil {
 		return err
 	}

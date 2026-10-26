@@ -3,9 +3,11 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -46,9 +48,20 @@ func (f *fakeRunner) execute(name string, args ...string) (commandResult, error)
 		return f.respond(name, args...)
 	}
 	if name == "gh" && len(args) > 1 && args[0] == "api" {
-		var value any = f.metadata
-		if strings.Contains(args[1], "/commits/") {
+		var value any
+		switch {
+		case strings.Contains(args[1], "/commits/"):
 			value = map[string]string{"sha": f.commit}
+		case strings.Contains(args[1], "/releases/tags/"):
+			if f.metadata.Draft != nil && *f.metadata.Draft {
+				return commandResult{exitCode: 1, stderr: "Not Found (HTTP 404)"}, nil
+			}
+			value = f.metadata
+		case strings.Contains(args[1], "/releases?"):
+			value = []map[string]any{{"tag_name": testTag, "draft": f.metadata.Draft,
+				"immutable": f.metadata.Immutable, "assets": f.metadata.Assets}}
+		default:
+			return commandResult{}, fmt.Errorf("unexpected API endpoint: %s", args[1])
 		}
 		data, err := json.Marshal(value)
 		return commandResult{stdout: string(data)}, err
@@ -124,6 +137,9 @@ func TestPublicationRetriesDoNotModifyPublishedRelease(t *testing.T) {
 	if calls := callsWithPrefix(fake.calls, "gh", "release"); len(calls) != 0 {
 		t.Fatalf("retry modified an existing release: %v", calls)
 	}
+	if calls := callsWithPrefix(fake.calls, "gh", "api"); len(calls) != 2 {
+		t.Fatalf("published release lookup unexpectedly needed a fallback: %v", calls)
+	}
 }
 
 func TestMovedTagPreventsPublication(t *testing.T) {
@@ -157,6 +173,40 @@ func TestCompleteDraftIsPublishedWithoutRebuilding(t *testing.T) {
 	expected := []string{"gh", "release", "edit", testTag, "--repo", testRepo, "--draft=false", "--verify-tag"}
 	if len(calls) != 1 || !slices.Equal(calls[0], expected) {
 		t.Fatalf("expected publication without rebuilding, got %v", calls)
+	}
+}
+
+func TestDraftLookupPaginatesPastOtherReleases(t *testing.T) {
+	f := newFixture(t)
+	h, fake := newTestHelper(t, f, metadataFor(f.spec, true, false))
+	fake.respond = func(name string, args ...string) (commandResult, error) {
+		if name != "gh" || args[0] != "api" {
+			return commandResult{}, nil
+		}
+		var value any
+		switch args[1] {
+		case "repos/" + testRepo + "/commits/" + testTag:
+			value = map[string]string{"sha": testCommit}
+		case "repos/" + testRepo + "/releases/tags/" + testTag:
+			return commandResult{exitCode: 1, stderr: "Not Found (HTTP 404)"}, nil
+		case "repos/" + testRepo + "/releases?per_page=100&page=1":
+			releases := make([]map[string]any, 100)
+			for i := range releases {
+				releases[i] = map[string]any{"tag_name": "v0.0." + strconv.Itoa(i), "draft": false}
+			}
+			value = releases
+		case "repos/" + testRepo + "/releases?per_page=100&page=2":
+			value = []map[string]any{{"tag_name": testTag, "draft": true, "assets": fake.metadata.Assets}}
+		default:
+			t.Fatalf("unexpected API endpoint: %s", args[1])
+		}
+		return commandResult{stdout: string(encodeJSON(t, value))}, nil
+	}
+	if err := h.publish(); err != nil {
+		t.Fatal(err)
+	}
+	if len(callsWithPrefix(fake.calls, "gh", "release", "edit")) != 1 {
+		t.Fatal("did not publish the draft from the second page")
 	}
 }
 
@@ -213,15 +263,24 @@ func TestMissingReleaseAndAPIFailureAreDistinct(t *testing.T) {
 		name, stderr string
 		startErr     error
 		wantErr      bool
+		listFailure  bool
 	}{
 		{name: "missing release", stderr: "Not Found (HTTP 404)"},
 		{name: "connection failure", stderr: "connection error", wantErr: true},
 		{name: "command unavailable", startErr: errors.New("gh not found"), wantErr: true},
+		{name: "listing permission failure", stderr: "Forbidden (HTTP 403)", listFailure: true, wantErr: true},
+		{name: "listing not found", stderr: "Not Found (HTTP 404)", listFailure: true, wantErr: true},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			f := newFixture(t)
 			h, fake := newTestHelper(t, f, releaseMetadata{})
-			fake.respond = func(string, ...string) (commandResult, error) {
+			fake.respond = func(_ string, args ...string) (commandResult, error) {
+				if strings.Contains(args[1], "/releases?") && !test.listFailure {
+					return commandResult{stdout: "[]"}, nil
+				}
+				if strings.Contains(args[1], "/releases/tags/") && test.listFailure {
+					return commandResult{exitCode: 1, stderr: "Not Found (HTTP 404)"}, nil
+				}
 				return commandResult{exitCode: 1, stderr: test.stderr}, test.startErr
 			}
 			metadata, err := h.getRelease(true)
@@ -232,4 +291,29 @@ func TestMissingReleaseAndAPIFailureAreDistinct(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestPublicationRequiresAnExistingRelease(t *testing.T) {
+	f := newFixture(t)
+	h, fake := newTestHelper(t, f, releaseMetadata{})
+	fake.respond = func(_ string, args ...string) (commandResult, error) {
+		if strings.Contains(args[1], "/releases/tags/") {
+			return commandResult{exitCode: 1, stderr: "Not Found (HTTP 404)"}, nil
+		}
+		return commandResult{stdout: "[]"}, nil
+	}
+	_, err := h.getRelease(false)
+	requireError(t, err, "release "+testTag+" not found")
+}
+
+func TestReleaseMetadataRequiresDraftStatus(t *testing.T) {
+	f := newFixture(t)
+	h, _ := newTestHelper(t, f, releaseMetadata{})
+	_, err := h.getRelease(false)
+	requireError(t, err, "missing draft status")
+}
+
+func TestUnsupportedReleaseExecutableIsRejected(t *testing.T) {
+	_, err := executeCommand("sh", "-c", "exit 0")
+	requireError(t, err, "unsupported release executable")
 }
