@@ -90,7 +90,9 @@ release:
     name: apibconv
   extra_files:
     - glob: ./.release-artifacts/bom.json
-  draft: false
+  # The workflow adds and verifies provenance before publishing the draft.
+  draft: true
+  replace_existing_draft: true
   prerelease: auto
   mode: replace
   header: |

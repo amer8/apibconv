@@ -1,0 +1,235 @@
+package main
+
+import (
+	"encoding/json"
+	"errors"
+	"io"
+	"path/filepath"
+	"slices"
+	"strings"
+	"testing"
+	"time"
+)
+
+const (
+	testRepo   = "amer8/apibconv"
+	testCommit = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+)
+
+type fakeRunner struct {
+	calls     [][]string
+	metadata  releaseMetadata
+	commit    string
+	respond   commandRunner
+	verifyErr int
+}
+
+func metadataFor(spec releaseSpec, draft, immutable bool) releaseMetadata {
+	metadata := releaseMetadata{Draft: &draft, Immutable: immutable}
+	for _, name := range spec.assetNames(true) {
+		metadata.Assets = append(metadata.Assets, releaseAsset{Name: name})
+	}
+	return metadata
+}
+
+func newTestHelper(t *testing.T, f *fixture, metadata releaseMetadata) (*helper, *fakeRunner) {
+	t.Helper()
+	fake := &fakeRunner{metadata: metadata, commit: testCommit}
+	h := &helper{spec: f.spec, repo: testRepo, commit: testCommit, execute: fake.execute,
+		stdout: io.Discard, stderr: io.Discard, sleep: func(time.Duration) { t.Fatal("unexpected sleep") }}
+	return h, fake
+}
+
+func (f *fakeRunner) execute(name string, args ...string) (commandResult, error) {
+	f.calls = append(f.calls, append([]string{name}, args...))
+	if f.respond != nil {
+		return f.respond(name, args...)
+	}
+	if name == "gh" && len(args) > 1 && args[0] == "api" {
+		var value any = f.metadata
+		if strings.Contains(args[1], "/commits/") {
+			value = map[string]string{"sha": f.commit}
+		}
+		data, err := json.Marshal(value)
+		return commandResult{stdout: string(data)}, err
+	}
+	if name == "gh" && len(args) > 1 && args[0] == "release" && args[1] == "verify" && f.verifyErr > 0 {
+		f.verifyErr--
+		return commandResult{exitCode: 1}, nil
+	}
+	return commandResult{}, nil
+}
+
+func callsWithPrefix(calls [][]string, prefix ...string) [][]string {
+	var matched [][]string
+	for _, call := range calls {
+		if len(call) >= len(prefix) && slices.Equal(call[:len(prefix)], prefix) {
+			matched = append(matched, call)
+		}
+	}
+	return matched
+}
+
+func TestVerificationPinsWorkflowCommitAndRef(t *testing.T) {
+	f := newFixture(t)
+	f.complete(t)
+	h, fake := newTestHelper(t, f, releaseMetadata{})
+	fake.respond = func(name string, args ...string) (commandResult, error) {
+		if name == "gh" && args[0] == "attestation" && filepath.Dir(args[2]) != f.directory {
+			if mustDigest(t, args[2]) == mustDigest(t, filepath.Join(f.directory, f.spec.archives[0])) {
+				t.Fatal("negative verification did not modify the archive")
+			}
+			return commandResult{exitCode: 1}, nil
+		}
+		return commandResult{}, nil
+	}
+	if err := h.verify(f.directory); err != nil {
+		t.Fatal(err)
+	}
+	calls := callsWithPrefix(fake.calls, "gh", "attestation", "verify")
+	if len(calls) != 8 { // Seven subjects plus the tampered archive.
+		t.Fatalf("expected 8 provenance checks, got %d", len(calls))
+	}
+	for _, call := range calls {
+		for _, argument := range []string{h.identity(), testCommit, "refs/tags/" + testTag, "--deny-self-hosted-runners"} {
+			if !slices.Contains(call, argument) {
+				t.Errorf("verification did not require %q: %v", argument, call)
+			}
+		}
+	}
+	if count := len(callsWithPrefix(fake.calls, "cosign", "verify-blob")); count != 6 {
+		t.Fatalf("expected six checksum signature checks, got %d", count)
+	}
+}
+
+func TestVerifierAcceptingTamperingFailsTheRelease(t *testing.T) {
+	f := newFixture(t)
+	f.complete(t)
+	h, _ := newTestHelper(t, f, releaseMetadata{})
+	requireError(t, h.verify(f.directory), "accepted a tampered archive")
+}
+
+func TestPublishedReleaseCannotBeRebuilt(t *testing.T) {
+	f := newFixture(t)
+	h, _ := newTestHelper(t, f, metadataFor(f.spec, false, true))
+	requireError(t, h.guard(), "already published")
+}
+
+func TestPublicationRetriesDoNotModifyPublishedRelease(t *testing.T) {
+	f := newFixture(t)
+	h, fake := newTestHelper(t, f, metadataFor(f.spec, false, true))
+	if err := h.publish(); err != nil {
+		t.Fatal(err)
+	}
+	if calls := callsWithPrefix(fake.calls, "gh", "release"); len(calls) != 0 {
+		t.Fatalf("retry modified an existing release: %v", calls)
+	}
+}
+
+func TestMovedTagPreventsPublication(t *testing.T) {
+	f := newFixture(t)
+	h, fake := newTestHelper(t, f, metadataFor(f.spec, true, false))
+	fake.commit = strings.Repeat("b", 40)
+	requireError(t, h.publish(), "no longer points")
+	if len(callsWithPrefix(fake.calls, "gh", "release")) != 0 {
+		t.Fatal("published assets for a moved tag")
+	}
+}
+
+func TestIncompleteDraftCannotBePublished(t *testing.T) {
+	f := newFixture(t)
+	metadata := metadataFor(f.spec, true, false)
+	metadata.Assets = metadata.Assets[:1]
+	h, fake := newTestHelper(t, f, metadata)
+	requireError(t, h.publish(), "complete expected asset inventory")
+	if len(callsWithPrefix(fake.calls, "gh", "release")) != 0 {
+		t.Fatal("published an incomplete draft")
+	}
+}
+
+func TestCompleteDraftIsPublishedWithoutRebuilding(t *testing.T) {
+	f := newFixture(t)
+	h, fake := newTestHelper(t, f, metadataFor(f.spec, true, false))
+	if err := h.publish(); err != nil {
+		t.Fatal(err)
+	}
+	calls := callsWithPrefix(fake.calls, "gh", "release")
+	expected := []string{"gh", "release", "edit", testTag, "--repo", testRepo, "--draft=false", "--verify-tag"}
+	if len(calls) != 1 || !slices.Equal(calls[0], expected) {
+		t.Fatalf("expected publication without rebuilding, got %v", calls)
+	}
+}
+
+func TestMutableReleaseIsRejected(t *testing.T) {
+	f := newFixture(t)
+	h, fake := newTestHelper(t, f, metadataFor(f.spec, false, false))
+	requireError(t, h.verifyPublished(f.directory), "published immutable release")
+	if len(callsWithPrefix(fake.calls, "gh", "release")) != 0 {
+		t.Fatal("accepted a mutable release")
+	}
+}
+
+func TestReleaseAttestationRetriesThenVerifiesEveryAsset(t *testing.T) {
+	f := newFixture(t)
+	h, fake := newTestHelper(t, f, metadataFor(f.spec, false, true))
+	fake.verifyErr = 1
+	var sleeps []time.Duration
+	h.sleep = func(duration time.Duration) { sleeps = append(sleeps, duration) }
+	if err := h.verifyPublished(f.directory); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(sleeps, []time.Duration{5 * time.Second}) {
+		t.Fatalf("unexpected retries: %v", sleeps)
+	}
+	calls := callsWithPrefix(fake.calls, "gh", "release", "verify-asset")
+	names := f.spec.assetNames(true)
+	if len(calls) != len(names) {
+		t.Fatalf("expected 21 asset checks, got %d", len(calls))
+	}
+	for i, call := range calls {
+		if call[3] != testTag || call[4] != filepath.Join(f.directory, names[i]) {
+			t.Fatalf("verified the wrong release asset: %v", call)
+		}
+	}
+}
+
+func TestUnavailableReleaseAttestationExhaustsBoundedRetries(t *testing.T) {
+	f := newFixture(t)
+	h, fake := newTestHelper(t, f, metadataFor(f.spec, false, true))
+	fake.verifyErr = 6
+	var sleeps []time.Duration
+	h.sleep = func(duration time.Duration) { sleeps = append(sleeps, duration) }
+	requireError(t, h.verifyPublished(f.directory), "after six attempts")
+	if len(callsWithPrefix(fake.calls, "gh", "release", "verify")) != 6 || len(sleeps) != 5 {
+		t.Fatalf("retry limit was not enforced: calls=%v sleeps=%v", fake.calls, sleeps)
+	}
+	if len(callsWithPrefix(fake.calls, "gh", "release", "verify-asset")) != 0 {
+		t.Fatal("verified assets without a valid release attestation")
+	}
+}
+
+func TestMissingReleaseAndAPIFailureAreDistinct(t *testing.T) {
+	for _, test := range []struct {
+		name, stderr string
+		startErr     error
+		wantErr      bool
+	}{
+		{name: "missing release", stderr: "Not Found (HTTP 404)"},
+		{name: "connection failure", stderr: "connection error", wantErr: true},
+		{name: "command unavailable", startErr: errors.New("gh not found"), wantErr: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			f := newFixture(t)
+			h, fake := newTestHelper(t, f, releaseMetadata{})
+			fake.respond = func(string, ...string) (commandResult, error) {
+				return commandResult{exitCode: 1, stderr: test.stderr}, test.startErr
+			}
+			metadata, err := h.getRelease(true)
+			if test.wantErr {
+				requireError(t, err, "API request failed")
+			} else if err != nil || metadata != nil {
+				t.Fatalf("expected a missing release, got metadata=%v error=%v", metadata, err)
+			}
+		})
+	}
+}

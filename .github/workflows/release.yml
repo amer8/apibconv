@@ -8,27 +8,41 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
   release:
-    name: Create Release
+    name: Build and Verify Draft
     runs-on: ubuntu-latest
     permissions:
       contents: write
       id-token: write
+      attestations: write
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: "1.27.3"
+
+      - name: Build release helper
+        run: go build -o "$RUNNER_TEMP/releasetool" ./internal/releasetool
+
+      - name: Refuse to rebuild a published release
+        run: |
+          "$RUNNER_TEMP/releasetool" guard --tag "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY"
 
       - name: Install cosign
         uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
@@ -36,12 +50,12 @@ jobs:
       - name: Run tests
         run: go test -v ./...
 
-      - name: Build release artifacts for smoke test
+      - name: Build and upload draft release
         uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
         with:
           distribution: goreleaser
           version: "~> v2"
-          args: release --clean --skip=publish
+          args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -62,25 +76,103 @@ jobs:
             test "$actual_version" = "apibconv ${GITHUB_REF_NAME}"
           done
 
-      - name: Publish GitHub release
-        uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
+      - name: Prepare complete asset inventory
+        run: |
+          "$RUNNER_TEMP/releasetool" prepare --tag "$GITHUB_REF_NAME" --directory .release-artifacts/assets
+
+      - name: Attest release artifacts
+        id: attest
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
         with:
-          distribution: goreleaser
-          version: "~> v2"
-          args: release --clean
+          subject-checksums: .release-artifacts/subjects.sha256
+
+      - name: Export and upload provenance
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ATTESTATION_BUNDLE: ${{ steps.attest.outputs.bundle-path }}
+        run: |
+          "$RUNNER_TEMP/releasetool" export --tag "$GITHUB_REF_NAME" \
+            --directory .release-artifacts/assets --bundle "$ATTESTATION_BUNDLE"
+          version=${GITHUB_REF_NAME#v}
+          gh release upload "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+            ".release-artifacts/assets/apibconv_${version}_provenance.sigstore.json" \
+            ".release-artifacts/assets/apibconv_${version}_provenance.intoto.jsonl" --clobber
+
+      - name: Verify uploaded draft assets and reject tampering
+        run: |
+          gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --dir "$RUNNER_TEMP/draft-assets"
+          "$RUNNER_TEMP/releasetool" verify --tag "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+            --commit "$GITHUB_SHA" --directory "$RUNNER_TEMP/draft-assets"
+
+  publish:
+    name: Publish Completed Draft
+    runs-on: ubuntu-latest
+    needs: release
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.27.3"
+
+      - name: Build release helper
+        run: go build -o "$RUNNER_TEMP/releasetool" ./internal/releasetool
+
+      - name: Publish completed draft
+        run: |
+          "$RUNNER_TEMP/releasetool" publish --tag "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --commit "$GITHUB_SHA"
+
+  verify:
+    name: Verify Published Release
+    runs-on: ubuntu-latest
+    needs: publish
+    permissions:
+      contents: read
+      attestations: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.27.3"
+
+      - name: Build release helper
+        run: go build -o "$RUNNER_TEMP/releasetool" ./internal/releasetool
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Download and verify published assets
+        run: |
+          gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --dir "$RUNNER_TEMP/published-assets"
+          "$RUNNER_TEMP/releasetool" verify --tag "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+            --commit "$GITHUB_SHA" --directory "$RUNNER_TEMP/published-assets"
+          "$RUNNER_TEMP/releasetool" verify-published --tag "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+            --commit "$GITHUB_SHA" --directory "$RUNNER_TEMP/published-assets"
 
   docker:
     name: Build and Push Docker Image
     runs-on: ubuntu-latest
-    needs: release
+    needs: verify
     permissions:
       contents: read
       packages: write
+      id-token: write
+      attestations: write
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+        with:
+          persist-credentials: false
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
@@ -110,6 +202,7 @@ jobs:
           echo "clean_version=${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Build and push Docker image
+        id: image
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
@@ -121,3 +214,20 @@ jobs:
             VERSION=${{ steps.prep.outputs.clean_version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Attest container image
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.image.outputs.digest }}
+          push-to-registry: true
+          create-storage-record: false
+
+      - name: Verify container provenance from registry
+        env:
+          IMAGE_DIGEST: ${{ steps.image.outputs.digest }}
+        run: |
+          gh attestation verify "oci://${REGISTRY}/${IMAGE_NAME}@${IMAGE_DIGEST}" \
+            --repo "$GITHUB_REPOSITORY" --bundle-from-oci \
+            --cert-identity "https://github.com/${GITHUB_REPOSITORY}/.github/workflows/release.yml@${GITHUB_REF}" \
+            --source-ref "$GITHUB_REF" --source-digest "$GITHUB_SHA" --deny-self-hosted-runners
