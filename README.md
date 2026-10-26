@@ -71,6 +71,46 @@ cosign verify-blob \
 sha256sum -c apibconv_X.Y.Z_Linux_x86_64.tar.gz_checksums.txt
 ```
 
+Releases produced by the provenance-enabled release workflow additionally include
+`apibconv_X.Y.Z_provenance.sigstore.json` and `apibconv_X.Y.Z_provenance.intoto.jsonl`.
+The native Sigstore bundle contains signed SLSA build provenance covering every platform
+archive, checksum file, checksum signature bundle, and the SBOM. The JSONL file exports
+the same signed in-toto envelope for tools such as OpenSSF Scorecard.
+
+For an immutable release, verify GitHub's release attestation and a downloaded archive:
+
+```sh
+gh release verify vX.Y.Z --repo amer8/apibconv
+gh release verify-asset vX.Y.Z apibconv_X.Y.Z_Linux_x86_64.tar.gz --repo amer8/apibconv
+```
+
+Verify the archive's build provenance using its downloaded native bundle:
+
+```sh
+gh attestation verify apibconv_X.Y.Z_Linux_x86_64.tar.gz \
+  --repo amer8/apibconv \
+  --bundle apibconv_X.Y.Z_provenance.sigstore.json \
+  --cert-identity "https://github.com/amer8/apibconv/.github/workflows/release.yml@refs/tags/vX.Y.Z" \
+  --source-ref refs/tags/vX.Y.Z \
+  --deny-self-hosted-runners
+```
+
+Add `--source-digest <expected-commit-sha>` to require a particular source commit.
+Build provenance identifies the source and build workflow. GitHub's release attestation
+binds the published tag, commit, and release assets. Older releases may lack either
+attestation; use the checksum and signature checks available for those releases.
+
+Container provenance is published with the image in GHCR. After authenticating to GHCR,
+verify an image by its exact digest, replacing `IMAGE_DIGEST` with the SHA-256 digest:
+
+```sh
+gh attestation verify oci://ghcr.io/amer8/apibconv@sha256:IMAGE_DIGEST \
+  --repo amer8/apibconv --bundle-from-oci \
+  --cert-identity "https://github.com/amer8/apibconv/.github/workflows/release.yml@refs/tags/vX.Y.Z" \
+  --source-ref refs/tags/vX.Y.Z \
+  --deny-self-hosted-runners
+```
+
 
 ## Usage
 
@@ -160,6 +200,47 @@ Contributions are welcome! Please ensure:
 1. All tests pass: `go test ./...`
 2. Linter passes: `golangci-lint run`
 3. Code coverage remains high
+
+The release helper's policy tests are included in `go test ./...`. To run them
+separately, use `go test ./internal/releasetool`.
+
+## Releasing
+
+Enable **Settings → Releases → Enable release immutability** before publishing with
+the provenance-enabled workflow. Immutability applies to future releases. Merge the
+release workflow changes before creating the next version tag.
+
+The workflow builds the standard-library-only Go release helper once per job.
+Run `go run ./internal/releasetool --help` to inspect its commands locally.
+
+The release workflow runs in this order:
+
+1. Build and sign all platform archives once, upload them to a draft release, and
+   smoke-test the same artifacts through the install action.
+2. Generate build provenance, attach the verification bundle and signed in-toto
+   envelope, then download and verify the complete draft asset inventory.
+3. Publish the completed draft. GitHub freezes its assets and tag and generates
+   the release attestation.
+4. Download the published assets and verify their checksums, Cosign signatures,
+   build provenance, and release attestation. Verification requires the expected
+   workflow identity, tag, and source commit, and rejects a modified archive.
+5. Build and push the container image, generate provenance for its exact digest,
+   and verify the provenance from GHCR.
+
+If **Build and Verify Draft** fails, leave the release as a draft and rerun the
+failed jobs. The next attempt replaces the incomplete draft and rebuilds its assets.
+If **Publish Completed Draft** loses its response after publishing, rerunning it
+recognizes the existing release and continues to verification.
+
+If **Verify Published Release** or the Docker job fails, rerun only the failed jobs
+from the original workflow run. The build job refuses to rebuild a published version.
+Published asset corrections require a new version tag. Container attestations can
+be retried by rerunning the Docker job; consumers should pin and verify image digests.
+
+GitHub release attestations are generated automatically after immutability is enabled.
+OpenSSF Scorecard currently discovers build provenance through the attached
+`*.intoto.jsonl` asset and evaluates the last five releases, so its Signed-Releases
+score improves as releases with provenance enter that window.
 
 ## License
 

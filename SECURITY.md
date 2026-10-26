@@ -41,5 +41,14 @@ This project currently uses the following security controls:
 - Static analysis with `gosec` and `golangci-lint` in CI
 - CodeQL and OpenSSF Scorecard workflows
 - Private vulnerability reporting through GitHub Security Advisories
+- Sigstore signatures for release archive checksums
+
+The provenance-enabled release workflow also generates SLSA build provenance for
+release assets and GHCR container images. It verifies signatures, artifact digests,
+the release workflow identity, source tag, and commit before accepting a release.
+Published immutable releases additionally have GitHub-generated release attestations.
+These controls apply to releases produced by that workflow; older releases may have
+only checksums or checksum signatures. See the README for verification and release
+recovery instructions.
 
 Thank you for helping keep this project secure.
