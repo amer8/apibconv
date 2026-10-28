@@ -91,7 +91,7 @@ jobs:
           go-version: "1.26"
 
       - name: Run Gosec Security Scanner
-        uses: securego/gosec@4504603eddc5a91a7b7713932d6d1d3792126103 # v2.30.0 container fix
+        uses: securego/gosec@22fd014b7bfcd88c892bfccea1784cade496cdef # v2.30.0 container fix
         with:
           args: "-no-fail -fmt sarif -out results.sarif ./..."
 
