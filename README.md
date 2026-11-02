@@ -15,6 +15,18 @@ Convert between API Blueprint (*.apib), OpenAPI 2.0/3.0/3.1, and AsyncAPI 2.x/3.
 - [OpenAPI v3.0.x](https://swagger.io/specification/v3/)
 - [OpenAPI v2.0 (Swagger)](https://swagger.io/specification/v2/)
 
+## Migrating from Apiary
+
+Oracle announced the end of life of Apiary Cloud Service effective October 31, 2026,
+and recommends converting API Blueprint specifications to OpenAPI. See the
+[Oracle service change announcement](https://docs.oracle.com/en-us/iaas/Content/servicechanges.htm#oracle-apiary)
+for details. apibconv can help convert saved API Blueprint files to OpenAPI.
+
+Conversion is not lossless: the API Blueprint parser handles a subset of the format,
+and request bodies and parameters may be omitted. The OpenAPI writer also adds a
+default `404` response when an operation has no 4xx response. Keep the original files,
+validate the output, and review it against the source before using it as an API contract.
+
 ## Installation
 
 ### Using Homebrew
