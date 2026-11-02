@@ -19,7 +19,7 @@ Convert between API Blueprint (*.apib), OpenAPI 2.0/3.0/3.1, and AsyncAPI 2.x/3.
 
 Oracle announced the end of life of Apiary Cloud Service effective October 31, 2026,
 and recommends converting API Blueprint specifications to OpenAPI. See the
-[Oracle service change announcement](https://docs.oracle.com/en-us/iaas/Content/servicechanges.htm)
+[Oracle service change announcement](https://docs.oracle.com/en-us/iaas/Content/servicechanges.htm#oracle-apiary)
 for details. apibconv can help convert saved API Blueprint files to OpenAPI.
 
 Conversion is not lossless: the API Blueprint parser handles a subset of the format,
