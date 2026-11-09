@@ -119,6 +119,9 @@ func (p *Parser) parseDocument(content string) (*model.API, error) {
 
 		// Data Structures Section
 		if reDataStructures.MatchString(line) {
+			if currentPath != "" && currentPathItem != nil {
+				api.AddPath(currentPath, currentPathItem)
+			}
 			inDataStructures = true
 			currentGroup = ""
 			currentPathItem = nil

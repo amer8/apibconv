@@ -66,18 +66,18 @@ func TestSecurityConversion(t *testing.T) {
 				if version == "2.6" {
 					channels := doc["channels"].(map[string]interface{})
 					events := channels["/events"].(map[string]interface{})
-					get := events["subscribe"].(map[string]interface{})
+					get := events["publish"].(map[string]interface{})
 					if len(get["security"].([]interface{})) != 2 {
 						t.Fatalf("inherited security = %#v", get["security"])
 					}
-					if _, ok := events["publish"].(map[string]interface{})["security"]; ok {
+					if _, ok := events["subscribe"].(map[string]interface{})["security"]; ok {
 						t.Fatal("public operation is secured")
 					}
-					scoped := channels["/scoped"].(map[string]interface{})["publish"].(map[string]interface{})["security"].([]interface{})[0].(map[string]interface{})
+					scoped := channels["/scoped"].(map[string]interface{})["subscribe"].(map[string]interface{})["security"].([]interface{})[0].(map[string]interface{})
 					if scoped["oauth"].([]interface{})[0] != "read" {
 						t.Fatalf("scoped security = %#v", scoped)
 					}
-					identity := channels["/identity"].(map[string]interface{})["subscribe"].(map[string]interface{})["security"].([]interface{})[0].(map[string]interface{})
+					identity := channels["/identity"].(map[string]interface{})["publish"].(map[string]interface{})["security"].([]interface{})[0].(map[string]interface{})
 					if identity["openid"].([]interface{})[0] != "profile" {
 						t.Fatalf("OpenID security = %#v", identity)
 					}
@@ -224,7 +224,7 @@ func TestAsyncAPITwoSupportsCombinedSecurity(t *testing.T) {
 		t.Fatal(err)
 	}
 	channels := doc["channels"].(map[string]interface{})
-	op := channels["/x"].(map[string]interface{})["subscribe"].(map[string]interface{})
+	op := channels["/x"].(map[string]interface{})["publish"].(map[string]interface{})
 	requirements := op["security"].([]interface{})
 	combined := requirements[0].(map[string]interface{})
 	if len(requirements) != 1 || len(combined) != 2 || combined["first"] == nil || combined["second"] == nil {

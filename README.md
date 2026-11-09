@@ -145,6 +145,13 @@ gh attestation verify oci://ghcr.io/amer8/apibconv@sha256:IMAGE_DIGEST \
 
 The tool automatically detects the input format based on file extension and content. It supports both file arguments and stdin.
 
+Output files are replaced atomically. On macOS and Linux, replacing an existing
+file is refused when its ACL or ownership cannot be preserved safely. On other
+platforms, including Windows, choose a new output path: replacing an existing
+file is currently unavailable because its ACL cannot be checked reliably.
+AsyncAPI output rejects unsupported HTTP methods. OpenAPI path, parameter,
+request-body, and response references must be local and resolvable.
+
 ```sh
 Usage: apibconv [OPTIONS] [INPUT_FILE]
 

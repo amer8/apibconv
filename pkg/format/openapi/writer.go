@@ -74,6 +74,8 @@ func (w *Writer) Write(ctx context.Context, api *model.API, wr io.Writer) error 
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	local := *w
+	w = &local
 	if err := security.CheckServerUnsupported(api, "OpenAPI"); err != nil {
 		return err
 	}
@@ -109,12 +111,18 @@ func (w *Writer) Write(ctx context.Context, api *model.API, wr io.Writer) error 
 			encoding = "json"
 		}
 	}
+	if encoding != "json" && encoding != "yaml" {
+		return fmt.Errorf("unsupported OpenAPI output encoding %q", encoding)
+	}
 
 	var doc interface{}
 	var err error
 
 	switch w.version {
 	case "2.0", "2.0.0":
+		if err := security.CheckServerOverrides(api, "OpenAPI 2.0"); err != nil {
+			return err
+		}
 		doc, err = w.convertV2(api)
 	case "3.0", "3.0.0", "3.0.1", "3.0.2", "3.0.3", "3.1", "3.1.0": // All OpenAPI 3.x
 		if strings.HasPrefix(w.version, "3.0") {
@@ -126,8 +134,7 @@ func (w *Writer) Write(ctx context.Context, api *model.API, wr io.Writer) error 
 		}
 		doc = w.convertFromModel(api)
 	default:
-		// Default to V3 if unknown
-		doc = w.convertFromModel(api)
+		return fmt.Errorf("unsupported OpenAPI output version %q", w.version)
 	}
 
 	if err != nil {
@@ -164,6 +171,7 @@ func (w *Writer) convertPathItemOperations(item *model.PathItem, api *model.API)
 		Summary:     item.Summary,
 		Description: item.Description,
 		Parameters:  w.convertParameters(item.Parameters, api),
+		Servers:     serversFromModel(item.Servers),
 	}
 
 	if item.Get != nil {
@@ -300,6 +308,7 @@ func (w *Writer) convertOperation(op *model.Operation, api *model.API) *Operatio
 		Deprecated:  op.Deprecated,
 		Parameters:  w.convertParameters(op.Parameters, api),
 		Security:    securityRequirementsFromModel(op.Security),
+		Servers:     serversFromModel(op.Servers),
 	}
 
 	if op.RequestBody != nil {
@@ -339,6 +348,24 @@ func (w *Writer) convertOperation(op *model.Operation, api *model.API) *Operatio
 	}
 
 	return res
+}
+
+func serversFromModel(servers []model.Server) []Server {
+	if len(servers) == 0 {
+		return nil
+	}
+	result := make([]Server, 0, len(servers))
+	for _, s := range servers {
+		v := Server{URL: s.URL, Description: s.Description}
+		if s.Variables != nil {
+			v.Variables = make(map[string]ServerVariable, len(s.Variables))
+		}
+		for k, x := range s.Variables {
+			v.Variables[k] = ServerVariable{Default: x.Default, Description: x.Description, Enum: x.Enum}
+		}
+		result = append(result, v)
+	}
+	return result
 }
 
 func (w *Writer) convertParameters(params []model.Parameter, api *model.API) []Parameter {
@@ -651,6 +678,31 @@ func (w *Writer) convertSchema(s *model.Schema, api *model.API) *Schema {
 		Default:     s.Default,
 		Enum:        s.Enum,
 		Required:    s.Required,
+		MinLength:   s.MinLength, MaxLength: s.MaxLength, Pattern: s.Pattern,
+		Minimum: s.Minimum, Maximum: s.Maximum, MultipleOf: s.MultipleOf,
+		MinItems: s.MinItems, MaxItems: s.MaxItems, UniqueItems: s.UniqueItems,
+		MinProperties: s.MinProperties, MaxProperties: s.MaxProperties,
+		AdditionalProperties: s.AdditionalProperties,
+		Example:              s.Example, ReadOnly: s.ReadOnly, WriteOnly: s.WriteOnly, Deprecated: s.Deprecated,
+	}
+	if s.Nullable && strings.HasPrefix(w.version, "3.0") {
+		ms.Nullable = true
+	}
+	if s.ExclusiveMinimum {
+		if strings.HasPrefix(w.version, "3.1") && s.Minimum != nil {
+			ms.ExclusiveMinimum = *s.Minimum
+			ms.Minimum = nil
+		} else {
+			ms.ExclusiveMinimum = true
+		}
+	}
+	if s.ExclusiveMaximum {
+		if strings.HasPrefix(w.version, "3.1") && s.Maximum != nil {
+			ms.ExclusiveMaximum = *s.Maximum
+			ms.Maximum = nil
+		} else {
+			ms.ExclusiveMaximum = true
+		}
 	}
 
 	// Rewrite References

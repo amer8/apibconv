@@ -137,16 +137,35 @@ type MediaType struct {
 
 // Schema allows the definition of input and output data types.
 type Schema struct {
-	Ref         string             `yaml:"$ref,omitempty" json:"$ref,omitempty"`
-	Type        interface{}        `yaml:"type,omitempty" json:"type,omitempty"` // string or []string (3.1)
-	Format      string             `yaml:"format,omitempty" json:"format,omitempty"`
-	Title       string             `yaml:"title,omitempty" json:"title,omitempty"`
-	Description string             `yaml:"description,omitempty" json:"description,omitempty"`
-	Default     interface{}        `yaml:"default,omitempty" json:"default,omitempty"`
-	Enum        []interface{}      `yaml:"enum,omitempty" json:"enum,omitempty"`
-	Properties  map[string]*Schema `yaml:"properties,omitempty" json:"properties,omitempty"`
-	Items       *Schema            `yaml:"items,omitempty" json:"items,omitempty"`
-	Required    []string           `yaml:"required,omitempty" json:"required,omitempty"`
+	Ref                  string             `yaml:"$ref,omitempty" json:"$ref,omitempty"`
+	Type                 interface{}        `yaml:"type,omitempty" json:"type,omitempty"` // string or []string (3.1)
+	Format               string             `yaml:"format,omitempty" json:"format,omitempty"`
+	Title                string             `yaml:"title,omitempty" json:"title,omitempty"`
+	Description          string             `yaml:"description,omitempty" json:"description,omitempty"`
+	Default              interface{}        `yaml:"default,omitempty" json:"default,omitempty"`
+	Enum                 []interface{}      `yaml:"enum,omitempty" json:"enum,omitempty"`
+	Properties           map[string]*Schema `yaml:"properties,omitempty" json:"properties,omitempty"`
+	Items                *Schema            `yaml:"items,omitempty" json:"items,omitempty"`
+	Required             []string           `yaml:"required,omitempty" json:"required,omitempty"`
+	MinLength            *int               `yaml:"minLength,omitempty" json:"minLength,omitempty"`
+	MaxLength            *int               `yaml:"maxLength,omitempty" json:"maxLength,omitempty"`
+	Pattern              string             `yaml:"pattern,omitempty" json:"pattern,omitempty"`
+	Minimum              *float64           `yaml:"minimum,omitempty" json:"minimum,omitempty"`
+	Maximum              *float64           `yaml:"maximum,omitempty" json:"maximum,omitempty"`
+	MultipleOf           *float64           `yaml:"multipleOf,omitempty" json:"multipleOf,omitempty"`
+	MinItems             *int               `yaml:"minItems,omitempty" json:"minItems,omitempty"`
+	MaxItems             *int               `yaml:"maxItems,omitempty" json:"maxItems,omitempty"`
+	UniqueItems          bool               `yaml:"uniqueItems,omitempty" json:"uniqueItems,omitempty"`
+	MinProperties        *int               `yaml:"minProperties,omitempty" json:"minProperties,omitempty"`
+	MaxProperties        *int               `yaml:"maxProperties,omitempty" json:"maxProperties,omitempty"`
+	AdditionalProperties interface{}        `yaml:"additionalProperties,omitempty" json:"additionalProperties,omitempty"`
+	ExclusiveMinimum     interface{}        `yaml:"exclusiveMinimum,omitempty" json:"exclusiveMinimum,omitempty"`
+	ExclusiveMaximum     interface{}        `yaml:"exclusiveMaximum,omitempty" json:"exclusiveMaximum,omitempty"`
+	Example              interface{}        `yaml:"example,omitempty" json:"example,omitempty"`
+	ReadOnly             bool               `yaml:"readOnly,omitempty" json:"readOnly,omitempty"`
+	WriteOnly            bool               `yaml:"writeOnly,omitempty" json:"writeOnly,omitempty"`
+	Deprecated           bool               `yaml:"deprecated,omitempty" json:"deprecated,omitempty"`
+	Nullable             bool               `yaml:"nullable,omitempty" json:"nullable,omitempty"`
 
 	// Composition
 	AllOf []*Schema `yaml:"allOf,omitempty" json:"allOf,omitempty"`

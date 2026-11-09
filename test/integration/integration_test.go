@@ -107,6 +107,9 @@ func TestInvalidSpecifications(t *testing.T) {
 func localConversionCases() []conversionCase {
 	var cases []conversionCase
 	add := func(tc conversionCase) {
+		if tc.fromFormat == format.FormatAPIBlueprint && tc.toFormat == format.FormatAsyncAPI {
+			tc.wantError = "operations that cannot be represented in AsyncAPI"
+		}
 		if tc.inputFile == "asyncapi_v2.yaml" || tc.inputFile == "asyncapi_v2.json" || tc.inputFile == "asyncapi_v3.yaml" {
 			tc.wantParseError = "different server security policies"
 		}
@@ -413,6 +416,7 @@ func validSpecificationCases() []conversionCase {
 	})
 	add(conversionCase{
 		name:              "Valid API Blueprint fixture to AsyncAPI v2.6",
+		wantError:         "operations that cannot be represented in AsyncAPI",
 		inputFile:         "valid/warehouse.apib",
 		fromFormat:        format.FormatAPIBlueprint,
 		toFormat:          format.FormatAsyncAPI,

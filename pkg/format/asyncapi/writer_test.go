@@ -45,7 +45,7 @@ func TestWrite(t *testing.T) {
   "asyncapi": "2.6.0",
   "channels": {
     "events": {
-      "publish": {
+      "subscribe": {
         "message": {
           "payload": {
             "type": "object"

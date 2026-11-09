@@ -143,10 +143,10 @@ components:
 			}
 			if version == "2.6" {
 				channel := doc["channels"].(map[string]interface{})["/items"].(map[string]interface{})
-				if _, ok := channel["subscribe"].(map[string]interface{})["security"]; !ok {
+				if _, ok := channel["publish"].(map[string]interface{})["security"]; !ok {
 					t.Fatal("inherited GET security missing")
 				}
-				if _, ok := channel["publish"].(map[string]interface{})["security"]; ok {
+				if _, ok := channel["subscribe"].(map[string]interface{})["security"]; ok {
 					t.Fatal("public POST acquired security")
 				}
 			} else {

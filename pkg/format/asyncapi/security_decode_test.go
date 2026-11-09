@@ -48,12 +48,12 @@ components:
 				t.Fatalf("server security = %#v, global = %#v", api.Servers, api.Security)
 			}
 			item := api.Paths["/items"]
-			wantPost := []model.SecurityRequirement{{"oauth": {"read"}}}
-			if !reflect.DeepEqual(item.Post.Security, wantPost) {
-				t.Fatalf("publish security = %#v", item.Post.Security)
+			wantGet := []model.SecurityRequirement{{"oauth": {"read"}}}
+			if !reflect.DeepEqual(item.Get.Security, wantGet) {
+				t.Fatalf("publish security = %#v", item.Get.Security)
 			}
-			if item.Get.Security != nil {
-				t.Fatalf("unexpected operation security: %#v", item.Get.Security)
+			if item.Post.Security != nil {
+				t.Fatalf("unexpected operation security: %#v", item.Post.Security)
 			}
 			key := api.Components.SecuritySchemes["key"]
 			if key.Type != model.SecurityTypeAPIKey || key.Name != "X-Key" || key.In != "header" {
@@ -100,7 +100,7 @@ components:
 			if len(reparsed.Servers) != 1 || !reflect.DeepEqual(reparsed.Servers[0].Security, api.Servers[0].Security) {
 				t.Fatalf("server security = %#v", reparsed.Servers)
 			}
-			if got, want := reparsed.Paths["/items"].Post.Security, api.Paths["/items"].Post.Security; !reflect.DeepEqual(got, want) {
+			if got, want := reparsed.Paths["/items"].Get.Security, api.Paths["/items"].Get.Security; !reflect.DeepEqual(got, want) {
 				t.Fatalf("operation security = %#v, want %#v", got, want)
 			}
 		})
@@ -342,7 +342,11 @@ components:
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			api := parseSecurityFixture(t, tc.input, "yaml")
-			if got := api.Paths["/x"].Post.Security; !reflect.DeepEqual(got, tc.want) {
+			op := api.Paths["/x"].Post
+			if strings.HasPrefix(tc.name, "v2 ") {
+				op = api.Paths["/x"].Get
+			}
+			if got := op.Security; !reflect.DeepEqual(got, tc.want) {
 				t.Fatalf("security = %#v, want %#v", got, tc.want)
 			}
 		})
