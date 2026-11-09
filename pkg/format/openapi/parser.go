@@ -100,6 +100,10 @@ func (p *Parser) SupportsVersion(version string) bool {
 func (p *Parser) convertToModel(doc *OpenAPI) (*model.API, error) {
 	api := model.NewAPI()
 	api.Version = doc.OpenAPI
+	api.Security = securityRequirementsToModel(doc.Security)
+	for name, scheme := range doc.Components.SecuritySchemes {
+		api.Components.SecuritySchemes[name] = securitySchemeToModel(scheme)
+	}
 
 	// Info
 	api.Info = model.Info{
@@ -236,6 +240,7 @@ func (p *Parser) convertOperation(op *Operation) *model.Operation {
 		OperationID: op.OperationID,
 		Deprecated:  op.Deprecated,
 		Parameters:  p.convertParameters(op.Parameters),
+		Security:    securityRequirementsToModel(op.Security),
 	}
 
 	if op.RequestBody != nil {

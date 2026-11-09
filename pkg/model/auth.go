@@ -2,6 +2,7 @@ package model
 
 // SecurityScheme represents a security scheme object in the API model.
 type SecurityScheme struct {
+	Ref              string // OpenAPI reference to a security scheme
 	Type             SecuritySchemeType
 	Description      string
 	Name             string // For apiKey

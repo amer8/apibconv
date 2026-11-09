@@ -6,9 +6,11 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/amer8/apibconv/pkg/converter"
+	"github.com/amer8/apibconv/pkg/errors"
 	"github.com/amer8/apibconv/pkg/format"
 	"github.com/amer8/apibconv/pkg/format/openapi"
 	"github.com/amer8/apibconv/pkg/model"
@@ -25,6 +27,45 @@ func (failedOutputWriter) Write(_ context.Context, _ *model.API, w io.Writer) er
 		return err
 	}
 	return fmt.Errorf("injected write failure")
+}
+
+func TestConvertReportsUnsupportedSecurity(t *testing.T) {
+	dir := t.TempDir()
+	input := filepath.Join(dir, "input.yaml")
+	output := filepath.Join(dir, "output.yaml")
+	doc := `openapi: 3.0.0
+info: {title: Test, version: '1'}
+paths: {}
+components:
+  securitySchemes:
+    bearerAuth: {type: http, scheme: bearer}
+`
+	if err := os.WriteFile(input, []byte(doc), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(output, []byte("original"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	c, err := converter.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.RegisterParser(openapi.NewParser())
+	c.RegisterWriter(openapi.NewWriter())
+	err = NewRunner(c).Convert(context.Background(), &Config{
+		InputPath: input, OutputPath: output, InputFormat: format.FormatOpenAPI,
+		OutputFormat: format.FormatOpenAPI, OpenAPIVersion: "2.0",
+	})
+	if !errors.Is(err, errors.ErrConversionFailed) || !strings.Contains(err.Error(), `security scheme "bearerAuth"`) {
+		t.Fatalf("conversion error = %v, want conversion failure with security scheme details", err)
+	}
+	got, err := os.ReadFile(output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "original" {
+		t.Fatalf("destination changed: %q", got)
+	}
 }
 
 func TestConvertPreservesDestinationOnFailure(t *testing.T) {

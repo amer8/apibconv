@@ -181,13 +181,36 @@ type Header struct {
 
 // SecurityScheme defines a security scheme that can be used by the operations.
 type SecurityScheme struct {
-	Type             string `yaml:"type" json:"type"`
-	Description      string `yaml:"description,omitempty" json:"description,omitempty"`
-	Name             string `yaml:"name,omitempty" json:"name,omitempty"`
-	In               string `yaml:"in,omitempty" json:"in,omitempty"`
-	Scheme           string `yaml:"scheme,omitempty" json:"scheme,omitempty"`
-	BearerFormat     string `yaml:"bearerFormat,omitempty" json:"bearerFormat,omitempty"`
-	OpenIDConnectURL string `yaml:"openIdConnectUrl,omitempty" json:"openIdConnectUrl,omitempty"`
+	Ref              string      `yaml:"$ref,omitempty" json:"$ref,omitempty"`
+	Type             string      `yaml:"type,omitempty" json:"type,omitempty"`
+	Description      string      `yaml:"description,omitempty" json:"description,omitempty"`
+	Name             string      `yaml:"name,omitempty" json:"name,omitempty"`
+	In               string      `yaml:"in,omitempty" json:"in,omitempty"`
+	Scheme           string      `yaml:"scheme,omitempty" json:"scheme,omitempty"`
+	BearerFormat     string      `yaml:"bearerFormat,omitempty" json:"bearerFormat,omitempty"`
+	OpenIDConnectURL string      `yaml:"openIdConnectUrl,omitempty" json:"openIdConnectUrl,omitempty"`
+	Flows            *OAuthFlows `yaml:"flows,omitempty" json:"flows,omitempty"`
+	// Swagger 2.0 represents a single OAuth flow directly on the scheme.
+	Flow             string             `yaml:"flow,omitempty" json:"flow,omitempty"`
+	AuthorizationURL string             `yaml:"authorizationUrl,omitempty" json:"authorizationUrl,omitempty"`
+	TokenURL         string             `yaml:"tokenUrl,omitempty" json:"tokenUrl,omitempty"`
+	Scopes           *map[string]string `yaml:"scopes,omitempty" json:"scopes,omitempty"`
+}
+
+// OAuthFlows contains the OAuth 2.0 flows available in an OpenAPI 3 security scheme.
+type OAuthFlows struct {
+	Implicit          *OAuthFlow `yaml:"implicit,omitempty" json:"implicit,omitempty"`
+	Password          *OAuthFlow `yaml:"password,omitempty" json:"password,omitempty"`
+	ClientCredentials *OAuthFlow `yaml:"clientCredentials,omitempty" json:"clientCredentials,omitempty"`
+	AuthorizationCode *OAuthFlow `yaml:"authorizationCode,omitempty" json:"authorizationCode,omitempty"`
+}
+
+// OAuthFlow describes an OAuth 2.0 flow.
+type OAuthFlow struct {
+	AuthorizationURL string            `yaml:"authorizationUrl,omitempty" json:"authorizationUrl,omitempty"`
+	TokenURL         string            `yaml:"tokenUrl,omitempty" json:"tokenUrl,omitempty"`
+	RefreshURL       string            `yaml:"refreshUrl,omitempty" json:"refreshUrl,omitempty"`
+	Scopes           map[string]string `yaml:"scopes" json:"scopes"`
 }
 
 // Tag allows adding metadata to a single tag.

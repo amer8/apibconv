@@ -101,6 +101,13 @@ func (w *Writer) Write(ctx context.Context, api *model.API, wr io.Writer) error 
 	case "2.0", "2.0.0":
 		doc, err = w.convertV2(api)
 	case "3.0", "3.0.0", "3.0.1", "3.0.2", "3.0.3", "3.1", "3.1.0": // All OpenAPI 3.x
+		if strings.HasPrefix(w.version, "3.0") {
+			for name, scheme := range api.Components.SecuritySchemes {
+				if scheme.Type == "mutualTLS" {
+					return fmt.Errorf("security scheme %q: mutualTLS cannot be represented in OpenAPI 3.0", name)
+				}
+			}
+		}
 		doc = w.convertFromModel(api)
 	default:
 		// Default to V3 if unknown
@@ -180,7 +187,14 @@ func (w *Writer) convertFromModel(api *model.API) *OpenAPI {
 			Version:        api.Info.Version,
 			TermsOfService: api.Info.TermsOfService,
 		},
-		Paths: make(map[string]PathItem),
+		Paths:    make(map[string]PathItem),
+		Security: securityRequirementsFromModel(api.Security),
+	}
+	if len(api.Components.SecuritySchemes) > 0 {
+		doc.Components.SecuritySchemes = make(map[string]SecurityScheme, len(api.Components.SecuritySchemes))
+		for name, scheme := range api.Components.SecuritySchemes {
+			doc.Components.SecuritySchemes[name] = securitySchemeFromModel(scheme)
+		}
 	}
 
 	if api.Info.Contact != nil {
@@ -268,6 +282,7 @@ func (w *Writer) convertOperation(op *model.Operation, api *model.API) *Operatio
 		OperationID: op.OperationID,
 		Deprecated:  op.Deprecated,
 		Parameters:  w.convertParameters(op.Parameters, api),
+		Security:    securityRequirementsFromModel(op.Security),
 	}
 
 	if op.RequestBody != nil {
@@ -392,6 +407,7 @@ func (w *Writer) convertOperationV2(op *model.Operation, api *model.API) *Operat
 		OperationID: op.OperationID,
 		Deprecated:  op.Deprecated,
 		Parameters:  w.convertParametersV2(op.Parameters, api),
+		Security:    securityRequirementsFromModel(op.Security),
 	}
 
 	if op.RequestBody != nil {
@@ -694,7 +710,18 @@ func (w *Writer) convertV2(api *model.API) (interface{}, error) {
 			Version:        api.Info.Version,
 			TermsOfService: api.Info.TermsOfService,
 		},
-		Paths: make(map[string]PathItemV2),
+		Paths:    make(map[string]PathItemV2),
+		Security: securityRequirementsFromModel(api.Security),
+	}
+	if len(api.Components.SecuritySchemes) > 0 {
+		doc.SecurityDefinitions = make(map[string]SecurityScheme, len(api.Components.SecuritySchemes))
+		for name, scheme := range api.Components.SecuritySchemes {
+			converted, err := securitySchemeToV2(scheme)
+			if err != nil {
+				return nil, fmt.Errorf("security scheme %q: %w", name, err)
+			}
+			doc.SecurityDefinitions[name] = converted
+		}
 	}
 
 	if api.Info.Contact != nil {
