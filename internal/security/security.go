@@ -28,6 +28,28 @@ func CheckServerUnsupported(api *model.API, target string) error {
 	return nil
 }
 
+// CheckServerOverrides rejects path- and operation-level server overrides when
+// a target cannot represent them without changing the destination of an API.
+func CheckServerOverrides(api *model.API, target string) error {
+	check := func(paths map[string]model.PathItem) error {
+		for path, item := range paths {
+			if len(item.Servers) != 0 {
+				return fmt.Errorf("%s cannot represent server override on path %q", target, path)
+			}
+			for _, op := range []*model.Operation{item.Get, item.Post, item.Put, item.Delete, item.Patch, item.Head, item.Options, item.Trace} {
+				if op != nil && len(op.Servers) != 0 {
+					return fmt.Errorf("%s cannot represent operation server override on path %q", target, path)
+				}
+			}
+		}
+		return nil
+	}
+	if err := check(api.Paths); err != nil {
+		return err
+	}
+	return check(api.Webhooks)
+}
+
 func hasSecurity(api *model.API) bool {
 	if CheckServerUnsupported(api, "target") != nil {
 		return true

@@ -44,6 +44,9 @@ func (w *Writer) Write(ctx context.Context, api *model.API, wr io.Writer) error 
 	if err := security.CheckUnsupported(api, "API Blueprint"); err != nil {
 		return err
 	}
+	if err := security.CheckServerOverrides(api, "API Blueprint"); err != nil {
+		return err
+	}
 	var builder strings.Builder
 
 	builder.WriteString(w.writeHeader(api))

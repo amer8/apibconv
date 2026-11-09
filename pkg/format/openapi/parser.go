@@ -156,10 +156,16 @@ func (p *Parser) convertToModel(doc *OpenAPI) (*model.API, error) {
 		api.Webhooks = make(map[string]model.PathItem)
 		for name := range doc.Webhooks {
 			item := doc.Webhooks[name] // Access by key to avoid copy in range
+			var err error
+			item, err = resolvePathV3(item, doc)
+			if err != nil {
+				return nil, fmt.Errorf("webhook %q: %w", name, err)
+			}
 			pi := model.PathItem{
 				Summary:     item.Summary,
 				Description: item.Description,
 				Parameters:  p.convertParameters(item.Parameters),
+				Servers:     serversToModel(item.Servers),
 			}
 			if item.Get != nil {
 				pi.Get = p.convertOperation(item.Get)
@@ -193,10 +199,16 @@ func (p *Parser) convertToModel(doc *OpenAPI) (*model.API, error) {
 	// Paths
 	for path := range doc.Paths {
 		item := doc.Paths[path] // Access by key to avoid copy in range
+		var err error
+		item, err = resolvePathV3(item, doc)
+		if err != nil {
+			return nil, fmt.Errorf("path %q: %w", path, err)
+		}
 		pi := model.PathItem{
 			Summary:     item.Summary,
 			Description: item.Description,
 			Parameters:  p.convertParameters(item.Parameters),
+			Servers:     serversToModel(item.Servers),
 		}
 		// Operations
 		if item.Get != nil {
@@ -242,6 +254,7 @@ func (p *Parser) convertOperation(op *Operation) *model.Operation {
 		Deprecated:  op.Deprecated,
 		Parameters:  p.convertParameters(op.Parameters),
 		Security:    securityRequirementsToModel(op.Security),
+		Servers:     serversToModel(op.Servers),
 	}
 
 	if op.RequestBody != nil {
@@ -263,6 +276,21 @@ func (p *Parser) convertOperation(op *Operation) *model.Operation {
 	}
 
 	return res
+}
+
+func serversToModel(servers []Server) []model.Server {
+	var result []model.Server
+	for _, s := range servers {
+		m := model.Server{URL: s.URL, Description: s.Description}
+		if s.Variables != nil {
+			m.Variables = make(map[string]model.ServerVariable, len(s.Variables))
+		}
+		for k, v := range s.Variables {
+			m.Variables[k] = model.ServerVariable{Default: v.Default, Description: v.Description, Enum: v.Enum}
+		}
+		result = append(result, m)
+	}
+	return result
 }
 
 func (p *Parser) convertParameters(params []Parameter) []model.Parameter {
@@ -342,7 +370,15 @@ func (p *Parser) convertSchema(s *Schema) *model.Schema {
 		Default:     s.Default,
 		Enum:        s.Enum,
 		Required:    s.Required,
+		MinLength:   s.MinLength, MaxLength: s.MaxLength, Pattern: s.Pattern,
+		Minimum: s.Minimum, Maximum: s.Maximum, MultipleOf: s.MultipleOf,
+		MinItems: s.MinItems, MaxItems: s.MaxItems, UniqueItems: s.UniqueItems,
+		MinProperties: s.MinProperties, MaxProperties: s.MaxProperties,
+		AdditionalProperties: s.AdditionalProperties,
+		Example:              s.Example, ReadOnly: s.ReadOnly, WriteOnly: s.WriteOnly, Deprecated: s.Deprecated, Nullable: s.Nullable,
 	}
+	ms.ExclusiveMinimum, ms.Minimum = schemaExclusive(s.ExclusiveMinimum, ms.Minimum)
+	ms.ExclusiveMaximum, ms.Maximum = schemaExclusive(s.ExclusiveMaximum, ms.Maximum)
 
 	// Rewrite Swagger 2.0 definitions to OpenAPI 3.0 components/schemas
 	if ms.Ref != "" && strings.HasPrefix(ms.Ref, "#/definitions/") {
@@ -396,4 +432,23 @@ func (p *Parser) convertSchema(s *Schema) *model.Schema {
 	}
 
 	return ms
+}
+
+func schemaExclusive(value interface{}, bound *float64) (bool, *float64) {
+	switch v := value.(type) {
+	case bool:
+		return v, bound
+	case int:
+		f := float64(v)
+		return true, &f
+	case int64:
+		f := float64(v)
+		return true, &f
+	case uint64:
+		f := float64(v)
+		return true, &f
+	case float64:
+		return true, &v
+	}
+	return false, bound
 }

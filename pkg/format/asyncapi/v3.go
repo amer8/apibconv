@@ -26,6 +26,15 @@ func (p *Parser) parseV3(data []byte) (*model.API, error) {
 	api.Info.Version = doc.Info.Version
 	api.Info.Description = doc.Info.Description
 	security := newSecurityDecoder(api, doc.Components, true)
+	if schemas, ok := doc.Components["schemas"].(map[string]interface{}); ok {
+		for name, raw := range schemas {
+			schema := p.convertSchemaPayload(raw)
+			if schema == nil {
+				return nil, fmt.Errorf("invalid component schema %q", name)
+			}
+			api.Components.AddSchema(name, schema)
+		}
+	}
 
 	// Servers (Sorted)
 	serverNames := make([]string, 0, len(doc.Servers))
@@ -76,6 +85,7 @@ func (p *Parser) parseV3(data []byte) (*model.API, error) {
 	}
 
 	// Operations (Sorted)
+	usedChannels := make(map[string]bool)
 	opIDs := make([]string, 0, len(doc.Operations))
 	for k := range doc.Operations {
 		opIDs = append(opIDs, k)
@@ -135,6 +145,7 @@ func (p *Parser) parseV3(data []byte) (*model.API, error) {
 		if !foundChannel && (hasActualRequirement(api.Security) || hasActualRequirement(operationSecurity) || len(policiesByServer) > 0) {
 			return nil, securityInputError(fmt.Sprintf("operation %q references an unknown channel", opID))
 		}
+		usedChannels[chRef] = true
 		serverNames, err := channelV3ServerNames(channel.Servers)
 		if err != nil {
 			return nil, fmt.Errorf("channel %q: %w", chRef, err)
@@ -156,16 +167,51 @@ func (p *Parser) parseV3(data []byte) (*model.API, error) {
 		if modelOp.OperationID == "" {
 			modelOp.OperationID = opID
 		}
+		messages := op.Messages
+		if len(channel.Messages) > 1 {
+			return nil, fmt.Errorf("channel %q has multiple messages that cannot be represented", chRef)
+		}
+		if len(messages) == 0 {
+			for _, message := range channel.Messages {
+				messages = append(messages, message)
+			}
+		}
+		if len(messages) > 1 {
+			return nil, fmt.Errorf("operation %q has multiple messages that cannot be represented", opID)
+		}
+		if len(messages) == 1 {
+			schema, contentType, err := p.messageSchema(messages[0], doc.Components, doc.Channels)
+			if err != nil {
+				return nil, fmt.Errorf("operation %q: %w", opID, err)
+			}
+			if contentType == "" {
+				contentType = "application/json"
+			}
+			if schema != nil {
+				if op.Action == "send" {
+					modelOp.RequestBody = &model.RequestBody{Content: map[string]model.MediaType{contentType: {Schema: schema}}}
+				}
+				if op.Action == "receive" {
+					modelOp.Responses = model.Responses{"200": {Description: "OK", Content: map[string]model.MediaType{contentType: {Schema: schema}}}}
+				}
+			}
+		}
 
 		switch op.Action {
 		case "send":
-			if pi.Post != nil && (hasActualRequirement(api.Security) || hasActualRequirement(serverSecurity) || hasActualRequirement(pi.Post.Security) || hasActualRequirement(modelOp.Security)) {
-				return nil, securityInputError(fmt.Sprintf("multiple secured send operations share channel %q", path))
+			if pi.Post != nil {
+				if hasActualRequirement(api.Security) || hasActualRequirement(serverSecurity) || hasActualRequirement(pi.Post.Security) || hasActualRequirement(modelOp.Security) {
+					return nil, securityInputError(fmt.Sprintf("multiple secured send operations share channel %q", path))
+				}
+				return nil, fmt.Errorf("multiple send operations share channel %q and cannot be represented", path)
 			}
 			pi.Post = modelOp
 		case "receive":
-			if pi.Get != nil && (hasActualRequirement(api.Security) || hasActualRequirement(serverSecurity) || hasActualRequirement(pi.Get.Security) || hasActualRequirement(modelOp.Security)) {
-				return nil, securityInputError(fmt.Sprintf("multiple secured receive operations share channel %q", path))
+			if pi.Get != nil {
+				if hasActualRequirement(api.Security) || hasActualRequirement(serverSecurity) || hasActualRequirement(pi.Get.Security) || hasActualRequirement(modelOp.Security) {
+					return nil, securityInputError(fmt.Sprintf("multiple secured receive operations share channel %q", path))
+				}
+				return nil, fmt.Errorf("multiple receive operations share channel %q and cannot be represented", path)
 			}
 			pi.Get = modelOp
 		default:
@@ -175,6 +221,11 @@ func (p *Parser) parseV3(data []byte) (*model.API, error) {
 		}
 
 		api.AddPath(path, &pi)
+	}
+	for id, channel := range doc.Channels {
+		if !usedChannels[id] && len(channel.Messages) != 0 {
+			return nil, fmt.Errorf("channel %q has messages without a representable operation", id)
+		}
 	}
 
 	return api, nil

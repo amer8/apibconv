@@ -108,12 +108,39 @@ func (p *Parser) parseV2(ctx context.Context, r io.Reader) (*model.API, error) {
 
 	// Paths
 	for path, item := range doc.Paths {
-		pi := model.PathItem{
-			Parameters: p.convertV2Parameters(item.Parameters),
+		item, err := resolvePathV2(item, &doc)
+		if err != nil {
+			return nil, fmt.Errorf("path %q: %w", path, err)
 		}
+		var pathParams, pathBodies []Parameter
+		for _, param := range item.Parameters {
+			if param.In == "body" || param.In == "formData" {
+				pathBodies = append(pathBodies, param)
+			} else {
+				pathParams = append(pathParams, param)
+			}
+		}
+		pi := model.PathItem{Parameters: p.convertV2Parameters(pathParams)}
 
 		convertOp := func(op *Operation) *model.Operation {
-			return p.convertV2Operation(op, doc.Consumes, doc.Produces)
+			if op == nil {
+				return nil
+			}
+			copyOp := *op
+			copyOp.Parameters = append([]Parameter(nil), op.Parameters...)
+			for _, inherited := range pathBodies {
+				found := false
+				for _, param := range op.Parameters {
+					if param.Name == inherited.Name && param.In == inherited.In {
+						found = true
+						break
+					}
+				}
+				if !found {
+					copyOp.Parameters = append(copyOp.Parameters, inherited)
+				}
+			}
+			return p.convertV2Operation(&copyOp, doc.Consumes, doc.Produces)
 		}
 
 		pi.Get = convertOp(item.Get)
@@ -166,6 +193,7 @@ func (p *Parser) convertV2Operation(op *Operation, globalConsumes, globalProduce
 	// But in Model/V3, RequestBody is separate.
 	// We need to extract the 'body' parameter if it exists and move it to RequestBody.
 	var parameters []model.Parameter
+	formSchema := &model.Schema{Type: model.TypeObject, Properties: make(map[string]*model.Schema)}
 	for _, param := range res.Parameters {
 		if param.In == "body" {
 			// Found body parameter, move to RequestBody
@@ -181,9 +209,29 @@ func (p *Parser) convertV2Operation(op *Operation, globalConsumes, globalProduce
 				Required:    param.Required,
 				Content:     content,
 			}
+		} else if param.In == "formData" {
+			schema := param.Schema
+			if schema == nil {
+				schema = &model.Schema{Type: model.TypeString}
+			}
+			if schema.Type == "file" {
+				schema.Type = model.TypeString
+				schema.Format = "binary"
+			}
+			formSchema.Properties[param.Name] = schema
+			if param.Required {
+				formSchema.Required = append(formSchema.Required, param.Name)
+			}
 		} else {
 			parameters = append(parameters, param)
 		}
+	}
+	if len(formSchema.Properties) > 0 {
+		content := make(map[string]model.MediaType)
+		for _, ct := range consumes {
+			content[ct] = model.MediaType{Schema: formSchema}
+		}
+		res.RequestBody = &model.RequestBody{Content: content}
 	}
 	res.Parameters = parameters
 

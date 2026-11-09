@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -58,7 +59,11 @@ components:
 		InputPath: input, OutputPath: output, InputFormat: format.FormatOpenAPI,
 		OutputFormat: format.FormatOpenAPI, OpenAPIVersion: "2.0",
 	})
-	if !errors.Is(err, errors.ErrConversionFailed) || !strings.Contains(err.Error(), `security scheme "bearerAuth"`) {
+	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
+		if err == nil || !strings.Contains(err.Error(), "ACL") {
+			t.Fatalf("expected ACL preservation error, got %v", err)
+		}
+	} else if !errors.Is(err, errors.ErrConversionFailed) || !strings.Contains(err.Error(), `security scheme "bearerAuth"`) {
 		t.Fatalf("conversion error = %v, want conversion failure with security scheme details", err)
 	}
 	got, err := os.ReadFile(output)
@@ -103,7 +108,11 @@ components:
 				InputPath: input, OutputPath: output, InputFormat: format.FormatOpenAPI,
 				OutputFormat: writer.Format(), Protocol: "kafka",
 			})
-			if !errors.Is(err, errors.ErrConversionFailed) || !errors.Is(err, errors.ErrUnsupportedSecurity) {
+			if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
+				if err == nil || !strings.Contains(err.Error(), "ACL") {
+					t.Fatalf("expected ACL preservation error, got %v", err)
+				}
+			} else if !errors.Is(err, errors.ErrConversionFailed) || !errors.Is(err, errors.ErrUnsupportedSecurity) {
 				t.Fatalf("conversion error = %v, want unsupported security failure", err)
 			}
 			got, err := os.ReadFile(output)
@@ -210,6 +219,12 @@ func TestAtomicOutputCommitsAndPreservesPermissions(t *testing.T) {
 		t.Fatal(err)
 	}
 	destination, err := newAtomicOutput("", output)
+	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
+		if err == nil {
+			t.Fatal("expected unsupported ACL preservation error")
+		}
+		return
+	}
 	if err != nil {
 		t.Fatal(err)
 	}

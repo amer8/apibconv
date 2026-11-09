@@ -45,9 +45,9 @@ channels:
 				Paths: map[string]model.PathItem{
 					"user/signedup": {
 						Name: "userSignedup", // toCamelCase logic
-						Post: &model.Operation{
+						Get: &model.Operation{
 							OperationID: "userSignedUp",
-							RequestBody: &model.RequestBody{
+							Responses: model.Responses{"200": {Description: "OK",
 								Content: map[string]model.MediaType{
 									"application/json": {
 										Schema: &model.Schema{
@@ -60,10 +60,7 @@ channels:
 										},
 									},
 								},
-							},
-							Responses: model.Responses{
-								"200": model.Response{Description: "OK"},
-							},
+							}},
 							Parameters: nil,
 						},
 						Parameters: []model.Parameter{},

@@ -2,8 +2,10 @@ package asyncapi
 
 import (
 	"context"
+	"fmt"
 	"io"
 
+	"github.com/amer8/apibconv/internal/security"
 	"github.com/amer8/apibconv/pkg/converter"
 	"github.com/amer8/apibconv/pkg/format"
 	"github.com/amer8/apibconv/pkg/model"
@@ -49,6 +51,11 @@ func (w *Writer) Write(ctx context.Context, api *model.API, wr io.Writer) error 
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	local := *w
+	w = &local
+	if err := security.CheckServerOverrides(api, "AsyncAPI"); err != nil {
+		return err
+	}
 
 	// Check context for overrides
 	if v := converter.AsyncAPIVersionFromContext(ctx); v != "" {
@@ -57,14 +64,29 @@ func (w *Writer) Write(ctx context.Context, api *model.API, wr io.Writer) error 
 
 	// Normalize version string
 	switch w.version {
+	case "2.0", "2.1", "2.2", "2.3", "2.4", "2.5":
+		w.version += ".0"
 	case "2.6":
 		w.version = "2.6.0"
 	case "3.0":
 		w.version = "3.0.0"
 	}
+	switch w.version {
+	case "2.0.0", "2.1.0", "2.2.0", "2.3.0", "2.4.0", "2.5.0", "2.6.0", "3.0.0":
+	default:
+		return fmt.Errorf("unsupported AsyncAPI output version %q", w.version)
+	}
+	if encoding := converter.GetEncoding(ctx); encoding != "" && encoding != "json" && encoding != "yaml" {
+		return fmt.Errorf("unsupported AsyncAPI output encoding %q", encoding)
+	}
 	plan, err := prepareSecurity(api, w.version >= "3.0.0", converter.GetProtocol(ctx))
 	if err != nil {
 		return err
+	}
+	for path, item := range api.Paths {
+		if item.Put != nil || item.Delete != nil || item.Patch != nil || item.Head != nil || item.Options != nil || item.Trace != nil {
+			return fmt.Errorf("path %q has operations that cannot be represented in AsyncAPI", path)
+		}
 	}
 
 	// Check if protocol is overridden in context

@@ -71,21 +71,6 @@ func (p *Parser) parseV2(data []byte) (*model.API, error) {
 			}
 		}
 	}
-	if messages, ok := doc.Components["messages"].(map[string]interface{}); ok {
-		for name, msgPayload := range messages {
-			// Messages in components are usually map[string]interface{}
-			if msgMap, ok := msgPayload.(map[string]interface{}); ok {
-				// We act as if the message payload is the schema we want to store
-				if payload, ok := msgMap["payload"]; ok {
-					s := p.convertSchemaPayload(payload)
-					if s != nil {
-						// Store message payload as a schema
-						api.Components.AddSchema(name, s)
-					}
-				}
-			}
-		}
-	}
 
 	// Convert Channels
 	for path, ch := range doc.Channels {
@@ -122,23 +107,18 @@ func (p *Parser) parseV2(data []byte) (*model.API, error) {
 				Security:    operationSecurity,
 			}
 
-			// Map Message to RequestBody
+			// A v2 publish operation describes a message received by this application.
 			if ch.Publish.Message != nil {
-				op.RequestBody = &model.RequestBody{
-					Content: map[string]model.MediaType{
-						"application/json": { // Defaulting
-							Schema: p.convertSchema(ch.Publish.Message),
-						},
-					},
+				schema, ct, err := p.messageSchema(ch.Publish.Message, doc.Components, nil)
+				if err != nil {
+					return nil, fmt.Errorf("channel %q publish: %w", path, err)
 				}
+				if ct == "" {
+					ct = "application/json"
+				}
+				op.Responses = model.Responses{"200": {Description: "OK", Content: map[string]model.MediaType{ct: {Schema: schema}}}}
 			}
-
-			// Add default response for Publish
-			op.Responses = model.Responses{
-				"200": model.Response{Description: "OK"},
-			}
-
-			pi.Post = op
+			pi.Get = op
 		}
 
 		if ch.Subscribe != nil {
@@ -157,19 +137,18 @@ func (p *Parser) parseV2(data []byte) (*model.API, error) {
 				Security:    operationSecurity,
 			}
 
-			// Map Message to Responses
-			schema := p.convertSchema(ch.Subscribe.Message)
-			op.Responses = model.Responses{
-				"200": model.Response{
-					Description: "OK",
-					Content: map[string]model.MediaType{
-						"application/json": {
-							Schema: schema,
-						},
-					},
-				},
+			// A v2 subscribe operation describes a message sent by this application.
+			schema, ct, err := p.messageSchema(ch.Subscribe.Message, doc.Components, nil)
+			if err != nil {
+				return nil, fmt.Errorf("channel %q subscribe: %w", path, err)
 			}
-			pi.Get = op
+			if ct == "" {
+				ct = "application/json"
+			}
+			if schema != nil {
+				op.RequestBody = &model.RequestBody{Content: map[string]model.MediaType{ct: {Schema: schema}}}
+			}
+			pi.Post = op
 		}
 
 		api.AddPath(path, &pi)
@@ -383,7 +362,7 @@ func (w *Writer) writeV2(api *model.API, wr io.Writer, targetProtocol string, js
 					}
 				}
 			}
-			ch.Publish = op
+			ch.Subscribe = op
 		}
 
 		if item.Get != nil {
@@ -431,7 +410,7 @@ func (w *Writer) writeV2(api *model.API, wr io.Writer, targetProtocol string, js
 					}
 				}
 			}
-			ch.Subscribe = op
+			ch.Publish = op
 		}
 
 		if ch.Publish != nil || ch.Subscribe != nil {
