@@ -57,7 +57,8 @@ func prepareSecurity(api *model.API, v3 bool, protocol string) (*securityPlan, e
 	for _, server := range api.Servers {
 		securityPresent = securityPresent || hasActualRequirement(server.Security)
 	}
-	for _, item := range api.Paths {
+	for path := range api.Paths {
+		item := api.Paths[path]
 		for _, op := range []*model.Operation{item.Get, item.Post} {
 			if op != nil && hasActualRequirement(effectiveSecurity(api.Security, op.Security)) {
 				securityPresent = true

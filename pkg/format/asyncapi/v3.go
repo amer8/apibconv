@@ -52,7 +52,7 @@ func (p *Parser) parseV3(data []byte) (*model.API, error) {
 		policiesByServer[name] = policy
 		api.Servers = append(api.Servers, model.Server{
 			Name:        name,
-			URL:         serverV3URL(s),
+			URL:         serverV3URL(&s),
 			Protocol:    s.Protocol,
 			Description: s.Description,
 			Bindings:    s.Bindings,
@@ -528,7 +528,7 @@ func (w *Writer) writeV3(api *model.API, wr io.Writer, targetProtocol string, js
 
 // AsyncAPI 3 separates the protocol and path from the host. Split textually so
 // server variables such as {environment} remain valid in the host or path.
-func splitServerV3URL(raw string) (string, string, error) {
+func splitServerV3URL(raw string) (host, pathname string, err error) {
 	if _, rest, ok := strings.Cut(raw, "://"); ok {
 		raw = rest
 	}
@@ -545,7 +545,7 @@ func splitServerV3URL(raw string) (string, string, error) {
 	return host, path, nil
 }
 
-func serverV3URL(s ServerV3) string {
+func serverV3URL(s *ServerV3) string {
 	host := s.Host
 	if !strings.Contains(host, "://") && s.Protocol != "" {
 		host = s.Protocol + "://" + host

@@ -404,16 +404,17 @@ func (p *Parser) convertSchema(s *Schema) *model.Schema {
 					alternatives = append(alternatives, &model.Schema{Type: model.SchemaType(typeStr)})
 				}
 			}
-			if len(alternatives) == 2 && (alternatives[0].Type == "null" || alternatives[1].Type == "null") {
+			switch {
+			case len(alternatives) == 2 && (alternatives[0].Type == "null" || alternatives[1].Type == "null"):
 				ms.Nullable = true
 				if alternatives[0].Type == "null" {
 					ms.Type = alternatives[1].Type
 				} else {
 					ms.Type = alternatives[0].Type
 				}
-			} else if len(alternatives) == 1 {
+			case len(alternatives) == 1:
 				ms.Type = alternatives[0].Type
-			} else if len(alternatives) > 1 {
+			case len(alternatives) > 1:
 				// allOf preserves the intersection with an existing anyOf on this schema.
 				ms.AllOf = append(ms.AllOf, &model.Schema{AnyOf: alternatives})
 			}
