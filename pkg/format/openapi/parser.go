@@ -308,8 +308,10 @@ func (p *Parser) convertParameters(params []Parameter) []model.Parameter {
 			Deprecated:      param.Deprecated,
 			AllowEmptyValue: param.AllowEmptyValue,
 			Style:           param.Style,
-			Explode:         param.Explode,
 			Example:         param.Example,
+		}
+		if param.Explode != nil {
+			mp.Explode, mp.ExplodeSet = *param.Explode, true
 		}
 		if param.Schema != nil {
 			mp.Schema = p.convertSchema(param.Schema)
@@ -391,19 +393,30 @@ func (p *Parser) convertSchema(s *Schema) *model.Schema {
 		switch t := s.Type.(type) {
 		case string:
 			ms.Type = model.SchemaType(t)
-		case []interface{}: // Handle OpenAPI 3.1 type: ["string", "null"]
+		case []interface{}: // OpenAPI 3.1 permits a union of JSON Schema types.
+			var alternatives []*model.Schema
 			for _, item := range t {
 				if item == nil {
-					ms.Nullable = true
+					alternatives = append(alternatives, &model.Schema{Type: "null"})
 					continue
 				}
 				if typeStr, ok := item.(string); ok {
-					if typeStr == "null" {
-						ms.Nullable = true // Mark as nullable in the model
-					} else {
-						ms.Type = model.SchemaType(typeStr) // Set the actual type
-					}
+					alternatives = append(alternatives, &model.Schema{Type: model.SchemaType(typeStr)})
 				}
+			}
+			switch {
+			case len(alternatives) == 2 && (alternatives[0].Type == "null" || alternatives[1].Type == "null"):
+				ms.Nullable = true
+				if alternatives[0].Type == "null" {
+					ms.Type = alternatives[1].Type
+				} else {
+					ms.Type = alternatives[0].Type
+				}
+			case len(alternatives) == 1:
+				ms.Type = alternatives[0].Type
+			case len(alternatives) > 1:
+				// allOf preserves the intersection with an existing anyOf on this schema.
+				ms.AllOf = append(ms.AllOf, &model.Schema{AnyOf: alternatives})
 			}
 		}
 	}

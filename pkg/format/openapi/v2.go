@@ -261,8 +261,10 @@ func (p *Parser) convertV2Parameters(params []Parameter) []model.Parameter {
 			Deprecated:      param.Deprecated,
 			AllowEmptyValue: param.AllowEmptyValue,
 			Style:           param.Style,
-			Explode:         param.Explode,
 			Example:         param.Example,
+		}
+		if param.Explode != nil {
+			mp.Explode, mp.ExplodeSet = *param.Explode, true
 		}
 
 		// Handle V2 body parameter specifically

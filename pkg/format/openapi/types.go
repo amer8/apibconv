@@ -96,7 +96,7 @@ type Parameter struct {
 	Deprecated      bool                 `yaml:"deprecated,omitempty" json:"deprecated,omitempty"`
 	AllowEmptyValue bool                 `yaml:"allowEmptyValue,omitempty" json:"allowEmptyValue,omitempty"`
 	Style           string               `yaml:"style,omitempty" json:"style,omitempty"`
-	Explode         bool                 `yaml:"explode,omitempty" json:"explode,omitempty"`
+	Explode         *bool                `yaml:"explode,omitempty" json:"explode,omitempty"`
 	Schema          *Schema              `yaml:"schema,omitempty" json:"schema,omitempty"` // V3
 	Example         interface{}          `yaml:"example,omitempty" json:"example,omitempty"`
 	Content         map[string]MediaType `yaml:"content,omitempty" json:"content,omitempty"`

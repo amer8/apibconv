@@ -61,6 +61,9 @@ func (r *SchemaValidationRule) Validate(ctx context.Context, api *model.API) []f
 
 // ValidateSchemaNode performs validation on a single schema node.
 func ValidateSchemaNode(schema *model.Schema, path string) []format.ValidationError {
+	if schema == nil {
+		return []format.ValidationError{{Path: path, Message: "Schema must not be null", Level: format.LevelError}}
+	}
 	var errors []format.ValidationError
 	if schema.Type != "" {
 		switch schema.Type {

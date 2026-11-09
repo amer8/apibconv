@@ -44,6 +44,7 @@ type Parameter struct {
 	AllowEmptyValue bool
 	Style           string
 	Explode         bool
+	ExplodeSet      bool // Explode was explicitly specified, including false.
 	Schema          *Schema
 	Example         interface{}
 	Examples        map[string]Example
@@ -55,9 +56,9 @@ type ParameterLocation string
 
 const (
 	// ParameterInPath indicates a parameter in the path.
-	ParameterInPath   ParameterLocation = "path"
+	ParameterInPath ParameterLocation = "path"
 	// ParameterInQuery indicates a parameter in the query string.
-	ParameterInQuery  ParameterLocation = "query"
+	ParameterInQuery ParameterLocation = "query"
 	// ParameterInHeader indicates a parameter in the header.
 	ParameterInHeader ParameterLocation = "header"
 	// ParameterInCookie indicates a parameter in a cookie.
@@ -167,7 +168,8 @@ func (p *PathItem) SetOperation(method string, op *Operation) {
 		p.Delete = op
 	case "OPTIONS":
 		p.Options = op
-	case "HEAD":		p.Head = op
+	case "HEAD":
+		p.Head = op
 	case "PATCH":
 		p.Patch = op
 	case "TRACE":

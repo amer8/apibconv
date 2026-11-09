@@ -379,8 +379,11 @@ func (w *Writer) convertParameters(params []model.Parameter, api *model.API) []P
 			Deprecated:      param.Deprecated,
 			AllowEmptyValue: param.AllowEmptyValue,
 			Style:           param.Style,
-			Explode:         param.Explode,
 			Example:         param.Example,
+		}
+		if param.ExplodeSet || param.Explode {
+			value := param.Explode
+			p.Explode = &value
 		}
 		if param.Schema != nil {
 			p.Schema = w.convertSchema(param.Schema, api)

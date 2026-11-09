@@ -40,6 +40,7 @@ type AsyncAPI3 struct {
 type ServerV3 struct {
 	Ref         string                   `yaml:"$ref,omitempty" json:"$ref,omitempty"`
 	Host        string                   `yaml:"host" json:"host"`
+	Pathname    string                   `yaml:"pathname,omitempty" json:"pathname,omitempty"`
 	Protocol    string                   `yaml:"protocol" json:"protocol"`
 	Description string                   `yaml:"description,omitempty" json:"description,omitempty"`
 	Security    []map[string]interface{} `yaml:"security,omitempty" json:"security,omitempty"`
