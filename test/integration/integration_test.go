@@ -3,6 +3,7 @@ package integration
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,12 +13,37 @@ import (
 	"go.yaml.in/yaml/v3"
 
 	"github.com/amer8/apibconv/pkg/converter"
+	apierrors "github.com/amer8/apibconv/pkg/errors"
 	"github.com/amer8/apibconv/pkg/format"
 	"github.com/amer8/apibconv/pkg/format/apiblueprint"
 	"github.com/amer8/apibconv/pkg/format/asyncapi"
 	"github.com/amer8/apibconv/pkg/format/openapi"
 	"github.com/amer8/apibconv/pkg/model"
 )
+
+func TestOpenAPIConversionRejectsInvalidPathWhenValidationEnabled(t *testing.T) {
+	input := `openapi: 3.0.0
+info: {title: Test, version: '1'}
+paths:
+  bad-path:
+    get:
+      responses: {'200': {description: OK}}
+`
+	c, err := converter.New(converter.WithValidation(true, false))
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.RegisterParser(openapi.NewParser())
+	c.RegisterWriter(openapi.NewWriter())
+	var output bytes.Buffer
+	err = c.Convert(context.Background(), strings.NewReader(input), &output, format.FormatOpenAPI, format.FormatOpenAPI)
+	if !errors.Is(err, apierrors.ErrValidationFailed) || !strings.Contains(err.Error(), "bad-path") {
+		t.Fatalf("Convert() error = %v, want path validation failure", err)
+	}
+	if output.Len() != 0 {
+		t.Fatalf("invalid input produced output: %s", output.String())
+	}
+}
 
 type conversionCase struct {
 	name              string
