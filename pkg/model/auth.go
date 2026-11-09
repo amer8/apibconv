@@ -25,6 +25,8 @@ const (
 	SecurityTypeOAuth2 SecuritySchemeType = "oauth2"
 	// SecurityTypeOpenIDConnect represents an OpenID Connect security scheme.
 	SecurityTypeOpenIDConnect SecuritySchemeType = "openIdConnect"
+	// SecurityTypeAsyncAPIKey represents an AsyncAPI username/password API key.
+	SecurityTypeAsyncAPIKey SecuritySchemeType = "asyncapi-apiKey"
 )
 
 // OAuthFlows contains details about the OAuth2 flows supported.

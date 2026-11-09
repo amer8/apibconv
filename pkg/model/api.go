@@ -43,7 +43,8 @@ type Server struct {
 	Name        string // Server name/ID (e.g. "production")
 	URL         string
 	Description string
-	Protocol    string // Protocol (e.g. "kafka", "https") - primarily for AsyncAPI
+	Protocol    string                // Protocol (e.g. "kafka", "https") - primarily for AsyncAPI
+	Security    []SecurityRequirement // Security required by this server, independent of operations
 	Variables   map[string]ServerVariable
 	Bindings    map[string]interface{} // Protocol-specific server bindings
 }
@@ -102,7 +103,7 @@ func (a *API) Validate() error {
 // Clone creates a deep copy of the API structure
 func (a *API) Clone() *API {
 	newAPI := *a
-	
+
 	// Copy Paths
 	if a.Paths != nil {
 		newAPI.Paths = make(map[string]PathItem)

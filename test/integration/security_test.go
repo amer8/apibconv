@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -17,6 +18,97 @@ import (
 	"github.com/amer8/apibconv/pkg/format/asyncapi"
 	"github.com/amer8/apibconv/pkg/model"
 )
+
+func TestOpenAPISecurityRoundTripThroughAsyncAPI(t *testing.T) {
+	input := `openapi: 3.0.0
+info: {title: Test, version: '1'}
+security: [{key: []}, {oauth: [read]}]
+paths:
+  /items:
+    get:
+      operationId: listItems
+      responses: {'200': {description: OK}}
+    post:
+      operationId: createItem
+      security: []
+      responses: {'200': {description: OK}}
+components:
+  securitySchemes:
+    key: {type: apiKey, in: header, name: X-Key}
+    oauth:
+      type: oauth2
+      flows:
+        clientCredentials: {tokenUrl: 'https://example.com/token', scopes: {read: Read}}
+`
+	for _, version := range []string{"2.6", "3.0"} {
+		for _, encoding := range []string{"json", "yaml"} {
+			t.Run(version+"/"+encoding, func(t *testing.T) {
+				conv := newTestConverter(t)
+				ctx := converter.WithEncoding(converter.WithAsyncAPIVersion(context.Background(), version), encoding)
+				var intermediate bytes.Buffer
+				if err := conv.Convert(ctx, strings.NewReader(input), &intermediate, format.FormatOpenAPI, format.FormatAsyncAPI); err != nil {
+					t.Fatal(err)
+				}
+				var output bytes.Buffer
+				if err := conv.Convert(ctx, bytes.NewReader(intermediate.Bytes()), &output, format.FormatAsyncAPI, format.FormatOpenAPI); err != nil {
+					t.Fatalf("convert back: %v\n%s", err, intermediate.String())
+				}
+				api, err := conv.ParseToModel(ctx, bytes.NewReader(output.Bytes()), format.FormatOpenAPI)
+				if err != nil {
+					t.Fatal(err)
+				}
+				item := api.Paths["/items"]
+				want := []model.SecurityRequirement{{"key": {}}, {"oauth": {"read"}}}
+				if item.Get == nil || !reflect.DeepEqual(item.Get.Security, want) {
+					t.Fatalf("GET security = %#v, want %#v\n%s", item.Get, want, output.String())
+				}
+				if item.Post == nil || len(item.Post.Security) != 0 {
+					t.Fatalf("public POST security = %#v\n%s", item.Post, output.String())
+				}
+				if api.Components.SecuritySchemes["key"].Name != "X-Key" || api.Components.SecuritySchemes["oauth"].Flows.ClientCredentials.Scopes["read"] != "Read" {
+					t.Fatalf("security schemes = %#v", api.Components.SecuritySchemes)
+				}
+			})
+		}
+	}
+}
+
+func TestAsyncAPIServerSecurityCannotBeDiscarded(t *testing.T) {
+	input := `asyncapi: 2.6.0
+info: {title: Test, version: '1'}
+servers:
+  production: {url: 'https://example.com', protocol: http, security: [{key: []}]}
+channels:
+  /items: {publish: {}}
+components:
+  securitySchemes:
+    key: {type: httpApiKey, name: X-Key, in: header}
+`
+	for _, target := range []format.Format{format.FormatOpenAPI, format.FormatAPIBlueprint} {
+		t.Run(string(target), func(t *testing.T) {
+			var output bytes.Buffer
+			err := newTestConverter(t).Convert(context.Background(), strings.NewReader(input), &output, format.FormatAsyncAPI, target)
+			if !errors.Is(err, apierrors.ErrUnsupportedSecurity) || output.Len() != 0 {
+				t.Fatalf("Convert() = %v, output %q; want unsupported server security and no output", err, output.String())
+			}
+		})
+	}
+}
+
+func TestAsyncAPINativeSecurityCannotBeDiscardedByOpenAPI(t *testing.T) {
+	input := `asyncapi: 2.6.0
+info: {title: Test, version: '1'}
+channels: {/items: {publish: {security: [{auth: []}]}}}
+components:
+  securitySchemes:
+    auth: {type: scramSha256}
+`
+	var output bytes.Buffer
+	err := newTestConverter(t).Convert(context.Background(), strings.NewReader(input), &output, format.FormatAsyncAPI, format.FormatOpenAPI)
+	if !errors.Is(err, apierrors.ErrUnsupportedSecurity) || output.Len() != 0 {
+		t.Fatalf("Convert() = %v, output %q; want unsupported scheme and no output", err, output.String())
+	}
+}
 
 func TestOpenAPIToAsyncAPISecurity(t *testing.T) {
 	input := `openapi: 3.0.0

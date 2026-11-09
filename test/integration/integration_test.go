@@ -55,6 +55,7 @@ type conversionCase struct {
 	toProtocol        string
 	encoding          string
 	wantError         string
+	wantParseError    string
 }
 
 func TestConversions(t *testing.T) {
@@ -106,6 +107,9 @@ func TestInvalidSpecifications(t *testing.T) {
 func localConversionCases() []conversionCase {
 	var cases []conversionCase
 	add := func(tc conversionCase) {
+		if tc.inputFile == "asyncapi_v2.yaml" || tc.inputFile == "asyncapi_v2.json" || tc.inputFile == "asyncapi_v3.yaml" {
+			tc.wantParseError = "different server security policies"
+		}
 		cases = append(cases, expandEncodingVariants(&tc)...)
 	}
 
@@ -517,6 +521,12 @@ func assertConverts(t *testing.T, tc *conversionCase, input []byte) {
 	ctx := testContext(tc)
 
 	sourceModel, err := conv.ParseToModel(ctx, bytes.NewReader(input), tc.fromFormat)
+	if tc.wantParseError != "" {
+		if !errors.Is(err, apierrors.ErrUnsupportedSecurity) || !strings.Contains(err.Error(), tc.wantParseError) {
+			t.Fatalf("parse error = %v, want unsupported security containing %q", err, tc.wantParseError)
+		}
+		return
+	}
 	if err != nil {
 		t.Fatalf("failed to parse source %s: %v", tc.fromFormat, err)
 	}

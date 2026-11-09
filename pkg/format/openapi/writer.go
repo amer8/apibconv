@@ -11,7 +11,9 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
+	"github.com/amer8/apibconv/internal/security"
 	"github.com/amer8/apibconv/pkg/converter"
+	apierrors "github.com/amer8/apibconv/pkg/errors"
 	"github.com/amer8/apibconv/pkg/format"
 	"github.com/amer8/apibconv/pkg/model"
 )
@@ -71,6 +73,20 @@ func NewWriter(opts ...WriterOption) *Writer {
 func (w *Writer) Write(ctx context.Context, api *model.API, wr io.Writer) error {
 	if err := ctx.Err(); err != nil {
 		return err
+	}
+	if err := security.CheckServerUnsupported(api, "OpenAPI"); err != nil {
+		return err
+	}
+	for name := range api.Components.SecuritySchemes {
+		scheme := api.Components.SecuritySchemes[name]
+		if scheme.Ref != "" {
+			continue
+		}
+		switch scheme.Type {
+		case model.SecurityTypeAPIKey, model.SecurityTypeHTTP, model.SecurityTypeOAuth2, model.SecurityTypeOpenIDConnect, "mutualTLS":
+		default:
+			return fmt.Errorf("%w in OpenAPI output: security scheme %q has unsupported type %q", apierrors.ErrUnsupportedSecurity, name, scheme.Type)
+		}
 	}
 	// Check context for overrides
 	if v := converter.OpenAPIVersionFromContext(ctx); v != "" {

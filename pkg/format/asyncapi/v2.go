@@ -25,6 +25,7 @@ func (p *Parser) parseV2(data []byte) (*model.API, error) {
 	api.Info.Title = doc.Info.Title
 	api.Info.Version = doc.Info.Version
 	api.Info.Description = doc.Info.Description
+	security := newSecurityDecoder(api, doc.Components, false)
 
 	// Sort servers by name for deterministic output
 	serverNames := make([]string, 0, len(doc.Servers))
@@ -33,15 +34,32 @@ func (p *Parser) parseV2(data []byte) (*model.API, error) {
 	}
 	sort.Strings(serverNames)
 
+	var serverPolicies [][]model.SecurityRequirement
+	policiesByServer := make(map[string][]model.SecurityRequirement)
 	for _, name := range serverNames {
 		s := doc.Servers[name]
+		if s.Ref != "" {
+			return nil, securityInputError("referenced server may contain security requirements")
+		}
+		policy, err := security.requirementsV2(s.Security)
+		if err != nil {
+			return nil, fmt.Errorf("server %q: %w", name, err)
+		}
+		serverPolicies = append(serverPolicies, policy)
+		policiesByServer[name] = policy
 		api.Servers = append(api.Servers, model.Server{
 			Name:        name,
 			URL:         s.URL,
 			Protocol:    s.Protocol,
 			Description: s.Description,
 			Bindings:    s.Bindings,
+			Security:    policy,
 		})
+	}
+	var err error
+	_, err = uniformServerSecurity(serverPolicies)
+	if err != nil {
+		return nil, err
 	}
 
 	// Convert Components (Schemas and Messages)
@@ -71,6 +89,13 @@ func (p *Parser) parseV2(data []byte) (*model.API, error) {
 
 	// Convert Channels
 	for path, ch := range doc.Channels {
+		if ch.Ref != "" {
+			return nil, securityInputError("referenced channel may contain security requirements")
+		}
+		_, err := channelServerSecurity(ch.Servers, policiesByServer)
+		if err != nil {
+			return nil, fmt.Errorf("channel %q: %w", path, err)
+		}
 		originalName := path
 
 		// Generate a nice name for the channel ID (camelCase)
@@ -82,11 +107,19 @@ func (p *Parser) parseV2(data []byte) (*model.API, error) {
 		pi.Parameters = p.convertParameters(ch.Parameters)
 
 		if ch.Publish != nil {
+			if ch.Publish.Ref != "" {
+				return nil, securityInputError("referenced operation may contain security requirements")
+			}
+			operationSecurity, err := security.operationSecurityV2(ch.Publish)
+			if err != nil {
+				return nil, fmt.Errorf("channel %q publish: %w", path, err)
+			}
 			op := &model.Operation{
 				OperationID: ch.Publish.OperationID,
 				Summary:     ch.Publish.Summary,
 				Description: ch.Publish.Description,
 				Bindings:    ch.Publish.Bindings,
+				Security:    operationSecurity,
 			}
 
 			// Map Message to RequestBody
@@ -109,11 +142,19 @@ func (p *Parser) parseV2(data []byte) (*model.API, error) {
 		}
 
 		if ch.Subscribe != nil {
+			if ch.Subscribe.Ref != "" {
+				return nil, securityInputError("referenced operation may contain security requirements")
+			}
+			operationSecurity, err := security.operationSecurityV2(ch.Subscribe)
+			if err != nil {
+				return nil, fmt.Errorf("channel %q subscribe: %w", path, err)
+			}
 			op := &model.Operation{
 				OperationID: ch.Subscribe.OperationID,
 				Summary:     ch.Subscribe.Summary,
 				Description: ch.Subscribe.Description,
 				Bindings:    ch.Subscribe.Bindings,
+				Security:    operationSecurity,
 			}
 
 			// Map Message to Responses
@@ -250,6 +291,7 @@ func (w *Writer) writeV2(api *model.API, wr io.Writer, targetProtocol string, js
 			Protocol:    protocol,
 			Description: s.Description,
 			Bindings:    s.Bindings,
+			Security:    plan.serverV2[i],
 		}
 	}
 

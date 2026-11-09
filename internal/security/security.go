@@ -16,7 +16,22 @@ func CheckUnsupported(api *model.API, target string) error {
 	return nil
 }
 
+// CheckServerUnsupported rejects server-level security not representable by a target.
+func CheckServerUnsupported(api *model.API, target string) error {
+	for _, server := range api.Servers {
+		for _, requirement := range server.Security {
+			if len(requirement) > 0 {
+				return fmt.Errorf("%w in %s output: server security cannot be represented", apierrors.ErrUnsupportedSecurity, target)
+			}
+		}
+	}
+	return nil
+}
+
 func hasSecurity(api *model.API) bool {
+	if CheckServerUnsupported(api, "target") != nil {
+		return true
+	}
 	seen := make(map[*model.Operation]bool)
 	for path := range api.Paths {
 		item := api.Paths[path]
