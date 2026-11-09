@@ -5,8 +5,10 @@ import (
 	"context"
 	"errors"
 	"io"
+	"strings"
 	"testing"
 
+	apierrors "github.com/amer8/apibconv/pkg/errors"
 	"github.com/amer8/apibconv/pkg/format"
 	"github.com/amer8/apibconv/pkg/model"
 )
@@ -17,6 +19,135 @@ type mockParser struct {
 	fmt format.Format
 	api *model.API
 	err error
+}
+
+func TestValidationOptionsRejectInvalidModels(t *testing.T) {
+	for _, tc := range []struct {
+		name           string
+		validateInput  bool
+		validateOutput bool
+		wantErr        bool
+	}{
+		{name: "validation disabled", wantErr: false},
+		{name: "input validation", validateInput: true, wantErr: true},
+		{name: "output validation", validateOutput: true, wantErr: true},
+		{name: "both validations", validateInput: true, validateOutput: true, wantErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			api := model.NewAPI()
+			api.Paths["bad-path"] = model.PathItem{}
+			api.Components.Schemas["BadType"] = &model.Schema{Type: "not-a-type"}
+			c, err := New(WithValidation(tc.validateInput, tc.validateOutput))
+			if err != nil {
+				t.Fatal(err)
+			}
+			c.RegisterParser(&mockParser{fmt: format.FormatOpenAPI, api: api})
+			c.RegisterWriter(&mockWriter{fmt: format.FormatOpenAPI})
+			var output bytes.Buffer
+			err = c.Convert(context.Background(), bytes.NewReader(nil), &output, format.FormatOpenAPI, format.FormatOpenAPI)
+			if !tc.wantErr {
+				if err != nil || output.String() != "mock output" {
+					t.Fatalf("Convert() = %q, %v; want mock output and no error", output.String(), err)
+				}
+				return
+			}
+			if !errors.Is(err, apierrors.ErrValidationFailed) {
+				t.Fatalf("Convert() error = %v, want ErrValidationFailed", err)
+			}
+			if !strings.Contains(err.Error(), "bad-path") || !strings.Contains(err.Error(), "BadType") {
+				t.Fatalf("Convert() error omits validation details: %v", err)
+			}
+			var issue format.ValidationError
+			if !errors.As(err, &issue) {
+				t.Fatalf("Convert() error does not expose validation issue: %v", err)
+			}
+			if output.Len() != 0 {
+				t.Fatalf("invalid model produced output: %q", output.String())
+			}
+		})
+	}
+}
+
+func TestValidationOutputRejectsInvalidTransformation(t *testing.T) {
+	c, err := New(WithValidation(true, true), WithTransform(func(api *model.API) error {
+		api.Paths["invalid"] = model.PathItem{}
+		return nil
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.RegisterParser(&mockParser{fmt: format.FormatOpenAPI, api: model.NewAPI()})
+	c.RegisterWriter(&mockWriter{fmt: format.FormatOpenAPI})
+	var output bytes.Buffer
+	err = c.Convert(context.Background(), bytes.NewReader(nil), &output, format.FormatOpenAPI, format.FormatOpenAPI)
+	if !errors.Is(err, apierrors.ErrValidationFailed) || !strings.Contains(err.Error(), "output") {
+		t.Fatalf("Convert() error = %v, want output validation failure", err)
+	}
+	if output.Len() != 0 {
+		t.Fatalf("invalid transformed model produced output: %q", output.String())
+	}
+}
+
+func TestValidationRejectsDirectParseAndWrite(t *testing.T) {
+	api := &model.API{Paths: map[string]model.PathItem{"bad-path": {}}}
+	c, err := New(WithValidation(true, true))
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.RegisterParser(&mockParser{fmt: format.FormatOpenAPI, api: api})
+	c.RegisterWriter(&mockWriter{fmt: format.FormatOpenAPI})
+	parsed, err := c.ParseToModel(context.Background(), bytes.NewReader(nil), format.FormatOpenAPI)
+	if parsed != nil || !errors.Is(err, apierrors.ErrValidationFailed) || !strings.Contains(err.Error(), "input") {
+		t.Fatalf("ParseToModel() = %#v, %v; want nil and input validation error", parsed, err)
+	}
+	var output bytes.Buffer
+	err = c.WriteFromModel(context.Background(), api, &output, format.FormatOpenAPI)
+	if !errors.Is(err, apierrors.ErrValidationFailed) || !strings.Contains(err.Error(), "output") || output.Len() != 0 {
+		t.Fatalf("WriteFromModel() = %v, output %q; want output validation error and no output", err, output.String())
+	}
+}
+
+func TestValidateReportsIssuesWhenInputValidationEnabled(t *testing.T) {
+	c, err := New(WithValidation(true, false))
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.RegisterParser(&mockParser{fmt: format.FormatOpenAPI, api: &model.API{Paths: map[string]model.PathItem{"bad-path": {}}}})
+	input := `openapi: 3.0.0
+info: {title: Test, version: '1'}
+paths: {}
+`
+	issues, err := c.Validate(context.Background(), strings.NewReader(input), format.FormatOpenAPI)
+	if err != nil || len(issues) != 1 || issues[0].Path != "bad-path" {
+		t.Fatalf("Validate() = %#v, %v; want one path issue and no error", issues, err)
+	}
+}
+
+func TestValidatePreservesSchemaAndModelIssuesWithInputValidation(t *testing.T) {
+	c, err := New(WithValidation(true, false))
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.RegisterParser(&mockParser{fmt: format.FormatOpenAPI, api: &model.API{Paths: map[string]model.PathItem{"bad-path": {}}}})
+	input := `openapi: 3.0.0
+info: {title: Test}
+paths: {}
+`
+	issues, err := c.Validate(context.Background(), strings.NewReader(input), format.FormatOpenAPI)
+	if err != nil {
+		t.Fatalf("Validate() error = %v", err)
+	}
+	var foundPath, foundSchema bool
+	for _, issue := range issues {
+		if issue.Path == "bad-path" {
+			foundPath = true
+		} else {
+			foundSchema = true
+		}
+	}
+	if !foundPath || !foundSchema {
+		t.Fatalf("Validate() issues = %#v, want schema and model issues", issues)
+	}
 }
 
 func (m *mockParser) Parse(ctx context.Context, r io.Reader) (*model.API, error) {
@@ -37,6 +168,31 @@ func (m *mockParser) SupportsVersion(version string) bool {
 type mockWriter struct {
 	fmt format.Format
 	err error
+}
+
+type warningRule struct{}
+
+func (warningRule) Name() string                  { return "test-warning" }
+func (warningRule) Level() format.ValidationLevel { return format.LevelWarning }
+func (warningRule) Validate(context.Context, *model.API) []format.ValidationError {
+	return []format.ValidationError{{Level: format.LevelWarning, Path: "warning", Message: "warning only"}}
+}
+
+func TestValidationWarningsDoNotFailConversion(t *testing.T) {
+	c, err := New(WithValidation(true, true))
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.validator.AddRule(warningRule{})
+	c.RegisterParser(&mockParser{fmt: format.FormatOpenAPI, api: model.NewAPI()})
+	c.RegisterWriter(&mockWriter{fmt: format.FormatOpenAPI})
+	var output bytes.Buffer
+	if err := c.Convert(context.Background(), bytes.NewReader(nil), &output, format.FormatOpenAPI, format.FormatOpenAPI); err != nil {
+		t.Fatalf("warning failed conversion: %v", err)
+	}
+	if output.String() != "mock output" {
+		t.Fatalf("output = %q, want mock output", output.String())
+	}
 }
 
 func (m *mockWriter) Write(ctx context.Context, api *model.API, w io.Writer) error {

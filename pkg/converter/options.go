@@ -38,7 +38,8 @@ func WithStrict(strict bool) Option {
 	}
 }
 
-// WithValidation enables input and/or output validation.
+// WithValidation enables model validation after parsing and/or before writing.
+// Error-level issues fail conversion; warnings do not.
 func WithValidation(input, output bool) Option {
 	return func(o *Options) {
 		o.ValidateInput = input
