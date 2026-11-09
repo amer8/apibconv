@@ -11,9 +11,11 @@ import (
 )
 
 type securityPlan struct {
-	schemes map[string]interface{}
-	v2      map[*model.Operation][]map[string][]string
-	v3      map[*model.Operation][]map[string]interface{}
+	schemes  map[string]interface{}
+	v2       map[*model.Operation][]map[string][]string
+	v3       map[*model.Operation][]map[string]interface{}
+	serverV2 map[int][]map[string][]string
+	serverV3 map[int][]map[string]interface{}
 }
 
 func unsupportedSecurity(reason string) error {
@@ -21,7 +23,7 @@ func unsupportedSecurity(reason string) error {
 }
 
 func prepareSecurity(api *model.API, v3 bool, protocol string) (*securityPlan, error) {
-	plan := &securityPlan{schemes: make(map[string]interface{}), v2: make(map[*model.Operation][]map[string][]string), v3: make(map[*model.Operation][]map[string]interface{})}
+	plan := &securityPlan{schemes: make(map[string]interface{}), v2: make(map[*model.Operation][]map[string][]string), v3: make(map[*model.Operation][]map[string]interface{}), serverV2: make(map[int][]map[string][]string), serverV3: make(map[int][]map[string]interface{})}
 	if err := checkOmittedSecurity(api); err != nil {
 		return nil, err
 	}
@@ -36,9 +38,27 @@ func prepareSecurity(api *model.API, v3 bool, protocol string) (*securityPlan, e
 			plan.schemes[name] = converted
 		}
 	}
+	for i := range api.Servers {
+		server := api.Servers[i]
+		scope := *api
+		scope.Servers = []model.Server{server}
+		op := &model.Operation{}
+		if err := plan.addRequirements(&scope, op, server.Security, v3, protocol); err != nil {
+			return nil, fmt.Errorf("server %q: %w", server.Name, err)
+		}
+		plan.serverV2[i] = plan.v2[op]
+		plan.serverV3[i] = plan.v3[op]
+		delete(plan.v2, op)
+		delete(plan.v3, op)
+	}
 	operationIDs := make(map[string]bool)
 	channelIDs := make(map[string]bool)
 	securityPresent := false
+	for _, server := range api.Servers {
+		if hasActualRequirement(server.Security) {
+			securityPresent = true
+		}
+	}
 	for path := range api.Paths {
 		item := api.Paths[path]
 		for _, op := range []*model.Operation{item.Get, item.Post} {
@@ -97,6 +117,7 @@ func prepareSecurity(api *model.API, v3 bool, protocol string) (*securityPlan, e
 func checkOmittedSecurity(api *model.API) error {
 	remaining := *api
 	remaining.Components.SecuritySchemes = nil
+	remaining.Servers = nil // Server security is handled directly by the AsyncAPI writer.
 	remaining.Paths = make(map[string]model.PathItem, len(api.Paths))
 	for path := range api.Paths {
 		item := api.Paths[path]
@@ -244,6 +265,11 @@ func convertSecurityScheme(s *model.SecurityScheme, v3 bool) (map[string]interfa
 			return nil, fmt.Errorf("invalid HTTP API key")
 		}
 		out["type"], out["name"], out["in"] = "httpApiKey", s.Name, s.In
+	case model.SecurityTypeAsyncAPIKey:
+		if s.In != "user" && s.In != "password" {
+			return nil, fmt.Errorf("invalid AsyncAPI API key location")
+		}
+		out["type"], out["in"] = "apiKey", s.In
 	case model.SecurityTypeHTTP:
 		if s.Scheme == "" {
 			return nil, fmt.Errorf("missing HTTP authentication scheme")
@@ -257,6 +283,8 @@ func convertSecurityScheme(s *model.SecurityScheme, v3 bool) (map[string]interfa
 			return nil, fmt.Errorf("missing OpenID Connect URL")
 		}
 		out["type"], out["openIdConnectUrl"] = "openIdConnect", s.OpenIDConnectURL
+	case "userPassword", "X509", "symmetricEncryption", "asymmetricEncryption", "plain", "scramSha256", "scramSha512", "gssapi":
+		out["type"] = string(s.Type)
 	case model.SecurityTypeOAuth2:
 		if s.Flows == nil {
 			return nil, fmt.Errorf("missing OAuth flows")

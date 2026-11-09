@@ -25,6 +25,7 @@ func (p *Parser) parseV3(data []byte) (*model.API, error) {
 	api.Info.Title = doc.Info.Title
 	api.Info.Version = doc.Info.Version
 	api.Info.Description = doc.Info.Description
+	security := newSecurityDecoder(api, doc.Components, true)
 
 	// Servers (Sorted)
 	serverNames := make([]string, 0, len(doc.Servers))
@@ -33,20 +34,40 @@ func (p *Parser) parseV3(data []byte) (*model.API, error) {
 	}
 	sort.Strings(serverNames)
 
+	var serverPolicies [][]model.SecurityRequirement
+	policiesByServer := make(map[string][]model.SecurityRequirement)
 	for _, name := range serverNames {
 		s := doc.Servers[name]
+		if s.Ref != "" {
+			return nil, securityInputError("referenced server may contain security requirements")
+		}
+		policy, err := security.requirementsV3(s.Security)
+		if err != nil {
+			return nil, fmt.Errorf("server %q: %w", name, err)
+		}
+		serverPolicies = append(serverPolicies, policy)
+		policiesByServer[name] = policy
 		api.Servers = append(api.Servers, model.Server{
 			Name:        name,
 			URL:         s.Host,
 			Protocol:    s.Protocol,
 			Description: s.Description,
 			Bindings:    s.Bindings,
+			Security:    policy,
 		})
+	}
+	var err error
+	_, err = uniformServerSecurity(serverPolicies)
+	if err != nil {
+		return nil, err
 	}
 
 	// Map Channels by ID for lookup (needed for operations)
 	channelMap := make(map[string]string) // ID -> Address
 	for id, ch := range doc.Channels {
+		if ch.Ref != "" {
+			return nil, securityInputError("referenced channel may contain security requirements")
+		}
 		if ch.Address != "" {
 			channelMap[id] = ch.Address
 		} else {
@@ -63,6 +84,13 @@ func (p *Parser) parseV3(data []byte) (*model.API, error) {
 
 	for _, opID := range opIDs {
 		op := doc.Operations[opID]
+		if op.Ref != "" {
+			return nil, securityInputError("referenced operation may contain security requirements")
+		}
+		operationSecurity, err := security.operationSecurityV3(&op)
+		if err != nil {
+			return nil, fmt.Errorf("operation %q: %w", opID, err)
+		}
 		// Resolve channel address
 		var path string
 		var chRef string
@@ -75,8 +103,14 @@ func (p *Parser) parseV3(data []byte) (*model.API, error) {
 			if ref, ok := v["$ref"].(string); ok {
 				// extract ID from ref (e.g. #/channels/myChannel -> myChannel)
 				if strings.HasPrefix(ref, "#/channels/") {
-					chRef = strings.TrimPrefix(ref, "#/channels/")
+					chRef, err = decodePointerToken(strings.TrimPrefix(ref, "#/channels/"))
+					if err != nil {
+						return nil, fmt.Errorf("operation %q channel: %w", opID, err)
+					}
 				} else {
+					if hasSecuredServer(policiesByServer) || hasActualRequirement(operationSecurity) {
+						return nil, securityInputError(fmt.Sprintf("secured operation %q has an external channel reference", opID))
+					}
 					parts := strings.Split(ref, "/")
 					if len(parts) > 0 {
 						chRef = parts[len(parts)-1]
@@ -86,6 +120,9 @@ func (p *Parser) parseV3(data []byte) (*model.API, error) {
 		}
 
 		if chRef == "" {
+			if hasSecuredServer(policiesByServer) || hasActualRequirement(operationSecurity) {
+				return nil, securityInputError(fmt.Sprintf("secured operation %q has no resolvable channel", opID))
+			}
 			continue
 		}
 
@@ -93,6 +130,18 @@ func (p *Parser) parseV3(data []byte) (*model.API, error) {
 			path = addr
 		} else {
 			path = chRef // Unknown ID, use as path
+		}
+		channel, foundChannel := doc.Channels[chRef]
+		if !foundChannel && (hasActualRequirement(api.Security) || hasActualRequirement(operationSecurity) || len(policiesByServer) > 0) {
+			return nil, securityInputError(fmt.Sprintf("operation %q references an unknown channel", opID))
+		}
+		serverNames, err := channelV3ServerNames(channel.Servers)
+		if err != nil {
+			return nil, fmt.Errorf("channel %q: %w", chRef, err)
+		}
+		serverSecurity, err := channelServerSecurity(serverNames, policiesByServer)
+		if err != nil {
+			return nil, fmt.Errorf("channel %q: %w", chRef, err)
 		}
 
 		// Get or Create PathItem
@@ -102,6 +151,7 @@ func (p *Parser) parseV3(data []byte) (*model.API, error) {
 			Summary:     op.Summary,
 			Description: op.Description,
 			Bindings:    op.Bindings,
+			Security:    operationSecurity,
 		}
 		if modelOp.OperationID == "" {
 			modelOp.OperationID = opID
@@ -109,9 +159,19 @@ func (p *Parser) parseV3(data []byte) (*model.API, error) {
 
 		switch op.Action {
 		case "send":
+			if pi.Post != nil && (hasActualRequirement(api.Security) || hasActualRequirement(serverSecurity) || hasActualRequirement(pi.Post.Security) || hasActualRequirement(modelOp.Security)) {
+				return nil, securityInputError(fmt.Sprintf("multiple secured send operations share channel %q", path))
+			}
 			pi.Post = modelOp
 		case "receive":
+			if pi.Get != nil && (hasActualRequirement(api.Security) || hasActualRequirement(serverSecurity) || hasActualRequirement(pi.Get.Security) || hasActualRequirement(modelOp.Security)) {
+				return nil, securityInputError(fmt.Sprintf("multiple secured receive operations share channel %q", path))
+			}
 			pi.Get = modelOp
+		default:
+			if hasActualRequirement(serverSecurity) || hasActualRequirement(operationSecurity) {
+				return nil, securityInputError(fmt.Sprintf("secured operation %q has an unsupported action", opID))
+			}
 		}
 
 		api.AddPath(path, &pi)
@@ -163,6 +223,7 @@ func (w *Writer) writeV3(api *model.API, wr io.Writer, targetProtocol string, js
 			Protocol:    protocol,
 			Description: s.Description,
 			Bindings:    s.Bindings,
+			Security:    plan.serverV3[i],
 		}
 	}
 

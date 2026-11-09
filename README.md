@@ -36,9 +36,11 @@ inherited requirements and public operation overrides. Unsupported combinations,
 schemes, protocols, or secured operations that cannot be emitted cause an error.
 API Blueprint has no equivalent machine-readable security requirement; its writer
 rejects operations with effective authentication requirements. Public operations and
-unused security definitions can still be converted. The AsyncAPI parser does not yet
-retain security information, so AsyncAPI input and security-preserving roundtrips are
-not supported.
+unused security definitions can still be converted. The AsyncAPI parser preserves
+representable server and operation requirements separately. OpenAPI and API Blueprint
+output reject server-level security that they cannot represent. The parser rejects
+unsupported security mechanisms, unresolved security references, and different server
+security policies rather than silently dropping them.
 
 ## Installation
 
