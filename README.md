@@ -30,8 +30,15 @@ validate the output, and review it against the source before using it as an API 
 OpenAPI-to-OpenAPI conversion preserves security requirements and supported security
 schemes. Conversion to Swagger 2.0 fails if a scheme cannot be represented in that
 version, such as HTTP bearer authentication or multiple OAuth flows. Conversion to
-OpenAPI 3.0 also fails for OpenAPI 3.1 mutual TLS schemes. Conversion to API Blueprint
-or AsyncAPI does not currently preserve OpenAPI security requirements.
+OpenAPI 3.0 also fails for OpenAPI 3.1 mutual TLS schemes. AsyncAPI conversion maps
+representable security requirements onto each generated operation, including
+inherited requirements and public operation overrides. Unsupported combinations,
+schemes, protocols, or secured operations that cannot be emitted cause an error.
+API Blueprint has no equivalent machine-readable security requirement; its writer
+rejects operations with effective authentication requirements. Public operations and
+unused security definitions can still be converted. The AsyncAPI parser does not yet
+retain security information, so AsyncAPI input and security-preserving roundtrips are
+not supported.
 
 ## Installation
 

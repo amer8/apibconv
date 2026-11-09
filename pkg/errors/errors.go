@@ -8,21 +8,23 @@ import (
 
 var (
 	// ErrUnsupportedFormat indicates that the requested format is not supported.
-	ErrUnsupportedFormat   = errors.New("unsupported format")
+	ErrUnsupportedFormat = errors.New("unsupported format")
 	// ErrInvalidSpec indicates that the specification is invalid.
-	ErrInvalidSpec         = errors.New("invalid specification")
+	ErrInvalidSpec = errors.New("invalid specification")
 	// ErrParseFailure indicates a failure during parsing of the specification.
-	ErrParseFailure        = errors.New("parse failure")
+	ErrParseFailure = errors.New("parse failure")
 	// ErrWriteFailure indicates a failure during writing of the specification.
-	ErrWriteFailure        = errors.New("write failure")
+	ErrWriteFailure = errors.New("write failure")
 	// ErrConversionFailed indicates a general failure during conversion.
-	ErrConversionFailed    = errors.New("conversion failed")
+	ErrConversionFailed = errors.New("conversion failed")
 	// ErrValidationFailed indicates that the validation of the specification failed.
-	ErrValidationFailed    = errors.New("validation failed")
+	ErrValidationFailed = errors.New("validation failed")
 	// ErrFormatDetection indicates a failure during automatic format detection.
-	ErrFormatDetection     = errors.New("format detection failed")
+	ErrFormatDetection = errors.New("format detection failed")
 	// ErrIncompatibleVersion indicates that the specification version is incompatible.
 	ErrIncompatibleVersion = errors.New("incompatible version")
+	// ErrUnsupportedSecurity indicates that security information cannot be represented in the target format.
+	ErrUnsupportedSecurity = errors.New("security requirements or schemes cannot be represented")
 )
 
 // ConversionError represents an error that occurred during a conversion process.

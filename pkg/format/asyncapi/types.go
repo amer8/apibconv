@@ -11,9 +11,9 @@ type AsyncAPI2 struct {
 
 // Channel2 represents a channel in AsyncAPI 2.x.
 type Channel2 struct {
-	Publish    *Operation           `yaml:"publish,omitempty" json:"publish,omitempty"`
-	Subscribe  *Operation           `yaml:"subscribe,omitempty" json:"subscribe,omitempty"`
-	Parameters map[string]Parameter `yaml:"parameters,omitempty" json:"parameters,omitempty"`
+	Publish    *Operation             `yaml:"publish,omitempty" json:"publish,omitempty"`
+	Subscribe  *Operation             `yaml:"subscribe,omitempty" json:"subscribe,omitempty"`
+	Parameters map[string]Parameter   `yaml:"parameters,omitempty" json:"parameters,omitempty"`
 	Bindings   map[string]interface{} `yaml:"bindings,omitempty" json:"bindings,omitempty"` // Channel Bindings
 }
 
@@ -45,18 +45,19 @@ type ServerV3 struct {
 // Channel3 represents a channel in AsyncAPI 3.0.
 type Channel3 struct {
 	Address  string                 `yaml:"address,omitempty" json:"address,omitempty"`
-	Messages map[string]interface{} `yaml:"messages,omitempty" json:"messages,omitempty"`	
+	Messages map[string]interface{} `yaml:"messages,omitempty" json:"messages,omitempty"`
 	Bindings map[string]interface{} `yaml:"bindings,omitempty" json:"bindings,omitempty"` // Channel Bindings
 }
 
 // Operation3 represents an operation in AsyncAPI 3.0.
 type Operation3 struct {
-	Action      string                 `yaml:"action" json:"action"` // "send" or "receive"
-	Channel     interface{}            `yaml:"channel" json:"channel"` // Ref or Object
-	Summary     string                 `yaml:"summary,omitempty" json:"summary,omitempty"`
-	Description string                 `yaml:"description,omitempty" json:"description,omitempty"`
-	Messages    []interface{}          `yaml:"messages,omitempty" json:"messages,omitempty"`
-	Bindings    map[string]interface{} `yaml:"bindings,omitempty" json:"bindings,omitempty"` // Operation Bindings
+	Action      string                   `yaml:"action" json:"action"`   // "send" or "receive"
+	Channel     interface{}              `yaml:"channel" json:"channel"` // Ref or Object
+	Summary     string                   `yaml:"summary,omitempty" json:"summary,omitempty"`
+	Description string                   `yaml:"description,omitempty" json:"description,omitempty"`
+	Security    []map[string]interface{} `yaml:"security,omitempty" json:"security,omitempty"`
+	Messages    []interface{}            `yaml:"messages,omitempty" json:"messages,omitempty"`
+	Bindings    map[string]interface{}   `yaml:"bindings,omitempty" json:"bindings,omitempty"` // Operation Bindings
 }
 
 // Info object provides metadata about the API.
@@ -68,10 +69,11 @@ type Info struct {
 
 // Operation object describes a publish or subscribe operation.
 type Operation struct {
-	OperationID string   `yaml:"operationId,omitempty" json:"operationId,omitempty"`
-	Summary     string   `yaml:"summary,omitempty" json:"summary,omitempty"`
-	Description string   `yaml:"description,omitempty" json:"description,omitempty"`
-	Message     *Message `yaml:"message,omitempty" json:"message,omitempty"`	
+	OperationID string                 `yaml:"operationId,omitempty" json:"operationId,omitempty"`
+	Summary     string                 `yaml:"summary,omitempty" json:"summary,omitempty"`
+	Description string                 `yaml:"description,omitempty" json:"description,omitempty"`
+	Security    []map[string][]string  `yaml:"security,omitempty" json:"security,omitempty"`
+	Message     *Message               `yaml:"message,omitempty" json:"message,omitempty"`
 	Bindings    map[string]interface{} `yaml:"bindings,omitempty" json:"bindings,omitempty"` // Operation Bindings
 }
 
