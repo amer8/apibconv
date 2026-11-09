@@ -101,8 +101,9 @@ func (p *Parser) convertToModel(doc *OpenAPI) (*model.API, error) {
 	api := model.NewAPI()
 	api.Version = doc.OpenAPI
 	api.Security = securityRequirementsToModel(doc.Security)
-	for name, scheme := range doc.Components.SecuritySchemes {
-		api.Components.SecuritySchemes[name] = securitySchemeToModel(scheme)
+	for name := range doc.Components.SecuritySchemes {
+		scheme := doc.Components.SecuritySchemes[name]
+		api.Components.SecuritySchemes[name] = securitySchemeToModel(&scheme)
 	}
 
 	// Info

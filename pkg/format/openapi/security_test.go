@@ -3,6 +3,7 @@ package openapi
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
@@ -13,6 +14,43 @@ import (
 	"github.com/amer8/apibconv/pkg/model"
 	"go.yaml.in/yaml/v3"
 )
+
+func TestSecurityMarshalingValueAndPointer(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		value interface{}
+	}{
+		{"operation value", Operation{Security: []map[string][]string{}}},
+		{"operation pointer", &Operation{Security: []map[string][]string{}}},
+		{"openapi value", OpenAPI{Security: []map[string][]string{}}},
+		{"openapi pointer", &OpenAPI{Security: []map[string][]string{}}},
+		{"swagger value", Swagger20{Security: []map[string][]string{}}},
+		{"swagger pointer", &Swagger20{Security: []map[string][]string{}}},
+	} {
+		for _, encoding := range []string{"json", "yaml"} {
+			t.Run(tc.name+"/"+encoding, func(t *testing.T) {
+				var data []byte
+				var err error
+				if encoding == "json" {
+					data, err = json.Marshal(tc.value)
+				} else {
+					data, err = yaml.Marshal(tc.value)
+				}
+				if err != nil {
+					t.Fatal(err)
+				}
+				var doc map[string]interface{}
+				if err := yaml.Unmarshal(data, &doc); err != nil {
+					t.Fatal(err)
+				}
+				security, ok := doc["security"].([]interface{})
+				if !ok || len(security) != 0 {
+					t.Fatalf("security = %#v, want empty array; output: %s", doc["security"], data)
+				}
+			})
+		}
+	}
+}
 
 func TestOpenAPI3SecurityRoundTrip(t *testing.T) {
 	for _, version := range []string{"3.0.0", "3.1.0"} {
@@ -271,7 +309,7 @@ func TestMutualTLSCannotBeDowngradedToOpenAPI30(t *testing.T) {
 	}
 }
 
-func securityRoundTrip(t *testing.T, input, version, encoding string) (*model.API, []byte, *model.API) {
+func securityRoundTrip(t *testing.T, input, version, encoding string) (original *model.API, output []byte, converted *model.API) {
 	t.Helper()
 	parser := NewParser()
 	api, err := parser.Parse(context.Background(), strings.NewReader(input))
@@ -283,7 +321,7 @@ func securityRoundTrip(t *testing.T, input, version, encoding string) (*model.AP
 	if err := writer.Write(context.Background(), api, &out); err != nil {
 		t.Fatalf("write: %v", err)
 	}
-	converted, err := parser.Parse(context.Background(), bytes.NewReader(out.Bytes()))
+	converted, err = parser.Parse(context.Background(), bytes.NewReader(out.Bytes()))
 	if err != nil {
 		t.Fatalf("parse output: %v\n%s", err, out.String())
 	}

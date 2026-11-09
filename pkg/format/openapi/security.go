@@ -9,8 +9,9 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-// Preserve the distinction between an absent operation security field (inherit
-// global security) and an explicit empty array (disable global security).
+// MarshalJSON preserves the distinction between inherited and explicitly empty security.
+//
+//nolint:gocritic // A value receiver preserves JSON marshaling for both values and pointers.
 func (op Operation) MarshalJSON() ([]byte, error) {
 	type operation Operation
 	var security *[]map[string][]string
@@ -23,11 +24,17 @@ func (op Operation) MarshalJSON() ([]byte, error) {
 	}{operation: operation(op), Security: security})
 }
 
+// MarshalYAML preserves the distinction between inherited and explicitly empty security.
+//
+//nolint:gocritic // A value receiver preserves YAML marshaling for both values and pointers.
 func (op Operation) MarshalYAML() (interface{}, error) {
 	type operation Operation
 	return marshalSecurityYAML(operation(op), op.Security)
 }
 
+// MarshalJSON preserves an explicitly empty global security array.
+//
+//nolint:gocritic // A value receiver preserves JSON marshaling for both values and pointers.
 func (doc OpenAPI) MarshalJSON() ([]byte, error) {
 	type openAPI OpenAPI
 	var security *[]map[string][]string
@@ -40,11 +47,17 @@ func (doc OpenAPI) MarshalJSON() ([]byte, error) {
 	}{openAPI: openAPI(doc), Security: security})
 }
 
+// MarshalYAML preserves an explicitly empty global security array.
+//
+//nolint:gocritic // A value receiver preserves YAML marshaling for both values and pointers.
 func (doc OpenAPI) MarshalYAML() (interface{}, error) {
 	type openAPI OpenAPI
 	return marshalSecurityYAML(openAPI(doc), doc.Security)
 }
 
+// MarshalJSON preserves an explicitly empty global security array.
+//
+//nolint:gocritic // A value receiver preserves JSON marshaling for both values and pointers.
 func (doc Swagger20) MarshalJSON() ([]byte, error) {
 	type swagger Swagger20
 	var security *[]map[string][]string
@@ -57,6 +70,9 @@ func (doc Swagger20) MarshalJSON() ([]byte, error) {
 	}{swagger: swagger(doc), Security: security})
 }
 
+// MarshalYAML preserves an explicitly empty global security array.
+//
+//nolint:gocritic // A value receiver preserves YAML marshaling for both values and pointers.
 func (doc Swagger20) MarshalYAML() (interface{}, error) {
 	type swagger Swagger20
 	return marshalSecurityYAML(swagger(doc), doc.Security)
@@ -104,7 +120,7 @@ func securityRequirementsFromModel(requirements []model.SecurityRequirement) []m
 	return result
 }
 
-func securitySchemeToModel(s SecurityScheme) model.SecurityScheme {
+func securitySchemeToModel(s *SecurityScheme) model.SecurityScheme {
 	result := model.SecurityScheme{
 		Ref: s.Ref, Type: model.SecuritySchemeType(s.Type), Description: s.Description,
 		Name: s.Name, In: s.In, Scheme: s.Scheme, BearerFormat: s.BearerFormat,
@@ -126,7 +142,7 @@ func flowToModel(f *OAuthFlow) *model.OAuthFlow {
 	return &model.OAuthFlow{AuthorizationURL: f.AuthorizationURL, TokenURL: f.TokenURL, RefreshURL: f.RefreshURL, Scopes: f.Scopes}
 }
 
-func securitySchemeFromModel(s model.SecurityScheme) SecurityScheme {
+func securitySchemeFromModel(s *model.SecurityScheme) SecurityScheme {
 	result := SecurityScheme{
 		Ref: s.Ref, Type: string(s.Type), Description: s.Description,
 		Name: s.Name, In: s.In, Scheme: s.Scheme, BearerFormat: s.BearerFormat,
@@ -148,7 +164,7 @@ func flowFromModel(f *model.OAuthFlow) *OAuthFlow {
 	return &OAuthFlow{AuthorizationURL: f.AuthorizationURL, TokenURL: f.TokenURL, RefreshURL: f.RefreshURL, Scopes: f.Scopes}
 }
 
-func securitySchemeV2ToModel(s SecurityScheme) (model.SecurityScheme, error) {
+func securitySchemeV2ToModel(s *SecurityScheme) (model.SecurityScheme, error) {
 	result := securitySchemeToModel(s)
 	switch s.Type {
 	case "basic":
@@ -176,7 +192,7 @@ func securitySchemeV2ToModel(s SecurityScheme) (model.SecurityScheme, error) {
 	return result, nil
 }
 
-func securitySchemeToV2(s model.SecurityScheme) (SecurityScheme, error) {
+func securitySchemeToV2(s *model.SecurityScheme) (SecurityScheme, error) {
 	result := SecurityScheme{Description: s.Description}
 	if s.Ref != "" {
 		return result, fmt.Errorf("security scheme reference %q cannot be represented in Swagger 2.0", s.Ref)
