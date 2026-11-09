@@ -209,12 +209,15 @@ func (p *Parser) toCamelCase(s string) string {
 }
 
 // writeV2 implements AsyncAPI 2.x writing
-func (w *Writer) writeV2(api *model.API, wr io.Writer, targetProtocol string, jsonOutput bool) error {
+func (w *Writer) writeV2(api *model.API, wr io.Writer, targetProtocol string, jsonOutput bool, plan *securityPlan) error {
 	doc := AsyncAPI2{
 		AsyncAPI:   w.version,
 		Channels:   make(map[string]Channel2),
 		Servers:    make(map[string]Server),
 		Components: make(map[string]interface{}),
+	}
+	if len(plan.schemes) > 0 {
+		doc.Components["securitySchemes"] = plan.schemes
 	}
 
 	doc.Info.Title = api.Info.Title
@@ -307,6 +310,7 @@ func (w *Writer) writeV2(api *model.API, wr io.Writer, targetProtocol string, js
 				Summary:     item.Post.Summary,
 				Description: item.Post.Description,
 				Bindings:    item.Post.Bindings,
+				Security:    plan.v2[item.Post],
 			}
 
 			// Try to find payload
@@ -346,6 +350,7 @@ func (w *Writer) writeV2(api *model.API, wr io.Writer, targetProtocol string, js
 				Summary:     item.Get.Summary,
 				Description: item.Get.Description,
 				Bindings:    item.Get.Bindings,
+				Security:    plan.v2[item.Get],
 			}
 
 			// Try to find response payload

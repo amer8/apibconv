@@ -128,6 +128,7 @@ func localConversionCases() []conversionCase {
 				inputFile:  file,
 				fromFormat: format.FormatOpenAPI,
 				toFormat:   format.FormatAPIBlueprint,
+				wantError:  apierrors.ErrUnsupportedSecurity.Error(),
 			})
 			add(conversionCase{
 				name:              fmt.Sprintf("%s (%s) to AsyncAPI v2.6 (kafka)", src.label, inputEncoding),
@@ -136,6 +137,7 @@ func localConversionCases() []conversionCase {
 				toFormat:          format.FormatAsyncAPI,
 				toAsyncAPIVersion: "2.6",
 				toProtocol:        "kafka",
+				wantError:         apierrors.ErrUnsupportedSecurity.Error(),
 			})
 			add(conversionCase{
 				name:              fmt.Sprintf("%s (%s) to AsyncAPI v3.0 (kafka)", src.label, inputEncoding),
@@ -144,6 +146,7 @@ func localConversionCases() []conversionCase {
 				toFormat:          format.FormatAsyncAPI,
 				toAsyncAPIVersion: "3.0",
 				toProtocol:        "kafka",
+				wantError:         apierrors.ErrUnsupportedSecurity.Error(),
 			})
 
 			if src.version != "2.0" {
@@ -191,6 +194,7 @@ func localConversionCases() []conversionCase {
 		toFormat:          format.FormatAsyncAPI,
 		toAsyncAPIVersion: "2.6",
 		toProtocol:        "amqp",
+		wantError:         apierrors.ErrUnsupportedSecurity.Error(),
 	})
 	add(conversionCase{
 		name:              "OpenAPI v3.0 (json) to AsyncAPI v2.6 (http)",
@@ -199,6 +203,7 @@ func localConversionCases() []conversionCase {
 		toFormat:          format.FormatAsyncAPI,
 		toAsyncAPIVersion: "2.6",
 		toProtocol:        "http",
+		wantError:         apierrors.ErrUnsupportedSecurity.Error(),
 	})
 	add(conversionCase{
 		name:              "OpenAPI v3.0 (json) to AsyncAPI v3.0 (http)",
@@ -207,6 +212,7 @@ func localConversionCases() []conversionCase {
 		toFormat:          format.FormatAsyncAPI,
 		toAsyncAPIVersion: "3.0",
 		toProtocol:        "http",
+		wantError:         apierrors.ErrUnsupportedSecurity.Error(),
 	})
 	add(conversionCase{
 		name:              "OpenAPI v3.0 (yaml) to AsyncAPI v3.0 (mqtt)",
@@ -215,6 +221,7 @@ func localConversionCases() []conversionCase {
 		toFormat:          format.FormatAsyncAPI,
 		toAsyncAPIVersion: "3.0",
 		toProtocol:        "mqtt",
+		wantError:         apierrors.ErrUnsupportedSecurity.Error(),
 	})
 
 	for _, file := range []string{"asyncapi_v2.yaml", "asyncapi_v2.json"} {
