@@ -26,14 +26,8 @@ func (p *Parser) parseV3(data []byte) (*model.API, error) {
 	api.Info.Version = doc.Info.Version
 	api.Info.Description = doc.Info.Description
 	security := newSecurityDecoder(api, doc.Components, true)
-	if schemas, ok := doc.Components["schemas"].(map[string]interface{}); ok {
-		for name, raw := range schemas {
-			schema := p.convertSchemaPayload(raw)
-			if schema == nil {
-				return nil, fmt.Errorf("invalid component schema %q", name)
-			}
-			api.Components.AddSchema(name, schema)
-		}
+	if err := p.parseV3Schemas(doc.Components, api); err != nil {
+		return nil, err
 	}
 
 	// Servers (Sorted)
@@ -71,17 +65,9 @@ func (p *Parser) parseV3(data []byte) (*model.API, error) {
 		return nil, err
 	}
 
-	// Map Channels by ID for lookup (needed for operations)
-	channelMap := make(map[string]string) // ID -> Address
-	for id, ch := range doc.Channels {
-		if ch.Ref != "" {
-			return nil, securityInputError("referenced channel may contain security requirements")
-		}
-		if ch.Address != "" {
-			channelMap[id] = ch.Address
-		} else {
-			channelMap[id] = id // Fallback
-		}
+	channelMap, err := mapV3Channels(doc.Channels)
+	if err != nil {
+		return nil, err
 	}
 
 	// Operations (Sorted)
@@ -167,34 +153,8 @@ func (p *Parser) parseV3(data []byte) (*model.API, error) {
 		if modelOp.OperationID == "" {
 			modelOp.OperationID = opID
 		}
-		messages := op.Messages
-		if len(channel.Messages) > 1 {
-			return nil, fmt.Errorf("channel %q has multiple messages that cannot be represented", chRef)
-		}
-		if len(messages) == 0 {
-			for _, message := range channel.Messages {
-				messages = append(messages, message)
-			}
-		}
-		if len(messages) > 1 {
-			return nil, fmt.Errorf("operation %q has multiple messages that cannot be represented", opID)
-		}
-		if len(messages) == 1 {
-			schema, contentType, err := p.messageSchema(messages[0], doc.Components, doc.Channels)
-			if err != nil {
-				return nil, fmt.Errorf("operation %q: %w", opID, err)
-			}
-			if contentType == "" {
-				contentType = "application/json"
-			}
-			if schema != nil {
-				if op.Action == "send" {
-					modelOp.RequestBody = &model.RequestBody{Content: map[string]model.MediaType{contentType: {Schema: schema}}}
-				}
-				if op.Action == "receive" {
-					modelOp.Responses = model.Responses{"200": {Description: "OK", Content: map[string]model.MediaType{contentType: {Schema: schema}}}}
-				}
-			}
+		if err := p.parseV3Message(&op, opID, &channel, chRef, &doc, modelOp); err != nil {
+			return nil, err
 		}
 
 		switch op.Action {
@@ -229,6 +189,71 @@ func (p *Parser) parseV3(data []byte) (*model.API, error) {
 	}
 
 	return api, nil
+}
+
+func (p *Parser) parseV3Schemas(components map[string]interface{}, api *model.API) error {
+	if schemas, ok := components["schemas"].(map[string]interface{}); ok {
+		for name, raw := range schemas {
+			schema := p.convertSchemaPayload(raw)
+			if schema == nil {
+				return fmt.Errorf("invalid component schema %q", name)
+			}
+			api.Components.AddSchema(name, schema)
+		}
+	}
+	return nil
+}
+
+// mapV3Channels maps channel IDs to their address while rejecting references
+// whose security requirements cannot be determined.
+func mapV3Channels(channels map[string]Channel3) (map[string]string, error) {
+	channelMap := make(map[string]string, len(channels))
+	for id, ch := range channels {
+		if ch.Ref != "" {
+			return nil, securityInputError("referenced channel may contain security requirements")
+		}
+		if ch.Address != "" {
+			channelMap[id] = ch.Address
+		} else {
+			channelMap[id] = id
+		}
+	}
+	return channelMap, nil
+}
+
+// parseV3Message attaches the selected message payload to the model operation.
+func (p *Parser) parseV3Message(op *Operation3, opID string, channel *Channel3, channelID string, doc *AsyncAPI3, modelOp *model.Operation) error {
+	messages := op.Messages
+	if len(channel.Messages) > 1 {
+		return fmt.Errorf("channel %q has multiple messages that cannot be represented", channelID)
+	}
+	if len(messages) == 0 {
+		for _, message := range channel.Messages {
+			messages = append(messages, message)
+		}
+	}
+	if len(messages) > 1 {
+		return fmt.Errorf("operation %q has multiple messages that cannot be represented", opID)
+	}
+	if len(messages) == 0 {
+		return nil
+	}
+	schema, contentType, err := p.messageSchema(messages[0], doc.Components, doc.Channels)
+	if err != nil {
+		return fmt.Errorf("operation %q: %w", opID, err)
+	}
+	if contentType == "" {
+		contentType = "application/json"
+	}
+	if schema != nil {
+		if op.Action == "send" {
+			modelOp.RequestBody = &model.RequestBody{Content: map[string]model.MediaType{contentType: {Schema: schema}}}
+		}
+		if op.Action == "receive" {
+			modelOp.Responses = model.Responses{"200": {Description: "OK", Content: map[string]model.MediaType{contentType: {Schema: schema}}}}
+		}
+	}
+	return nil
 }
 
 // writeV3 implements AsyncAPI 3.0 writing

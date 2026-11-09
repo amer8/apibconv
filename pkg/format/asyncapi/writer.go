@@ -83,7 +83,8 @@ func (w *Writer) Write(ctx context.Context, api *model.API, wr io.Writer) error 
 	if err != nil {
 		return err
 	}
-	for path, item := range api.Paths {
+	for path := range api.Paths {
+		item := api.Paths[path]
 		if item.Put != nil || item.Delete != nil || item.Patch != nil || item.Head != nil || item.Options != nil || item.Trace != nil {
 			return fmt.Errorf("path %q has operations that cannot be represented in AsyncAPI", path)
 		}

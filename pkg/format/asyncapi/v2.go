@@ -176,24 +176,6 @@ func (p *Parser) convertParameters(params map[string]Parameter) []model.Paramete
 	return result
 }
 
-func (p *Parser) convertSchema(msg *Message) *model.Schema {
-	if msg == nil {
-		return nil
-	}
-
-	// If message itself is a ref
-	if msg.Ref != "" {
-		return &model.Schema{Ref: msg.Ref}
-	}
-
-	// If payload is present
-	if msg.Payload != nil {
-		return p.convertSchemaPayload(msg.Payload)
-	}
-
-	return nil
-}
-
 func (p *Parser) convertSchemaPayload(payload interface{}) *model.Schema {
 	// Use JSON roundtrip to convert map[string]interface{} to model.Schema
 	data, err := json.Marshal(payload)

@@ -351,7 +351,10 @@ func (w *Writer) convertOperation(op *model.Operation, api *model.API) *Operatio
 }
 
 func serversFromModel(servers []model.Server) []Server {
-	var result []Server
+	if len(servers) == 0 {
+		return nil
+	}
+	result := make([]Server, 0, len(servers))
 	for _, s := range servers {
 		v := Server{URL: s.URL, Description: s.Description}
 		if s.Variables != nil {

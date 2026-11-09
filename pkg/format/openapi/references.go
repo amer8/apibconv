@@ -30,7 +30,8 @@ func referenceName(ref, prefix string) (string, error) {
 	return strings.ReplaceAll(strings.ReplaceAll(decoded, "~1", "/"), "~0", "~"), nil
 }
 
-func resolveParameter(v Parameter, values map[string]Parameter, prefix string) (Parameter, error) {
+func resolveParameter(input *Parameter, values map[string]Parameter, prefix string) (Parameter, error) {
+	v := *input
 	seen := map[string]bool{}
 	for v.Ref != "" {
 		if seen[v.Ref] {
@@ -95,8 +96,8 @@ func resolveOperation(op *Operation, params map[string]Parameter, responses map[
 	if v2 {
 		paramPrefix, respPrefix = "#/parameters/", "#/responses/"
 	}
-	for i, v := range op.Parameters {
-		p, err := resolveParameter(v, params, paramPrefix)
+	for i := range op.Parameters {
+		p, err := resolveParameter(&op.Parameters[i], params, paramPrefix)
 		if err != nil {
 			return err
 		}
@@ -118,7 +119,8 @@ func resolveOperation(op *Operation, params map[string]Parameter, responses map[
 	}
 	return nil
 }
-func resolvePathV3(item PathItem, doc *OpenAPI) (PathItem, error) {
+func resolvePathV3(input *PathItem, doc *OpenAPI) (PathItem, error) {
+	item := *input
 	seen := map[string]bool{}
 	for item.Ref != "" {
 		ref := item.Ref
@@ -133,15 +135,16 @@ func resolvePathV3(item PathItem, doc *OpenAPI) (PathItem, error) {
 		var target PathItem
 		var ok bool
 		var err error
-		if strings.HasPrefix(ref, "#/paths/") {
+		switch {
+		case strings.HasPrefix(ref, "#/paths/"):
 			var n string
 			n, err = referenceName(ref, "#/paths/")
 			target, ok = doc.Paths[n]
-		} else if strings.HasPrefix(ref, "#/webhooks/") {
+		case strings.HasPrefix(ref, "#/webhooks/"):
 			var n string
 			n, err = referenceName(ref, "#/webhooks/")
 			target, ok = doc.Webhooks[n]
-		} else {
+		default:
 			return item, fmt.Errorf("unsupported path reference %q", ref)
 		}
 		if err != nil {
@@ -152,8 +155,8 @@ func resolvePathV3(item PathItem, doc *OpenAPI) (PathItem, error) {
 		}
 		item = target
 	}
-	for i, v := range item.Parameters {
-		p, err := resolveParameter(v, doc.Components.Parameters, "#/components/parameters/")
+	for i := range item.Parameters {
+		p, err := resolveParameter(&item.Parameters[i], doc.Components.Parameters, "#/components/parameters/")
 		if err != nil {
 			return item, err
 		}
@@ -166,7 +169,8 @@ func resolvePathV3(item PathItem, doc *OpenAPI) (PathItem, error) {
 	}
 	return item, nil
 }
-func resolvePathV2(item PathItemV2, doc *Swagger20) (PathItemV2, error) {
+func resolvePathV2(input *PathItemV2, doc *Swagger20) (PathItemV2, error) {
+	item := *input
 	seen := map[string]bool{}
 	for item.Ref != "" {
 		ref := item.Ref
@@ -187,8 +191,8 @@ func resolvePathV2(item PathItemV2, doc *Swagger20) (PathItemV2, error) {
 		}
 		item = target
 	}
-	for i, v := range item.Parameters {
-		p, err := resolveParameter(v, doc.Parameters, "#/parameters/")
+	for i := range item.Parameters {
+		p, err := resolveParameter(&item.Parameters[i], doc.Parameters, "#/parameters/")
 		if err != nil {
 			return item, err
 		}

@@ -12,7 +12,7 @@ import (
 
 func TestP1RefusesToReplaceACLProtectedOutput(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "protected")
-	if err := os.WriteFile(path, []byte("secret"), 0644); err != nil {
+	if err := os.WriteFile(path, []byte("secret"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if out, err := exec.Command("/bin/chmod", "+a", "everyone deny read", path).CombinedOutput(); err != nil {

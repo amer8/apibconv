@@ -108,16 +108,17 @@ func (p *Parser) parseV2(ctx context.Context, r io.Reader) (*model.API, error) {
 
 	// Paths
 	for path, item := range doc.Paths {
-		item, err := resolvePathV2(item, &doc)
+		item, err := resolvePathV2(&item, &doc)
 		if err != nil {
 			return nil, fmt.Errorf("path %q: %w", path, err)
 		}
 		var pathParams, pathBodies []Parameter
-		for _, param := range item.Parameters {
+		for i := range item.Parameters {
+			param := &item.Parameters[i]
 			if param.In == "body" || param.In == "formData" {
-				pathBodies = append(pathBodies, param)
+				pathBodies = append(pathBodies, *param)
 			} else {
-				pathParams = append(pathParams, param)
+				pathParams = append(pathParams, *param)
 			}
 		}
 		pi := model.PathItem{Parameters: p.convertV2Parameters(pathParams)}
@@ -128,16 +129,18 @@ func (p *Parser) parseV2(ctx context.Context, r io.Reader) (*model.API, error) {
 			}
 			copyOp := *op
 			copyOp.Parameters = append([]Parameter(nil), op.Parameters...)
-			for _, inherited := range pathBodies {
+			for i := range pathBodies {
+				inherited := &pathBodies[i]
 				found := false
-				for _, param := range op.Parameters {
+				for j := range op.Parameters {
+					param := &op.Parameters[j]
 					if param.Name == inherited.Name && param.In == inherited.In {
 						found = true
 						break
 					}
 				}
 				if !found {
-					copyOp.Parameters = append(copyOp.Parameters, inherited)
+					copyOp.Parameters = append(copyOp.Parameters, *inherited)
 				}
 			}
 			return p.convertV2Operation(&copyOp, doc.Consumes, doc.Produces)
@@ -195,7 +198,8 @@ func (p *Parser) convertV2Operation(op *Operation, globalConsumes, globalProduce
 	var parameters []model.Parameter
 	formSchema := &model.Schema{Type: model.TypeObject, Properties: make(map[string]*model.Schema)}
 	for _, param := range res.Parameters {
-		if param.In == "body" {
+		switch param.In {
+		case "body":
 			// Found body parameter, move to RequestBody
 			content := make(map[string]model.MediaType)
 			for _, ct := range consumes {
@@ -209,7 +213,7 @@ func (p *Parser) convertV2Operation(op *Operation, globalConsumes, globalProduce
 				Required:    param.Required,
 				Content:     content,
 			}
-		} else if param.In == "formData" {
+		case "formData":
 			schema := param.Schema
 			if schema == nil {
 				schema = &model.Schema{Type: model.TypeString}
@@ -222,7 +226,7 @@ func (p *Parser) convertV2Operation(op *Operation, globalConsumes, globalProduce
 			if param.Required {
 				formSchema.Required = append(formSchema.Required, param.Name)
 			}
-		} else {
+		default:
 			parameters = append(parameters, param)
 		}
 	}

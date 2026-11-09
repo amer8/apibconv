@@ -32,7 +32,8 @@ func CheckServerUnsupported(api *model.API, target string) error {
 // a target cannot represent them without changing the destination of an API.
 func CheckServerOverrides(api *model.API, target string) error {
 	check := func(paths map[string]model.PathItem) error {
-		for path, item := range paths {
+		for path := range paths {
+			item := paths[path]
 			if len(item.Servers) != 0 {
 				return fmt.Errorf("%s cannot represent server override on path %q", target, path)
 			}

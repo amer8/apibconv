@@ -157,7 +157,7 @@ func (p *Parser) convertToModel(doc *OpenAPI) (*model.API, error) {
 		for name := range doc.Webhooks {
 			item := doc.Webhooks[name] // Access by key to avoid copy in range
 			var err error
-			item, err = resolvePathV3(item, doc)
+			item, err = resolvePathV3(&item, doc)
 			if err != nil {
 				return nil, fmt.Errorf("webhook %q: %w", name, err)
 			}
@@ -200,7 +200,7 @@ func (p *Parser) convertToModel(doc *OpenAPI) (*model.API, error) {
 	for path := range doc.Paths {
 		item := doc.Paths[path] // Access by key to avoid copy in range
 		var err error
-		item, err = resolvePathV3(item, doc)
+		item, err = resolvePathV3(&item, doc)
 		if err != nil {
 			return nil, fmt.Errorf("path %q: %w", path, err)
 		}
@@ -279,7 +279,10 @@ func (p *Parser) convertOperation(op *Operation) *model.Operation {
 }
 
 func serversToModel(servers []Server) []model.Server {
-	var result []model.Server
+	if len(servers) == 0 {
+		return nil
+	}
+	result := make([]model.Server, 0, len(servers))
 	for _, s := range servers {
 		m := model.Server{URL: s.URL, Description: s.Description}
 		if s.Variables != nil {
@@ -434,7 +437,7 @@ func (p *Parser) convertSchema(s *Schema) *model.Schema {
 	return ms
 }
 
-func schemaExclusive(value interface{}, bound *float64) (bool, *float64) {
+func schemaExclusive(value interface{}, bound *float64) (exclusive bool, limit *float64) {
 	switch v := value.(type) {
 	case bool:
 		return v, bound
