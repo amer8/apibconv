@@ -54,6 +54,15 @@ func (p *Parser) parseV2(ctx context.Context, r io.Reader) (*model.API, error) {
 
 	api := model.NewAPI()
 	api.Version = doc.Swagger
+	api.Security = securityRequirementsToModel(doc.Security)
+	for name := range doc.SecurityDefinitions {
+		scheme := doc.SecurityDefinitions[name]
+		converted, err := securitySchemeV2ToModel(&scheme)
+		if err != nil {
+			return nil, fmt.Errorf("security definition %q: %w", name, err)
+		}
+		api.Components.SecuritySchemes[name] = converted
+	}
 
 	// Info
 	api.Info = model.Info{
@@ -150,6 +159,7 @@ func (p *Parser) convertV2Operation(op *Operation, globalConsumes, globalProduce
 		OperationID: op.OperationID,
 		Deprecated:  op.Deprecated,
 		Parameters:  p.convertV2Parameters(op.Parameters),
+		Security:    securityRequirementsToModel(op.Security),
 	}
 
 	// In V2, body parameters are in the parameters list, handled by convertV2Parameters.

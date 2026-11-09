@@ -28,6 +28,7 @@ type conversionCase struct {
 	toOpenAPIVersion  string
 	toProtocol        string
 	encoding          string
+	wantError         string
 }
 
 func TestConversions(t *testing.T) {
@@ -126,6 +127,7 @@ func localConversionCases() []conversionCase {
 					fromFormat:       format.FormatOpenAPI,
 					toFormat:         format.FormatOpenAPI,
 					toOpenAPIVersion: "2.0",
+					wantError:        "cannot be represented in Swagger 2.0",
 				})
 			}
 			switch src.version {
@@ -488,7 +490,17 @@ func assertConverts(t *testing.T, tc *conversionCase, input []byte) {
 	assertMeaningfulModel(t, "source", sourceModel)
 
 	var output bytes.Buffer
-	if err := conv.Convert(ctx, bytes.NewReader(input), &output, tc.fromFormat, tc.toFormat); err != nil {
+	err = conv.Convert(ctx, bytes.NewReader(input), &output, tc.fromFormat, tc.toFormat)
+	if tc.wantError != "" {
+		if err == nil || !strings.Contains(err.Error(), tc.wantError) {
+			t.Fatalf("conversion error = %v, want error containing %q", err, tc.wantError)
+		}
+		if output.Len() != 0 {
+			t.Fatalf("failed conversion produced output: %s", output.String())
+		}
+		return
+	}
+	if err != nil {
 		t.Fatalf("conversion failed: %v", err)
 	}
 	if output.Len() == 0 {

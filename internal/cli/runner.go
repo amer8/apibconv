@@ -142,7 +142,7 @@ func (r *Runner) Convert(ctx context.Context, cfg *Config) error {
 
 	err := r.conv.Convert(ctx, input, output, inputFormat, outputFormat)
 	if err != nil {
-		return errors.Wrap("convert", string(outputFormat), errors.ErrConversionFailed)
+		return errors.Wrap("convert", string(outputFormat), fmt.Errorf("%w: %w", errors.ErrConversionFailed, err))
 	}
 
 	if destination != nil {
