@@ -55,12 +55,9 @@ func prepareSecurity(api *model.API, v3 bool, protocol string) (*securityPlan, e
 	channelIDs := make(map[string]bool)
 	securityPresent := false
 	for _, server := range api.Servers {
-		if hasActualRequirement(server.Security) {
-			securityPresent = true
-		}
+		securityPresent = securityPresent || hasActualRequirement(server.Security)
 	}
-	for path := range api.Paths {
-		item := api.Paths[path]
+	for _, item := range api.Paths {
 		for _, op := range []*model.Operation{item.Get, item.Post} {
 			if op != nil && hasActualRequirement(effectiveSecurity(api.Security, op.Security)) {
 				securityPresent = true
@@ -83,8 +80,11 @@ func prepareSecurity(api *model.API, v3 bool, protocol string) (*securityPlan, e
 		if item.Get == nil && item.Post == nil {
 			continue
 		}
-		if channelIDs[channelID] && securityPresent {
-			return nil, unsupportedSecurity("multiple paths map to the same channel")
+		if channelIDs[channelID] {
+			if securityPresent {
+				return nil, unsupportedSecurity("multiple paths map to the same channel")
+			}
+			return nil, fmt.Errorf("multiple paths map to the same channel %q", channelID)
 		}
 		channelIDs[channelID] = true
 		for _, entry := range []struct {
@@ -99,8 +99,11 @@ func prepareSecurity(api *model.API, v3 bool, protocol string) (*securityPlan, e
 				if id == "" {
 					id = entry.prefix + channelID
 				}
-				if operationIDs[id] && securityPresent {
-					return nil, unsupportedSecurity("multiple operations map to the same operation ID")
+				if operationIDs[id] {
+					if securityPresent {
+						return nil, unsupportedSecurity("multiple operations map to the same operation ID")
+					}
+					return nil, fmt.Errorf("multiple operations map to the same operation ID %q", id)
 				}
 				operationIDs[id] = true
 			}

@@ -78,6 +78,12 @@ func (w *Writer) Write(ctx context.Context, api *model.API, wr io.Writer) error 
 			op = item.Delete
 		case item.Patch != nil:
 			op = item.Patch
+		case item.Head != nil:
+			op = item.Head
+		case item.Options != nil:
+			op = item.Options
+		case item.Trace != nil:
+			op = item.Trace
 		}
 
 		if op != nil && len(op.Tags) > 0 {
@@ -163,6 +169,9 @@ func (w *Writer) writeResource(path string, item *model.PathItem) string {
 	sb.WriteString(w.writeAction("PUT", item.Put))
 	sb.WriteString(w.writeAction("DELETE", item.Delete))
 	sb.WriteString(w.writeAction("PATCH", item.Patch))
+	sb.WriteString(w.writeAction("HEAD", item.Head))
+	sb.WriteString(w.writeAction("OPTIONS", item.Options))
+	sb.WriteString(w.writeAction("TRACE", item.Trace))
 
 	return sb.String()
 }

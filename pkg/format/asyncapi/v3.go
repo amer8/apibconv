@@ -52,7 +52,7 @@ func (p *Parser) parseV3(data []byte) (*model.API, error) {
 		policiesByServer[name] = policy
 		api.Servers = append(api.Servers, model.Server{
 			Name:        name,
-			URL:         s.Host,
+			URL:         serverV3URL(s),
 			Protocol:    s.Protocol,
 			Description: s.Description,
 			Bindings:    s.Bindings,
@@ -224,10 +224,10 @@ func mapV3Channels(channels map[string]Channel3) (map[string]string, error) {
 // parseV3Message attaches the selected message payload to the model operation.
 func (p *Parser) parseV3Message(op *Operation3, opID string, channel *Channel3, channelID string, doc *AsyncAPI3, modelOp *model.Operation) error {
 	messages := op.Messages
-	if len(channel.Messages) > 1 {
-		return fmt.Errorf("channel %q has multiple messages that cannot be represented", channelID)
-	}
 	if len(messages) == 0 {
+		if len(channel.Messages) > 1 {
+			return fmt.Errorf("channel %q has multiple messages without an explicit selection", channelID)
+		}
 		for _, message := range channel.Messages {
 			messages = append(messages, message)
 		}
@@ -288,14 +288,20 @@ func (w *Writer) writeV3(api *model.API, wr io.Writer, targetProtocol string, js
 			protocol = targetProtocol
 		case targetProtocol == "auto":
 			protocol = detect.Protocol(s.URL)
-		case s.Description != "" && len(s.Description) < 10: // Check if description is a short string, likely a protocol
-			protocol = s.Description
 		default:
 			protocol = detect.Protocol(s.URL)
 		}
 
+		host, pathname, err := splitServerV3URL(s.URL)
+		if err != nil {
+			return fmt.Errorf("server %q: %w", name, err)
+		}
+		if _, exists := doc.Servers[name]; exists {
+			return fmt.Errorf("duplicate server name %q", name)
+		}
 		doc.Servers[name] = ServerV3{
-			Host:        s.URL,
+			Host:        host,
+			Pathname:    pathname,
 			Protocol:    protocol,
 			Description: s.Description,
 			Bindings:    s.Bindings,
@@ -518,6 +524,33 @@ func (w *Writer) writeV3(api *model.API, wr io.Writer, targetProtocol string, js
 	encoder := yaml.NewEncoder(wr)
 	encoder.SetIndent(2)
 	return encoder.Encode(doc)
+}
+
+// AsyncAPI 3 separates the protocol and path from the host. Split textually so
+// server variables such as {environment} remain valid in the host or path.
+func splitServerV3URL(raw string) (string, string, error) {
+	if _, rest, ok := strings.Cut(raw, "://"); ok {
+		raw = rest
+	}
+	if strings.ContainsAny(raw, "?#") {
+		return "", "", fmt.Errorf("server URL contains a query or fragment that AsyncAPI 3 cannot represent")
+	}
+	host, path, _ := strings.Cut(raw, "/")
+	if host == "" || strings.Contains(host, "@") {
+		return "", "", fmt.Errorf("invalid or unsupported server host")
+	}
+	if len(raw) > len(host) {
+		path = "/" + path
+	}
+	return host, path, nil
+}
+
+func serverV3URL(s ServerV3) string {
+	host := s.Host
+	if !strings.Contains(host, "://") && s.Protocol != "" {
+		host = s.Protocol + "://" + host
+	}
+	return host + s.Pathname
 }
 
 func sortedContentTypes(content map[string]model.MediaType) []string {
