@@ -27,6 +27,12 @@ and request bodies and parameters may be omitted. The OpenAPI writer also adds a
 default `404` response when an operation has no 4xx response. Keep the original files,
 validate the output, and review it against the source before using it as an API contract.
 
+OpenAPI-to-OpenAPI conversion preserves security requirements and supported security
+schemes. Conversion to Swagger 2.0 fails if a scheme cannot be represented in that
+version, such as HTTP bearer authentication or multiple OAuth flows. Conversion to
+OpenAPI 3.0 also fails for OpenAPI 3.1 mutual TLS schemes. Conversion to API Blueprint
+or AsyncAPI does not currently preserve OpenAPI security requirements.
+
 ## Installation
 
 ### Using Homebrew
