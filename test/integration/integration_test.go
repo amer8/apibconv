@@ -3,6 +3,7 @@ package integration
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,12 +13,37 @@ import (
 	"go.yaml.in/yaml/v3"
 
 	"github.com/amer8/apibconv/pkg/converter"
+	apierrors "github.com/amer8/apibconv/pkg/errors"
 	"github.com/amer8/apibconv/pkg/format"
 	"github.com/amer8/apibconv/pkg/format/apiblueprint"
 	"github.com/amer8/apibconv/pkg/format/asyncapi"
 	"github.com/amer8/apibconv/pkg/format/openapi"
 	"github.com/amer8/apibconv/pkg/model"
 )
+
+func TestOpenAPIConversionRejectsInvalidPathWhenValidationEnabled(t *testing.T) {
+	input := `openapi: 3.0.0
+info: {title: Test, version: '1'}
+paths:
+  bad-path:
+    get:
+      responses: {'200': {description: OK}}
+`
+	c, err := converter.New(converter.WithValidation(true, false))
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.RegisterParser(openapi.NewParser())
+	c.RegisterWriter(openapi.NewWriter())
+	var output bytes.Buffer
+	err = c.Convert(context.Background(), strings.NewReader(input), &output, format.FormatOpenAPI, format.FormatOpenAPI)
+	if !errors.Is(err, apierrors.ErrValidationFailed) || !strings.Contains(err.Error(), "bad-path") {
+		t.Fatalf("Convert() error = %v, want path validation failure", err)
+	}
+	if output.Len() != 0 {
+		t.Fatalf("invalid input produced output: %s", output.String())
+	}
+}
 
 type conversionCase struct {
 	name              string
@@ -102,6 +128,7 @@ func localConversionCases() []conversionCase {
 				inputFile:  file,
 				fromFormat: format.FormatOpenAPI,
 				toFormat:   format.FormatAPIBlueprint,
+				wantError:  apierrors.ErrUnsupportedSecurity.Error(),
 			})
 			add(conversionCase{
 				name:              fmt.Sprintf("%s (%s) to AsyncAPI v2.6 (kafka)", src.label, inputEncoding),
@@ -110,6 +137,7 @@ func localConversionCases() []conversionCase {
 				toFormat:          format.FormatAsyncAPI,
 				toAsyncAPIVersion: "2.6",
 				toProtocol:        "kafka",
+				wantError:         apierrors.ErrUnsupportedSecurity.Error(),
 			})
 			add(conversionCase{
 				name:              fmt.Sprintf("%s (%s) to AsyncAPI v3.0 (kafka)", src.label, inputEncoding),
@@ -118,6 +146,7 @@ func localConversionCases() []conversionCase {
 				toFormat:          format.FormatAsyncAPI,
 				toAsyncAPIVersion: "3.0",
 				toProtocol:        "kafka",
+				wantError:         apierrors.ErrUnsupportedSecurity.Error(),
 			})
 
 			if src.version != "2.0" {
@@ -165,6 +194,7 @@ func localConversionCases() []conversionCase {
 		toFormat:          format.FormatAsyncAPI,
 		toAsyncAPIVersion: "2.6",
 		toProtocol:        "amqp",
+		wantError:         apierrors.ErrUnsupportedSecurity.Error(),
 	})
 	add(conversionCase{
 		name:              "OpenAPI v3.0 (json) to AsyncAPI v2.6 (http)",
@@ -173,6 +203,7 @@ func localConversionCases() []conversionCase {
 		toFormat:          format.FormatAsyncAPI,
 		toAsyncAPIVersion: "2.6",
 		toProtocol:        "http",
+		wantError:         apierrors.ErrUnsupportedSecurity.Error(),
 	})
 	add(conversionCase{
 		name:              "OpenAPI v3.0 (json) to AsyncAPI v3.0 (http)",
@@ -181,6 +212,7 @@ func localConversionCases() []conversionCase {
 		toFormat:          format.FormatAsyncAPI,
 		toAsyncAPIVersion: "3.0",
 		toProtocol:        "http",
+		wantError:         apierrors.ErrUnsupportedSecurity.Error(),
 	})
 	add(conversionCase{
 		name:              "OpenAPI v3.0 (yaml) to AsyncAPI v3.0 (mqtt)",
@@ -189,6 +221,7 @@ func localConversionCases() []conversionCase {
 		toFormat:          format.FormatAsyncAPI,
 		toAsyncAPIVersion: "3.0",
 		toProtocol:        "mqtt",
+		wantError:         apierrors.ErrUnsupportedSecurity.Error(),
 	})
 
 	for _, file := range []string{"asyncapi_v2.yaml", "asyncapi_v2.json"} {

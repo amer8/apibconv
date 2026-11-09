@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/amer8/apibconv/internal/security"
 	"github.com/amer8/apibconv/pkg/format"
 	"github.com/amer8/apibconv/pkg/model"
 )
@@ -38,6 +39,9 @@ func NewWriter(opts ...WriterOption) *Writer {
 // Write writes the unified API model to an API Blueprint document.
 func (w *Writer) Write(ctx context.Context, api *model.API, wr io.Writer) error {
 	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if err := security.CheckUnsupported(api, "API Blueprint"); err != nil {
 		return err
 	}
 	var builder strings.Builder

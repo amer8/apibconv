@@ -12,6 +12,8 @@ import (
 	"github.com/amer8/apibconv/pkg/converter"
 	"github.com/amer8/apibconv/pkg/errors"
 	"github.com/amer8/apibconv/pkg/format"
+	"github.com/amer8/apibconv/pkg/format/apiblueprint"
+	"github.com/amer8/apibconv/pkg/format/asyncapi"
 	"github.com/amer8/apibconv/pkg/format/openapi"
 	"github.com/amer8/apibconv/pkg/model"
 )
@@ -65,6 +67,53 @@ components:
 	}
 	if string(got) != "original" {
 		t.Fatalf("destination changed: %q", got)
+	}
+}
+
+func TestCrossFormatSecurityFailurePreservesDestination(t *testing.T) {
+	for _, writer := range []format.Writer{apiblueprint.NewWriter(), asyncapi.NewWriter()} {
+		t.Run(string(writer.Format()), func(t *testing.T) {
+			dir := t.TempDir()
+			input := filepath.Join(dir, "input.yaml")
+			output := filepath.Join(dir, "output.txt")
+			doc := `openapi: 3.0.0
+info: {title: Test, version: '1'}
+security: [{key: []}]
+paths:
+  /items:
+    get:
+      responses: {'200': {description: OK}}
+components:
+  securitySchemes:
+    key: {type: apiKey, in: header, name: X-Key}
+`
+			if err := os.WriteFile(input, []byte(doc), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(output, []byte("original"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			c, err := converter.New()
+			if err != nil {
+				t.Fatal(err)
+			}
+			c.RegisterParser(openapi.NewParser())
+			c.RegisterWriter(writer)
+			err = NewRunner(c).Convert(context.Background(), &Config{
+				InputPath: input, OutputPath: output, InputFormat: format.FormatOpenAPI,
+				OutputFormat: writer.Format(), Protocol: "kafka",
+			})
+			if !errors.Is(err, errors.ErrConversionFailed) || !errors.Is(err, errors.ErrUnsupportedSecurity) {
+				t.Fatalf("conversion error = %v, want unsupported security failure", err)
+			}
+			got, err := os.ReadFile(output)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(got) != "original" {
+				t.Fatalf("destination changed: %q", got)
+			}
+		})
 	}
 }
 

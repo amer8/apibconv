@@ -4,12 +4,14 @@ package converter
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 
 	"github.com/amer8/apibconv/internal/detect"
 	"github.com/amer8/apibconv/internal/fs"
 	"github.com/amer8/apibconv/internal/specschema"
+	apierrors "github.com/amer8/apibconv/pkg/errors"
 	"github.com/amer8/apibconv/pkg/format"
 	"github.com/amer8/apibconv/pkg/model"
 	"github.com/amer8/apibconv/pkg/validator"
@@ -71,6 +73,10 @@ func (c *Converter) Convert(ctx context.Context, input io.Reader, output io.Writ
 
 // ParseToModel parses the input into the unified model.
 func (c *Converter) ParseToModel(ctx context.Context, input io.Reader, from format.Format) (*model.API, error) {
+	return c.parseToModel(ctx, input, from, c.opts.ValidateInput)
+}
+
+func (c *Converter) parseToModel(ctx context.Context, input io.Reader, from format.Format, validate bool) (*model.API, error) {
 	parser, ok := c.parsers[from]
 	if !ok {
 		return nil, fmt.Errorf("no parser registered for format: %s", from)
@@ -87,8 +93,8 @@ func (c *Converter) ParseToModel(ctx context.Context, input io.Reader, from form
 		return nil, err
 	}
 
-	if c.opts.ValidateInput {
-		if _, err := c.validator.Validate(validationCtx, api); err != nil {
+	if validate {
+		if err := c.validateModel(validationCtx, api, "input"); err != nil {
 			return nil, err
 		}
 	}
@@ -106,12 +112,29 @@ func (c *Converter) WriteFromModel(ctx context.Context, api *model.API, output i
 	validationCtx := validator.WithFormat(ctx, to)
 
 	if c.opts.ValidateOutput {
-		if _, err := c.validator.Validate(validationCtx, api); err != nil {
+		if err := c.validateModel(validationCtx, api, "output"); err != nil {
 			return err
 		}
 	}
 
 	return writer.Write(ctx, api, output)
+}
+
+func (c *Converter) validateModel(ctx context.Context, api *model.API, stage string) error {
+	issues, err := c.validator.Validate(ctx, api)
+	if err != nil {
+		return fmt.Errorf("%s validation: %w", stage, err)
+	}
+	var failures []error
+	for _, issue := range issues {
+		if issue.Level == format.LevelError {
+			failures = append(failures, issue)
+		}
+	}
+	if len(failures) > 0 {
+		return fmt.Errorf("%s validation: %w: %w", stage, apierrors.ErrValidationFailed, errors.Join(failures...))
+	}
+	return nil
 }
 
 // Validate validates the input specification.
@@ -123,7 +146,9 @@ func (c *Converter) Validate(ctx context.Context, input io.Reader, formatType fo
 
 	allErrors := specschema.Validate(formatType, data)
 
-	api, err := c.ParseToModel(ctx, bytes.NewReader(data), formatType)
+	// Validate collects the issues itself so enabled conversion validation does
+	// not turn the same issues into an early error or discard schema diagnostics.
+	api, err := c.parseToModel(ctx, bytes.NewReader(data), formatType, false)
 	if err != nil {
 		return allErrors, err
 	}

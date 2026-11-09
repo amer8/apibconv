@@ -121,13 +121,16 @@ func (p *Parser) parseV3(data []byte) (*model.API, error) {
 }
 
 // writeV3 implements AsyncAPI 3.0 writing
-func (w *Writer) writeV3(api *model.API, wr io.Writer, targetProtocol string, jsonOutput bool) error {
+func (w *Writer) writeV3(api *model.API, wr io.Writer, targetProtocol string, jsonOutput bool, plan *securityPlan) error {
 	doc := AsyncAPI3{
 		AsyncAPI:   w.version,
 		Channels:   make(map[string]Channel3),
 		Operations: make(map[string]Operation3),
 		Servers:    make(map[string]ServerV3),
 		Components: make(map[string]interface{}),
+	}
+	if len(plan.schemes) > 0 {
+		doc.Components["securitySchemes"] = plan.schemes
 	}
 
 	doc.Info.Title = api.Info.Title
@@ -235,6 +238,7 @@ func (w *Writer) writeV3(api *model.API, wr io.Writer, targetProtocol string, js
 				Summary:     item.Post.Summary,
 				Description: item.Post.Description,
 				Bindings:    item.Post.Bindings,
+				Security:    plan.v3[item.Post],
 			}
 
 			// Add Messages
@@ -298,6 +302,7 @@ func (w *Writer) writeV3(api *model.API, wr io.Writer, targetProtocol string, js
 				Summary:     item.Get.Summary,
 				Description: item.Get.Description,
 				Bindings:    item.Get.Bindings,
+				Security:    plan.v3[item.Get],
 			}
 
 			// Add Messages
