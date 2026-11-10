@@ -20,7 +20,7 @@ type atomicOutput struct {
 // the same regular file. This catches in-place changes as well as replacement.
 func outputDigest(path string, expected os.FileInfo) ([sha256.Size]byte, error) {
 	var sum [sha256.Size]byte
-	f, err := os.Open(path)
+	f, err := os.Open(path) // #nosec G304 -- The CLI intentionally reads the user-selected output file to detect concurrent changes.
 	if err != nil {
 		return sum, fmt.Errorf("cannot read existing output for change detection: %w", err)
 	}
