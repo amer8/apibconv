@@ -79,6 +79,9 @@ func (w *Writer) Write(ctx context.Context, api *model.API, wr io.Writer) error 
 	if err := security.CheckServerUnsupported(api, "OpenAPI"); err != nil {
 		return err
 	}
+	if err := security.CheckChannelServers(api, "OpenAPI"); err != nil {
+		return err
+	}
 	for name := range api.Components.SecuritySchemes {
 		scheme := api.Components.SecuritySchemes[name]
 		if scheme.Ref != "" {
@@ -115,11 +118,18 @@ func (w *Writer) Write(ctx context.Context, api *model.API, wr io.Writer) error 
 		return fmt.Errorf("unsupported OpenAPI output encoding %q", encoding)
 	}
 
+	if err := validateSchemaCompatibility(api, w.version); err != nil {
+		return err
+	}
+
 	var doc interface{}
 	var err error
 
 	switch w.version {
 	case "2.0", "2.0.0":
+		if err := security.CheckCallbacks(api, "OpenAPI 2.0"); err != nil {
+			return err
+		}
 		if len(api.Webhooks) > 0 {
 			return fmt.Errorf("OpenAPI 2.0 output cannot represent OpenAPI webhooks without loss")
 		}
@@ -227,6 +237,17 @@ func (w *Writer) convertFromModel(api *model.API) *OpenAPI {
 			doc.Components.SecuritySchemes[name] = securitySchemeFromModel(&scheme)
 		}
 	}
+	if len(api.Components.Callbacks) > 0 {
+		doc.Components.Callbacks = make(map[string]Callback, len(api.Components.Callbacks))
+		for name, callback := range api.Components.Callbacks {
+			converted := make(map[string]PathItem, len(callback))
+			for expression := range callback {
+				path := callback[expression]
+				converted[expression] = w.convertPathItemOperations(&path, api)
+			}
+			doc.Components.Callbacks[name] = Callback{Paths: converted}
+		}
+	}
 
 	if api.Info.Contact != nil {
 		doc.Info.Contact = &Contact{
@@ -315,6 +336,17 @@ func (w *Writer) convertOperation(op *model.Operation, api *model.API) *Operatio
 		Parameters:  w.convertParameters(op.Parameters, api),
 		Security:    securityRequirementsFromModel(op.Security),
 		Servers:     serversFromModel(op.Servers),
+	}
+	if len(op.Callbacks) > 0 {
+		res.Callbacks = make(map[string]Callback, len(op.Callbacks))
+		for name, callback := range op.Callbacks {
+			converted := make(map[string]PathItem, len(callback))
+			for expression := range callback {
+				path := callback[expression]
+				converted[expression] = w.convertPathItemOperations(&path, api)
+			}
+			res.Callbacks[name] = Callback{Paths: converted}
+		}
 	}
 
 	if op.RequestBody != nil {
@@ -529,7 +561,8 @@ func (w *Writer) convertParametersV2(params []model.Parameter, api *model.API) [
 		if schema == nil {
 			schema = &model.Schema{Type: model.TypeString}
 		}
-		assignV2ParameterSchema(&p, w.convertSchema(schema, api))
+		normalized, _ := swaggerParameterSchema(schema, api) // Checked before writing.
+		assignV2ParameterSchema(&p, w.convertSchema(normalized, api))
 		if p.Type == "array" {
 			switch param.Style {
 			case "spaceDelimited":
@@ -574,7 +607,8 @@ func (w *Writer) convertResponseV2(resp model.Response, api *model.API) Response
 			Description: h.Description,
 		}
 		if h.Schema != nil {
-			assignV2HeaderSchema(&header, w.convertSchema(h.Schema, api))
+			normalized, _ := swaggerHeaderSchema(h.Schema, api) // Checked before writing.
+			assignV2HeaderSchema(&header, w.convertSchema(normalized, api))
 		} else {
 			assignV2HeaderSchema(&header, nil)
 		}

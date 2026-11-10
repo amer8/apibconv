@@ -14,7 +14,10 @@ type PathItem struct {
 	Patch       *Operation
 	Trace       *Operation
 	Servers     []Server
-	Parameters  []Parameter
+	// ChannelServers lists the AsyncAPI server names selected by this channel.
+	// An empty list means all servers, as specified by AsyncAPI.
+	ChannelServers []string
+	Parameters     []Parameter
 }
 
 // Operation represents an OpenAPI Operation object.

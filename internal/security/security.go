@@ -8,6 +8,36 @@ import (
 	"github.com/amer8/apibconv/pkg/model"
 )
 
+// CheckChannelServers rejects AsyncAPI channel server restrictions when the
+// target cannot preserve their meaning.
+func CheckChannelServers(api *model.API, target string) error {
+	for path := range api.Paths {
+		item := api.Paths[path]
+		if len(item.ChannelServers) != 0 {
+			return fmt.Errorf("%s cannot represent channel %q server selection", target, path)
+		}
+	}
+	return nil
+}
+
+// CheckCallbacks rejects callbacks for formats that cannot express them.
+func CheckCallbacks(api *model.API, target string) error {
+	if len(api.Components.Callbacks) != 0 {
+		return fmt.Errorf("%s cannot represent callbacks", target)
+	}
+	for _, paths := range []map[string]model.PathItem{api.Paths, api.Webhooks} {
+		for path := range paths {
+			item := paths[path]
+			for _, op := range []*model.Operation{item.Get, item.Put, item.Post, item.Delete, item.Options, item.Head, item.Patch, item.Trace} {
+				if op != nil && len(op.Callbacks) != 0 {
+					return fmt.Errorf("%s cannot represent callbacks on %q", target, path)
+				}
+			}
+		}
+	}
+	return nil
+}
+
 // CheckUnsupported rejects effective security requirements a target writer cannot represent.
 func CheckUnsupported(api *model.API, target string) error {
 	if hasSecurity(api) {

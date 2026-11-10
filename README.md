@@ -47,7 +47,22 @@ with multiple payload variants instead of choosing one. AsyncAPI 2 message
 `oneOf` alternatives are rejected on input. Channel parameters and their schemas
 are preserved in AsyncAPI 2; conversion to AsyncAPI 3 rejects parameter schemas,
 which that version cannot represent directly. API Blueprint response output
-includes a JSON Schema asset when a response schema is available.
+includes a self-contained JSON Schema asset when a response schema is available.
+AsyncAPI channel server selections are preserved between AsyncAPI versions;
+OpenAPI and API Blueprint output reject channel-specific server selections.
+OpenAPI 3 callbacks and local callback references are preserved in OpenAPI 3
+output; targets that cannot express callbacks reject them.
+
+Schema conversion supports a subset of each specification's schema vocabulary.
+OpenAPI schema keywords not represented by the model are rejected rather than
+silently dropped. OpenAPI 3.1 `const` is represented as an equivalent
+single-value enum constraint. Swagger 2.0 output rejects unsupported schema
+constructs and differing schemas for content types of the same body or response.
+AsyncAPI and API Blueprint schema assets likewise reject schema fields the
+shared model cannot represent.
+AsyncAPI schema bounds and nullability are translated to its JSON Schema
+dialect. AsyncAPI messages with headers or an explicit schema format are rejected
+because those details cannot yet be preserved by the shared model.
 
 ## Installation
 
@@ -153,7 +168,11 @@ gh attestation verify oci://ghcr.io/amer8/apibconv@sha256:IMAGE_DIGEST \
 The tool automatically detects the input format based on file extension and content. It supports both file arguments and stdin.
 
 Output files are replaced atomically. On macOS and Linux, replacing an existing
-file is refused when its ACL or ownership cannot be preserved safely. On other
+file is refused when its ACL or ownership cannot be preserved safely. The
+existing destination must be readable for change detection; changes detected
+during conversion abort replacement. The final check and rename are separate
+filesystem operations, so concurrent writers must coordinate or use distinct
+output paths to avoid a remaining race. On other
 platforms, including Windows, choose a new output path: replacing an existing
 file is currently unavailable because its ACL cannot be checked reliably.
 AsyncAPI output rejects unsupported HTTP methods. OpenAPI path, parameter,

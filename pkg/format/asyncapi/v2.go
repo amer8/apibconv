@@ -1,6 +1,7 @@
 package asyncapi
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -66,9 +67,10 @@ func (p *Parser) parseV2(data []byte) (*model.API, error) {
 	if schemas, ok := doc.Components["schemas"].(map[string]interface{}); ok {
 		for name, schemaPayload := range schemas {
 			s := p.convertSchemaPayload(schemaPayload)
-			if s != nil {
-				api.Components.AddSchema(name, s)
+			if s == nil {
+				return nil, fmt.Errorf("unsupported component schema %q", name)
 			}
+			api.Components.AddSchema(name, s)
 		}
 	}
 
@@ -87,9 +89,12 @@ func (p *Parser) parseV2(data []byte) (*model.API, error) {
 		channelID := p.toCamelCase(originalName)
 
 		pi := model.PathItem{
-			Name: channelID,
+			Name: channelID, ChannelServers: append([]string(nil), ch.Servers...),
 		}
-		pi.Parameters = p.convertParameters(ch.Parameters)
+		pi.Parameters, err = p.convertParameters(ch.Parameters)
+		if err != nil {
+			return nil, fmt.Errorf("channel %q: %w", path, err)
+		}
 
 		if ch.Publish != nil {
 			if ch.Publish.Ref != "" {
@@ -153,7 +158,7 @@ func (p *Parser) parseV2(data []byte) (*model.API, error) {
 	return api, nil
 }
 
-func (p *Parser) convertParameters(params map[string]Parameter) []model.Parameter {
+func (p *Parser) convertParameters(params map[string]Parameter) ([]model.Parameter, error) {
 	result := make([]model.Parameter, 0, len(params))
 	for name, param := range params {
 		mp := model.Parameter{
@@ -165,11 +170,14 @@ func (p *Parser) convertParameters(params map[string]Parameter) []model.Paramete
 
 		if param.Schema != nil {
 			s := p.convertSchemaPayload(param.Schema)
+			if s == nil {
+				return nil, fmt.Errorf("unsupported schema for channel parameter %q", name)
+			}
 			mp.Schema = s
 		}
 		result = append(result, mp)
 	}
-	return result
+	return result, nil
 }
 
 func (p *Parser) convertSchemaPayload(payload interface{}) *model.Schema {
@@ -179,11 +187,56 @@ func (p *Parser) convertSchemaPayload(payload interface{}) *model.Schema {
 		return nil
 	}
 
+	var raw map[string]interface{}
+	if json.Unmarshal(data, &raw) != nil || raw == nil || walkAsyncSchema(raw, false) != nil {
+		return nil
+	}
+	data, err = json.Marshal(raw)
+	if err != nil {
+		return nil
+	}
 	var schema model.Schema
-	if err := json.Unmarshal(data, &schema); err != nil {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&schema); err != nil {
+		return nil
+	}
+	if !validAdditionalPropertySchemas(&schema) {
 		return nil
 	}
 	return &schema
+}
+
+func validAdditionalPropertySchemas(schema *model.Schema) bool {
+	if schema == nil {
+		return true
+	}
+	if raw, ok := schema.AdditionalProperties.(map[string]interface{}); ok {
+		data, err := json.Marshal(raw)
+		if err != nil {
+			return false
+		}
+		var child model.Schema
+		decoder := json.NewDecoder(bytes.NewReader(data))
+		decoder.DisallowUnknownFields()
+		if decoder.Decode(&child) != nil || !validAdditionalPropertySchemas(&child) {
+			return false
+		}
+		schema.AdditionalProperties = &child
+	}
+	children := []*model.Schema{schema.Items, schema.Not}
+	for _, child := range schema.Properties {
+		children = append(children, child)
+	}
+	children = append(children, schema.AllOf...)
+	children = append(children, schema.AnyOf...)
+	children = append(children, schema.OneOf...)
+	for _, child := range children {
+		if !validAdditionalPropertySchemas(child) {
+			return false
+		}
+	}
+	return true
 }
 
 func (p *Parser) toCamelCase(s string) string {
@@ -259,9 +312,10 @@ func (w *Writer) writeV2(api *model.API, wr io.Writer, targetProtocol string, js
 	if len(api.Components.Schemas) > 0 {
 		for name, schema := range api.Components.Schemas {
 			// Convert model.Schema to interface{}
-			data, _ := json.Marshal(schema)
-			var schemaMap map[string]interface{}
-			_ = json.Unmarshal(data, &schemaMap)
+			schemaMap, err := asyncSchemaObject(schema)
+			if err != nil {
+				return fmt.Errorf("component schema %q: %w", name, err)
+			}
 			schemas[name] = schemaMap
 
 			// Also create a message wrapper for it
@@ -292,7 +346,11 @@ func (w *Writer) writeV2(api *model.API, wr io.Writer, targetProtocol string, js
 
 	for _, path := range paths {
 		item := api.Paths[path]
-		ch := Channel2{Parameters: writeChannelParameters(item.Parameters)}
+		parameters, err := writeChannelParameters(item.Parameters)
+		if err != nil {
+			return fmt.Errorf("channel %q: %w", path, err)
+		}
+		ch := Channel2{Parameters: parameters, Servers: item.ChannelServers}
 
 		// AsyncAPI 2.x channel addresses should not contain query params or fragments
 		cleanPath := path
@@ -315,11 +373,16 @@ func (w *Writer) writeV2(api *model.API, wr io.Writer, targetProtocol string, js
 			// Try to find payload
 			if item.Post.RequestBody != nil {
 				for contentType, mt := range item.Post.RequestBody.Content {
-					if mt.Schema != nil {
-						msg := &Message{ContentType: contentType, Payload: mt.Schema}
-						op.Message = msg
-						break // Only one message
+					if mt.Schema == nil {
+						continue
 					}
+					payload, err := asyncSchemaObject(mt.Schema)
+					if err != nil {
+						return fmt.Errorf("channel %q payload: %w", path, err)
+					}
+					msg := &Message{ContentType: contentType, Payload: payload}
+					op.Message = msg
+					break // Only one message
 				}
 			}
 			ch.Subscribe = op
@@ -345,11 +408,16 @@ func (w *Writer) writeV2(api *model.API, wr io.Writer, targetProtocol string, js
 				for _, code := range codes {
 					resp := item.Get.Responses[code]
 					for contentType, mt := range resp.Content {
-						if mt.Schema != nil {
-							msg := &Message{ContentType: contentType, Payload: mt.Schema}
-							op.Message = msg
-							break
+						if mt.Schema == nil {
+							continue
 						}
+						payload, err := asyncSchemaObject(mt.Schema)
+						if err != nil {
+							return fmt.Errorf("channel %q payload: %w", path, err)
+						}
+						msg := &Message{ContentType: contentType, Payload: payload}
+						op.Message = msg
+						break
 					}
 					if op.Message != nil {
 						break

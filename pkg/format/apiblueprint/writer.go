@@ -2,7 +2,6 @@ package apiblueprint
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"sort"
@@ -48,6 +47,12 @@ func (w *Writer) Write(ctx context.Context, api *model.API, wr io.Writer) error 
 	if err := security.CheckServerOverrides(api, "API Blueprint"); err != nil {
 		return err
 	}
+	if err := security.CheckChannelServers(api, "API Blueprint"); err != nil {
+		return err
+	}
+	if err := security.CheckCallbacks(api, "API Blueprint"); err != nil {
+		return err
+	}
 	if len(api.Webhooks) > 0 {
 		return fmt.Errorf("API Blueprint output cannot represent OpenAPI webhooks without loss")
 	}
@@ -63,13 +68,22 @@ func (w *Writer) Write(ctx context.Context, api *model.API, wr io.Writer) error 
 			if err := validateBlueprintParameters(op.Parameters, path); err != nil {
 				return err
 			}
+			if op.RequestBody != nil {
+				for contentType, media := range op.RequestBody.Content {
+					if media.Schema != nil {
+						if _, err := schemaAsset(media.Schema, api); err != nil {
+							return fmt.Errorf("path %q request %s schema: %w", path, contentType, err)
+						}
+					}
+				}
+			}
 			for code, response := range op.Responses {
 				if len(response.Content) > 1 {
 					return fmt.Errorf("path %q response %s has multiple content types that API Blueprint cannot represent without loss", path, code)
 				}
 				for _, media := range response.Content {
 					if media.Schema != nil {
-						if _, err := json.Marshal(media.Schema); err != nil {
+						if _, err := schemaAsset(media.Schema, api); err != nil {
 							return fmt.Errorf("path %q response %s schema: %w", path, code, err)
 						}
 					}
@@ -138,7 +152,7 @@ func (w *Writer) Write(ctx context.Context, api *model.API, wr io.Writer) error 
 			if !strings.HasPrefix(displayPath, "/") {
 				displayPath = "/" + displayPath
 			}
-			builder.WriteString(w.writeResource(displayPath, &item))
+			builder.WriteString(w.writeResource(displayPath, &item, api))
 		}
 	}
 
@@ -190,7 +204,7 @@ func (w *Writer) writeHeader(api *model.API) string {
 	return sb.String()
 }
 
-func (w *Writer) writeResource(path string, item *model.PathItem) string {
+func (w *Writer) writeResource(path string, item *model.PathItem, api *model.API) string {
 	var sb strings.Builder
 
 	summary := item.Summary
@@ -206,14 +220,14 @@ func (w *Writer) writeResource(path string, item *model.PathItem) string {
 	sb.WriteString(writeParameters(item.Parameters))
 
 	// Write actions
-	sb.WriteString(w.writeAction("GET", item.Get))
-	sb.WriteString(w.writeAction("POST", item.Post))
-	sb.WriteString(w.writeAction("PUT", item.Put))
-	sb.WriteString(w.writeAction("DELETE", item.Delete))
-	sb.WriteString(w.writeAction("PATCH", item.Patch))
-	sb.WriteString(w.writeAction("HEAD", item.Head))
-	sb.WriteString(w.writeAction("OPTIONS", item.Options))
-	sb.WriteString(w.writeAction("TRACE", item.Trace))
+	sb.WriteString(w.writeAction("GET", item.Get, api))
+	sb.WriteString(w.writeAction("POST", item.Post, api))
+	sb.WriteString(w.writeAction("PUT", item.Put, api))
+	sb.WriteString(w.writeAction("DELETE", item.Delete, api))
+	sb.WriteString(w.writeAction("PATCH", item.Patch, api))
+	sb.WriteString(w.writeAction("HEAD", item.Head, api))
+	sb.WriteString(w.writeAction("OPTIONS", item.Options, api))
+	sb.WriteString(w.writeAction("TRACE", item.Trace, api))
 
 	return sb.String()
 }
@@ -250,7 +264,7 @@ func writeParameters(params []model.Parameter) string {
 	return sb.String()
 }
 
-func (w *Writer) writeAction(method string, op *model.Operation) string {
+func (w *Writer) writeAction(method string, op *model.Operation, api *model.API) string {
 	if op == nil {
 		return ""
 	}
@@ -280,6 +294,8 @@ func (w *Writer) writeAction(method string, op *model.Operation) string {
 			fmt.Fprintf(&sb, "\n+ Request (%s)\n", contentType)
 			if mediaType.Schema != nil {
 				w.writePayloadAttributes(&sb, mediaType.Schema)
+				data, _ := schemaAsset(mediaType.Schema, api) // Checked before writing.
+				fmt.Fprintf(&sb, "\n    + Schema\n\n        %s\n", data)
 			}
 			if mediaType.Example != nil {
 				sb.WriteString("    + Body\n")
@@ -311,7 +327,7 @@ func (w *Writer) writeAction(method string, op *model.Operation) string {
 		fmt.Fprintf(&sb, "\n+ Response %s (%s)\n", code, ct)
 		if mt, ok := resp.Content[ct]; ok && mt.Schema != nil {
 			w.writePayloadAttributes(&sb, mt.Schema)
-			data, _ := json.Marshal(mt.Schema) // Checked before writing.
+			data, _ := schemaAsset(mt.Schema, api) // Checked before writing.
 			fmt.Fprintf(&sb, "\n    + Schema\n\n        %s\n", data)
 		}
 		if resp.Description != "" {

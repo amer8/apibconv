@@ -340,6 +340,25 @@ func channelServerSecurity(names []string, policies map[string][]model.SecurityR
 	return uniformServerSecurity(selected)
 }
 
+func sameServerNames(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	counts := make(map[string]int, len(a))
+	for _, name := range a {
+		counts[name]++
+	}
+	for _, name := range b {
+		counts[name]--
+	}
+	for _, count := range counts {
+		if count != 0 {
+			return false
+		}
+	}
+	return true
+}
+
 func hasSecuredServer(policies map[string][]model.SecurityRequirement) bool {
 	for _, policy := range policies {
 		if hasActualRequirement(policy) {

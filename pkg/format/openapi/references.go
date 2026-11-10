@@ -120,6 +120,13 @@ func resolveOperation(op *Operation, params map[string]Parameter, responses map[
 	return nil
 }
 func resolvePathV3(input *PathItem, doc *OpenAPI) (PathItem, error) {
+	return resolvePathV3Depth(input, doc, 0)
+}
+
+func resolvePathV3Depth(input *PathItem, doc *OpenAPI, depth int) (PathItem, error) {
+	if depth > 64 {
+		return PathItem{}, fmt.Errorf("callback nesting or reference cycle exceeds limit")
+	}
 	item := *input
 	seen := map[string]bool{}
 	for item.Ref != "" {
@@ -166,8 +173,50 @@ func resolvePathV3(input *PathItem, doc *OpenAPI) (PathItem, error) {
 		if err := resolveOperation(op, doc.Components.Parameters, doc.Components.Responses, doc.Components.RequestBodies, false); err != nil {
 			return item, err
 		}
+		if op != nil {
+			for name, callback := range op.Callbacks {
+				resolved, err := resolveCallback(callback, doc, depth+1)
+				if err != nil {
+					return item, fmt.Errorf("callback %q: %w", name, err)
+				}
+				op.Callbacks[name] = resolved
+			}
+		}
 	}
 	return item, nil
+}
+
+func resolveCallback(callback Callback, doc *OpenAPI, depth int) (Callback, error) {
+	if depth > 64 {
+		return Callback{}, fmt.Errorf("callback nesting or reference cycle exceeds limit")
+	}
+	seen := map[string]bool{}
+	for callback.Ref != "" {
+		ref := callback.Ref
+		if seen[ref] {
+			return Callback{}, fmt.Errorf("cyclic callback reference %q", ref)
+		}
+		seen[ref] = true
+		name, err := referenceName(ref, "#/components/callbacks/")
+		if err != nil {
+			return Callback{}, err
+		}
+		var ok bool
+		callback, ok = doc.Components.Callbacks[name]
+		if !ok {
+			return Callback{}, fmt.Errorf("callback reference %q not found", ref)
+		}
+	}
+	paths := make(map[string]PathItem, len(callback.Paths))
+	for expression := range callback.Paths {
+		path := callback.Paths[expression]
+		resolved, err := resolvePathV3Depth(&path, doc, depth+1)
+		if err != nil {
+			return Callback{}, fmt.Errorf("expression %q: %w", expression, err)
+		}
+		paths[expression] = resolved
+	}
+	return Callback{Paths: paths}, nil
 }
 func resolvePathV2(input *PathItemV2, doc *Swagger20) (PathItemV2, error) {
 	item := *input

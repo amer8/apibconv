@@ -1,5 +1,14 @@
 package openapi
 
+import (
+	"encoding/json"
+	"fmt"
+	"reflect"
+	"strings"
+
+	"go.yaml.in/yaml/v3"
+)
+
 // OpenAPI represents the root of an OpenAPI v3 document.
 type OpenAPI struct {
 	OpenAPI      string                `yaml:"openapi" json:"openapi"`
@@ -77,7 +86,7 @@ type Operation struct {
 	Parameters   []Parameter           `yaml:"parameters,omitempty" json:"parameters,omitempty"`
 	RequestBody  *RequestBody          `yaml:"requestBody,omitempty" json:"requestBody,omitempty"`
 	Responses    map[string]Response   `yaml:"responses" json:"responses"`
-	Callbacks    map[string]PathItem   `yaml:"callbacks,omitempty" json:"callbacks,omitempty"` // simplified
+	Callbacks    map[string]Callback   `yaml:"callbacks,omitempty" json:"callbacks,omitempty"`
 	Deprecated   bool                  `yaml:"deprecated,omitempty" json:"deprecated,omitempty"`
 	Security     []map[string][]string `yaml:"security,omitempty" json:"security,omitempty"`
 	Servers      []Server              `yaml:"servers,omitempty" json:"servers,omitempty"`
@@ -85,6 +94,47 @@ type Operation struct {
 	// V2 specific fields
 	Consumes []string `yaml:"consumes,omitempty" json:"consumes,omitempty"`
 	Produces []string `yaml:"produces,omitempty" json:"produces,omitempty"`
+}
+
+// Callback is either a reference or a map of runtime expressions to path items.
+type Callback struct {
+	Ref   string
+	Paths map[string]PathItem
+}
+
+// UnmarshalYAML reads an inline callback or a reference.
+func (c *Callback) UnmarshalYAML(node *yaml.Node) error {
+	if node.Kind != yaml.MappingNode {
+		return fmt.Errorf("callback must be an object")
+	}
+	if len(node.Content) >= 2 && node.Content[0].Value == "$ref" {
+		if len(node.Content) != 2 {
+			return fmt.Errorf("callback reference has unsupported siblings")
+		}
+		return node.Content[1].Decode(&c.Ref)
+	}
+	for i := 0; i < len(node.Content); i += 2 {
+		if node.Content[i].Value == "$ref" {
+			return fmt.Errorf("callback reference has unsupported siblings")
+		}
+	}
+	return node.Decode(&c.Paths)
+}
+
+// MarshalJSON emits a callback object.
+func (c Callback) MarshalJSON() ([]byte, error) {
+	if c.Ref != "" {
+		return json.Marshal(map[string]string{"$ref": c.Ref})
+	}
+	return json.Marshal(c.Paths)
+}
+
+// MarshalYAML emits a callback object.
+func (c Callback) MarshalYAML() (interface{}, error) {
+	if c.Ref != "" {
+		return map[string]string{"$ref": c.Ref}, nil
+	}
+	return c.Paths, nil
 }
 
 // Parameter describes a single operation parameter.
@@ -188,6 +238,50 @@ type Schema struct {
 	Not   *Schema   `yaml:"not,omitempty" json:"not,omitempty"`
 }
 
+// UnmarshalYAML rejects schema keywords that the model cannot preserve.
+// JSON Schema's const is representable as an intersecting single-value enum.
+func (s *Schema) UnmarshalYAML(node *yaml.Node) error {
+	if node.Kind != yaml.MappingNode {
+		return fmt.Errorf("schema must be an object")
+	}
+	known := make(map[string]bool)
+	typ := reflect.TypeOf(Schema{})
+	for i := 0; i < typ.NumField(); i++ {
+		known[strings.Split(typ.Field(i).Tag.Get("yaml"), ",")[0]] = true
+	}
+	var constNode *yaml.Node
+	for i := 0; i < len(node.Content); i += 2 {
+		key, value := node.Content[i].Value, node.Content[i+1]
+		if key == "const" {
+			constNode = value
+			continue
+		}
+		if !known[key] {
+			return fmt.Errorf("unsupported schema keyword %q", key)
+		}
+		if key == "additionalProperties" && value.Kind == yaml.MappingNode {
+			var nested Schema
+			if err := value.Decode(&nested); err != nil {
+				return err
+			}
+		}
+	}
+	type plain Schema
+	var decoded plain
+	if err := node.Decode(&decoded); err != nil {
+		return err
+	}
+	*s = Schema(decoded)
+	if constNode != nil {
+		var value interface{}
+		if err := constNode.Decode(&value); err != nil {
+			return err
+		}
+		s.AllOf = append(s.AllOf, &Schema{Enum: []interface{}{value}})
+	}
+	return nil
+}
+
 // Components holds a set of reusable objects.
 type Components struct {
 	Schemas         map[string]*Schema        `yaml:"schemas,omitempty" json:"schemas,omitempty"`
@@ -197,6 +291,7 @@ type Components struct {
 	RequestBodies   map[string]RequestBody    `yaml:"requestBodies,omitempty" json:"requestBodies,omitempty"`
 	Headers         map[string]Header         `yaml:"headers,omitempty" json:"headers,omitempty"`
 	SecuritySchemes map[string]SecurityScheme `yaml:"securitySchemes,omitempty" json:"securitySchemes,omitempty"`
+	Callbacks       map[string]Callback       `yaml:"callbacks,omitempty" json:"callbacks,omitempty"`
 }
 
 // Header follows the structure of the Parameter Object.

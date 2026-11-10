@@ -250,3 +250,40 @@ func TestAtomicOutputCommitsAndPreservesPermissions(t *testing.T) {
 		t.Fatalf("permissions: %o", info.Mode().Perm())
 	}
 }
+
+func TestAtomicOutputRejectsConcurrentInPlaceEdit(t *testing.T) {
+	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
+		t.Skip("replacing existing output is unsupported on this platform")
+	}
+	dir := t.TempDir()
+	destination := filepath.Join(dir, "existing.json")
+	if err := os.WriteFile(destination, []byte("original"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	original, err := os.Stat(destination)
+	if err != nil {
+		t.Fatal(err)
+	}
+	output, err := newAtomicOutput("", destination)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer output.cleanup()
+	if _, err := output.file.WriteString("converted"); err != nil {
+		t.Fatal(err)
+	}
+	// Preserve both size and mtime: inode/metadata checks alone are insufficient.
+	if err := os.WriteFile(destination, []byte("modified"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(destination, original.ModTime(), original.ModTime()); err != nil {
+		t.Fatal(err)
+	}
+	if err := output.commit(); err == nil {
+		t.Fatal("in-place edit was overwritten")
+	}
+	got, err := os.ReadFile(destination)
+	if err != nil || string(got) != "modified" {
+		t.Fatalf("concurrent edit lost: %q, %v", got, err)
+	}
+}

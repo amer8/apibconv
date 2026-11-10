@@ -14,6 +14,8 @@ import (
 )
 
 // parseV3 implements AsyncAPI 3.0 parsing
+//
+//nolint:gocyclo // Mapping operations and their security requires the branches below.
 func (p *Parser) parseV3(data []byte) (*model.API, error) {
 	var doc AsyncAPI3
 	if err := yaml.Unmarshal(data, &doc); err != nil {
@@ -143,7 +145,14 @@ func (p *Parser) parseV3(data []byte) (*model.API, error) {
 
 		// Get or Create PathItem
 		pi, _ := api.GetPath(path)
-		pi.Parameters = p.convertV3Parameters(channel.Parameters)
+		if (pi.Get != nil || pi.Post != nil) && !sameServerNames(pi.ChannelServers, serverNames) {
+			return nil, fmt.Errorf("channel %q has conflicting server selections", path)
+		}
+		pi.ChannelServers = append([]string(nil), serverNames...)
+		pi.Parameters, err = p.convertV3Parameters(channel.Parameters)
+		if err != nil {
+			return nil, fmt.Errorf("channel %q: %w", chRef, err)
+		}
 
 		modelOp := &model.Operation{
 			Summary:     op.Summary,
@@ -184,6 +193,9 @@ func (p *Parser) parseV3(data []byte) (*model.API, error) {
 		api.AddPath(path, &pi)
 	}
 	for id, channel := range doc.Channels {
+		if !usedChannels[id] && len(channel.Servers) != 0 {
+			return nil, fmt.Errorf("channel %q has server restrictions without a representable operation", id)
+		}
 		if !usedChannels[id] && len(channel.Messages) != 0 {
 			return nil, fmt.Errorf("channel %q has messages without a representable operation", id)
 		}
@@ -192,9 +204,9 @@ func (p *Parser) parseV3(data []byte) (*model.API, error) {
 	return api, nil
 }
 
-func (p *Parser) convertV3Parameters(params map[string]Parameter) []model.Parameter {
+func (p *Parser) convertV3Parameters(params map[string]Parameter) ([]model.Parameter, error) {
 	if len(params) == 0 {
-		return nil
+		return nil, nil
 	}
 	return p.convertParameters(params)
 }
@@ -321,9 +333,10 @@ func (w *Writer) writeV3(api *model.API, wr io.Writer, targetProtocol string, js
 
 	if len(api.Components.Schemas) > 0 {
 		for name, schema := range api.Components.Schemas {
-			data, _ := json.Marshal(schema)
-			var schemaMap map[string]interface{}
-			_ = json.Unmarshal(data, &schemaMap)
+			schemaMap, err := asyncSchemaObject(schema)
+			if err != nil {
+				return fmt.Errorf("component schema %q: %w", name, err)
+			}
 			schemas[name] = schemaMap
 
 			messages[name] = Message{
@@ -397,7 +410,11 @@ func (w *Writer) writeV3(api *model.API, wr io.Writer, targetProtocol string, js
 					if mt.Schema == nil {
 						continue
 					}
-					msg := &Message{ContentType: contentType, Payload: mt.Schema}
+					payload, err := asyncSchemaObject(mt.Schema)
+					if err != nil {
+						return fmt.Errorf("channel %q payload: %w", path, err)
+					}
+					msg := &Message{ContentType: contentType, Payload: payload}
 
 					msgKey := asyncMessageKey("message", contentType)
 
@@ -448,7 +465,11 @@ func (w *Writer) writeV3(api *model.API, wr io.Writer, targetProtocol string, js
 						if mt.Schema == nil {
 							continue
 						}
-						msg := &Message{ContentType: contentType, Payload: mt.Schema}
+						payload, err := asyncSchemaObject(mt.Schema)
+						if err != nil {
+							return fmt.Errorf("channel %q payload: %w", path, err)
+						}
+						msg := &Message{ContentType: contentType, Payload: payload}
 
 						msgKey := asyncMessageKey("message_"+code, contentType)
 
@@ -473,10 +494,20 @@ func (w *Writer) writeV3(api *model.API, wr io.Writer, targetProtocol string, js
 			doc.Operations[opID] = op
 		}
 
+		servers := make([]map[string]interface{}, 0, len(item.ChannelServers))
+		for _, name := range item.ChannelServers {
+			escaped := strings.ReplaceAll(strings.ReplaceAll(name, "~", "~0"), "/", "~1")
+			servers = append(servers, map[string]interface{}{"$ref": "#/servers/" + escaped})
+		}
+		parameters, err := writeChannelParameters(item.Parameters)
+		if err != nil {
+			return fmt.Errorf("channel %q: %w", path, err)
+		}
 		doc.Channels[channelID] = Channel3{
 			Address:    cleanPath,
 			Messages:   channelMessages,
-			Parameters: writeChannelParameters(item.Parameters),
+			Parameters: parameters,
+			Servers:    servers,
 		}
 	}
 
