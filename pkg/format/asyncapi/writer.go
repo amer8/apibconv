@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"reflect"
 
 	"github.com/amer8/apibconv/internal/security"
 	"github.com/amer8/apibconv/pkg/converter"
@@ -83,6 +84,13 @@ func (w *Writer) Write(ctx context.Context, api *model.API, wr io.Writer) error 
 	if err != nil {
 		return err
 	}
+	if len(api.Webhooks) > 0 {
+		return fmt.Errorf("AsyncAPI output cannot represent OpenAPI webhooks without loss")
+	}
+	api, err = promoteOperationParameters(api)
+	if err != nil {
+		return err
+	}
 	for path := range api.Paths {
 		item := api.Paths[path]
 		if item.Put != nil || item.Delete != nil || item.Patch != nil || item.Head != nil || item.Options != nil || item.Trace != nil {
@@ -127,6 +135,45 @@ func (w *Writer) Write(ctx context.Context, api *model.API, wr io.Writer) error 
 		return w.writeV3(api, wr, targetProtocol, jsonOutput, plan)
 	}
 	return w.writeV2(api, wr, targetProtocol, jsonOutput, plan)
+}
+
+func promoteOperationParameters(api *model.API) (*model.API, error) {
+	// Promote representable operation-level path parameters to the channel.
+	// Copy the path map and parameter slices so writing never changes the caller's model.
+	copyAPI := *api
+	copyAPI.Paths = make(map[string]model.PathItem, len(api.Paths))
+	for path := range api.Paths {
+		item := api.Paths[path]
+		item.Parameters = append([]model.Parameter(nil), item.Parameters...)
+		for _, op := range []*model.Operation{item.Get, item.Post} {
+			if op == nil {
+				continue
+			}
+			for _, param := range op.Parameters {
+				if param.In != model.ParameterInPath {
+					return nil, fmt.Errorf("path %q has a non-channel operation parameter %q", path, param.Name)
+				}
+				if !param.Required || param.Deprecated || param.AllowEmptyValue || param.Style != "" || param.ExplodeSet || param.Example != nil || len(param.Examples) != 0 || len(param.Content) != 0 {
+					return nil, fmt.Errorf("path %q operation parameter %q has attributes that AsyncAPI cannot represent", path, param.Name)
+				}
+				found := false
+				for _, existing := range item.Parameters {
+					if existing.Name == param.Name && existing.In == param.In {
+						if !reflect.DeepEqual(existing, param) {
+							return nil, fmt.Errorf("path %q has conflicting channel parameter %q", path, param.Name)
+						}
+						found = true
+						break
+					}
+				}
+				if !found {
+					item.Parameters = append(item.Parameters, param)
+				}
+			}
+		}
+		copyAPI.Paths[path] = item
+	}
+	return &copyAPI, nil
 }
 
 func writeChannelParameters(params []model.Parameter) map[string]Parameter {

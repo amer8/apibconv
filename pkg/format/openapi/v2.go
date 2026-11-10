@@ -112,6 +112,16 @@ func (p *Parser) parseV2(ctx context.Context, r io.Reader) (*model.API, error) {
 		if err != nil {
 			return nil, fmt.Errorf("path %q: %w", path, err)
 		}
+		if err := validateV2ParameterSerialization(item.Parameters); err != nil {
+			return nil, fmt.Errorf("path %q: %w", path, err)
+		}
+		for _, op := range []*Operation{item.Get, item.Post, item.Put, item.Delete, item.Patch, item.Head, item.Options} {
+			if op != nil {
+				if err := validateV2ParameterSerialization(op.Parameters); err != nil {
+					return nil, fmt.Errorf("path %q: %w", path, err)
+				}
+			}
+		}
 		var pathParams, pathBodies []Parameter
 		for i := range item.Parameters {
 			param := &item.Parameters[i]
@@ -276,7 +286,17 @@ func (p *Parser) convertV2Parameters(params []Parameter) []model.Parameter {
 			// For non-body parameters in V2, type/format/items are direct fields.
 			// In V3/Model, they must be wrapped in a Schema.
 			if param.Type != "" {
-				mp.Schema = p.convertV2SchemaFields(param.Type, param.Format, param.Items)
+				mp.Schema = p.convertSchema(&Schema{
+					Type: param.Type, Format: param.Format, Items: param.Items,
+					Default: param.Default, Enum: param.Enum,
+					Minimum: param.Minimum, Maximum: param.Maximum, MultipleOf: param.MultipleOf,
+					ExclusiveMinimum: param.ExclusiveMinimum, ExclusiveMaximum: param.ExclusiveMaximum,
+					MinLength: param.MinLength, MaxLength: param.MaxLength, Pattern: param.Pattern,
+					MinItems: param.MinItems, MaxItems: param.MaxItems, UniqueItems: param.UniqueItems,
+				})
+				if param.Type == "array" {
+					applyV2CollectionFormat(&mp, param.CollectionFormat)
+				}
 			} else if param.Schema != nil {
 				// Fallback if schema is somehow used
 				mp.Schema = p.convertSchema(param.Schema)
@@ -331,4 +351,43 @@ func (p *Parser) convertV2SchemaFields(schemaType, format string, items *Schema)
 		schema.Items = p.convertSchema(items)
 	}
 	return schema
+}
+
+// validateV2ParameterSerialization rejects Swagger array encodings for which the
+// unified model and OpenAPI 3 output cannot express the original wire format.
+func validateV2ParameterSerialization(params []Parameter) error {
+	for i := range params {
+		p := &params[i]
+		if p.Type != "array" || p.In == "body" {
+			continue
+		}
+		cf := p.CollectionFormat
+		if cf == "" {
+			cf = "csv"
+		}
+		supported := (p.In == "query" && (cf == "csv" || cf == "multi" || cf == "ssv" || cf == "pipes")) ||
+			((p.In == "path" || p.In == "header") && cf == "csv")
+		if !supported {
+			return fmt.Errorf("parameter %q in %q: Swagger collectionFormat %q cannot be represented without loss", p.Name, p.In, cf)
+		}
+	}
+	return nil
+}
+
+func applyV2CollectionFormat(param *model.Parameter, cf string) {
+	param.ExplodeSet = true
+	switch cf {
+	case "multi":
+		param.Style, param.Explode = "form", true
+	case "ssv":
+		param.Style = "spaceDelimited"
+	case "pipes":
+		param.Style = "pipeDelimited"
+	default: // Swagger defaults to csv; OpenAPI 3 query defaults to explode=true.
+		if param.In == model.ParameterInQuery {
+			param.Style = "form"
+		} else {
+			param.Style = "simple"
+		}
+	}
 }

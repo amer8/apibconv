@@ -109,13 +109,11 @@ func (p *Parser) parseV2(data []byte) (*model.API, error) {
 
 			// A v2 publish operation describes a message received by this application.
 			if ch.Publish.Message != nil {
-				schema, ct, err := p.messageSchema(ch.Publish.Message, doc.Components, nil)
+				schema, ct, err := p.messageSchema(ch.Publish.Message, doc.Components, nil, false)
 				if err != nil {
 					return nil, fmt.Errorf("channel %q publish: %w", path, err)
 				}
-				if ct == "" {
-					ct = "application/json"
-				}
+				ct = effectiveContentType(ct, doc.DefaultContentType)
 				op.Responses = model.Responses{"200": {Description: "OK", Content: map[string]model.MediaType{ct: {Schema: schema}}}}
 			}
 			pi.Get = op
@@ -138,13 +136,11 @@ func (p *Parser) parseV2(data []byte) (*model.API, error) {
 			}
 
 			// A v2 subscribe operation describes a message sent by this application.
-			schema, ct, err := p.messageSchema(ch.Subscribe.Message, doc.Components, nil)
+			schema, ct, err := p.messageSchema(ch.Subscribe.Message, doc.Components, nil, false)
 			if err != nil {
 				return nil, fmt.Errorf("channel %q subscribe: %w", path, err)
 			}
-			if ct == "" {
-				ct = "application/json"
-			}
+			ct = effectiveContentType(ct, doc.DefaultContentType)
 			if schema != nil {
 				op.RequestBody = &model.RequestBody{Content: map[string]model.MediaType{ct: {Schema: schema}}}
 			}

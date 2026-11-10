@@ -246,13 +246,11 @@ func (p *Parser) parseV3Message(op *Operation3, opID string, channel *Channel3, 
 	if len(messages) == 0 {
 		return nil
 	}
-	schema, contentType, err := p.messageSchema(messages[0], doc.Components, doc.Channels)
+	schema, contentType, err := p.messageSchema(messages[0], doc.Components, doc.Channels, true)
 	if err != nil {
 		return fmt.Errorf("operation %q: %w", opID, err)
 	}
-	if contentType == "" {
-		contentType = "application/json"
-	}
+	contentType = effectiveContentType(contentType, doc.DefaultContentType)
 	if schema != nil {
 		if op.Action == "send" {
 			modelOp.RequestBody = &model.RequestBody{Content: map[string]model.MediaType{contentType: {Schema: schema}}}

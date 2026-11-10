@@ -103,9 +103,23 @@ type Parameter struct {
 	Ref             string               `yaml:"$ref,omitempty" json:"$ref,omitempty"`
 
 	// V2 specific fields (valid for non-body parameters)
-	Type   string  `yaml:"type,omitempty" json:"type,omitempty"`
-	Format string  `yaml:"format,omitempty" json:"format,omitempty"`
-	Items  *Schema `yaml:"items,omitempty" json:"items,omitempty"` // Reusing Schema for items definition
+	Type             string        `yaml:"type,omitempty" json:"type,omitempty"`
+	Format           string        `yaml:"format,omitempty" json:"format,omitempty"`
+	Items            *Schema       `yaml:"items,omitempty" json:"items,omitempty"` // Reusing Schema for items definition
+	CollectionFormat string        `yaml:"collectionFormat,omitempty" json:"collectionFormat,omitempty"`
+	Default          interface{}   `yaml:"default,omitempty" json:"default,omitempty"`
+	Enum             []interface{} `yaml:"enum,omitempty" json:"enum,omitempty"`
+	Minimum          *float64      `yaml:"minimum,omitempty" json:"minimum,omitempty"`
+	Maximum          *float64      `yaml:"maximum,omitempty" json:"maximum,omitempty"`
+	ExclusiveMinimum bool          `yaml:"exclusiveMinimum,omitempty" json:"exclusiveMinimum,omitempty"`
+	ExclusiveMaximum bool          `yaml:"exclusiveMaximum,omitempty" json:"exclusiveMaximum,omitempty"`
+	MultipleOf       *float64      `yaml:"multipleOf,omitempty" json:"multipleOf,omitempty"`
+	MinLength        *int          `yaml:"minLength,omitempty" json:"minLength,omitempty"`
+	MaxLength        *int          `yaml:"maxLength,omitempty" json:"maxLength,omitempty"`
+	Pattern          string        `yaml:"pattern,omitempty" json:"pattern,omitempty"`
+	MinItems         *int          `yaml:"minItems,omitempty" json:"minItems,omitempty"`
+	MaxItems         *int          `yaml:"maxItems,omitempty" json:"maxItems,omitempty"`
+	UniqueItems      bool          `yaml:"uniqueItems,omitempty" json:"uniqueItems,omitempty"`
 }
 
 // RequestBody describes a single request body.

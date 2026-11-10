@@ -81,6 +81,7 @@ var (
 	reAttributes     = regexp.MustCompile(`^\+\s+Attributes\s*\(?([^)]*)\)?$`)
 	reDataStructures = regexp.MustCompile(`^#+\s+Data Structures$`)
 	reNamedType      = regexp.MustCompile(`^#{2,3}\s+(.*)\s*\((.*)\)$`)
+	reParameterAttrs = regexp.MustCompile(`\(([^)]*)\)`)
 )
 
 func (p *Parser) parseDocument(content string) (*model.API, error) {
@@ -137,18 +138,22 @@ func (p *Parser) parseDocument(content string) (*model.API, error) {
 			if matches := reNamedType.FindStringSubmatch(line); len(matches) > 0 {
 				name := strings.TrimSpace(matches[1])
 				// Parse properties
-				typ := model.TypeObject
-				if isPrimitiveType(strings.TrimSpace(matches[2])) {
-					typ = model.SchemaType(strings.TrimSpace(matches[2]))
+				typ := strings.TrimSpace(matches[2])
+				schema := &model.Schema{Type: model.TypeObject, Properties: make(map[string]*model.Schema)}
+				if strings.HasPrefix(typ, "array[") && strings.HasSuffix(typ, "]") {
+					schema.Type, schema.Properties = model.TypeArray, nil
+					schema.Items = msonArrayItem(typ[6 : len(typ)-1])
+				} else if isPrimitiveType(typ) {
+					schema.Type = model.SchemaType(typ)
 				}
-				schema := &model.Schema{Type: typ, Properties: make(map[string]*model.Schema)}
 				j := i + 1
+				properties := newMSONParser(schema)
 				for j < len(lines) {
 					nextLine := lines[j]
 					nextLineTrimmed := strings.TrimSpace(nextLine)
 					switch {
 					case strings.HasPrefix(nextLineTrimmed, "+"):
-						p.parseMSONProperty(nextLine, schema)
+						properties.add(nextLine)
 						j++
 					case nextLineTrimmed == "":
 						j++
@@ -229,6 +234,43 @@ func (p *Parser) parseDocument(content string) (*model.API, error) {
 			continue
 		}
 
+		// Parameters may be declared at either resource or action scope.
+		if line == "+ Parameters" && currentPathItem != nil {
+			indent := indentation(lines[i])
+			parameterIndent := -1
+			j := i + 1
+			for ; j < len(lines); j++ {
+				raw := lines[j]
+				trimmed := strings.TrimSpace(raw)
+				if trimmed == "" {
+					continue
+				}
+				if indentation(raw) <= indent {
+					break
+				}
+				if !strings.HasPrefix(trimmed, "+ ") {
+					continue
+				}
+				if parameterIndent < 0 {
+					parameterIndent = indentation(raw)
+				}
+				if indentation(raw) != parameterIndent {
+					continue
+				}
+				param := parseBlueprintParameter(trimmed, currentPath)
+				if param.Name == "" {
+					continue
+				}
+				if currentOperation != nil {
+					currentOperation.Parameters = append(currentOperation.Parameters, param)
+				} else {
+					currentPathItem.Parameters = append(currentPathItem.Parameters, param)
+				}
+			}
+			i = j - 1
+			continue
+		}
+
 		// Request
 		if matches := reRequest.FindStringSubmatch(line); len(matches) > 0 && currentOperation != nil {
 			contentType := strings.TrimSpace(matches[1])
@@ -286,6 +328,7 @@ func (p *Parser) parseResponse(lines []string, i int, matches []string, currentO
 	var hadBody bool
 	var refName string
 	var attributeType string
+	var properties *msonParser
 
 	// Look ahead for Attributes
 	if j < len(lines) {
@@ -310,6 +353,7 @@ func (p *Parser) parseResponse(lines []string, i int, matches []string, currentO
 
 			j++ // Skip Attributes header
 			msonSchema = &model.Schema{Properties: make(map[string]*model.Schema)}
+			properties = newMSONParser(msonSchema)
 		}
 	}
 
@@ -329,7 +373,7 @@ func (p *Parser) parseResponse(lines []string, i int, matches []string, currentO
 
 		if isMSON {
 			if strings.TrimSpace(nextLine) != "" {
-				p.parseMSONProperty(nextLine, msonSchema)
+				properties.add(nextLine)
 			}
 			j++
 		} else {
@@ -345,8 +389,10 @@ func (p *Parser) parseResponse(lines []string, i int, matches []string, currentO
 		if refName != "" {
 			if isArray {
 				schema.Type = model.TypeArray
-				schema.Items = &model.Schema{
-					Ref: "#/components/schemas/" + refName,
+				schema.Items = msonArrayItem(refName)
+				if schema.Items.Type == model.TypeObject {
+					schema.Items.Properties = msonSchema.Properties
+					schema.Items.Required = msonSchema.Required
 				}
 			} else {
 				schema.Ref = "#/components/schemas/" + refName
@@ -418,6 +464,7 @@ func isPrimitiveType(value string) bool {
 func (p *Parser) parseRequestPayload(lines []string, start int) (media model.MediaType, next int) {
 	var body strings.Builder
 	var schema *model.Schema
+	var properties *msonParser
 	mode := "body"
 	i := start
 	for ; i < len(lines); i++ {
@@ -433,12 +480,13 @@ func (p *Parser) parseRequestPayload(lines []string, start int) (media model.Med
 			switch {
 			case strings.HasPrefix(typ, "array[") && strings.HasSuffix(typ, "]"):
 				schema.Type = model.TypeArray
-				schema.Items = &model.Schema{Ref: "#/components/schemas/" + typ[6:len(typ)-1]}
+				schema.Items = msonArrayItem(typ[6 : len(typ)-1])
 			case isPrimitiveType(typ):
 				schema.Type = model.SchemaType(typ)
 			case typ != "":
 				schema = &model.Schema{Ref: "#/components/schemas/" + typ}
 			}
+			properties = newMSONParser(schema)
 			continue
 		}
 		if strings.HasPrefix(line, "+ Body") {
@@ -450,7 +498,7 @@ func (p *Parser) parseRequestPayload(lines []string, start int) (media model.Med
 			continue
 		}
 		if mode == "attributes" && strings.HasPrefix(line, "+ ") {
-			p.parseMSONProperty(raw, schema)
+			properties.add(raw)
 		} else if mode == "body" && line != "" {
 			body.WriteString(line + "\n")
 		}
@@ -464,10 +512,10 @@ func (p *Parser) parseRequestPayload(lines []string, start int) (media model.Med
 
 // parseMSONProperty parses a single MSON property line and adds it to the schema.
 // Format: + name: value (type, attributes) - description
-func (p *Parser) parseMSONProperty(line string, parent *model.Schema) {
+func parseMSONProperty(line string, parent *model.Schema) *model.Schema {
 	trimmed := strings.TrimSpace(line)
 	if !strings.HasPrefix(trimmed, "+") {
-		return
+		return nil
 	}
 	trimmed = strings.TrimPrefix(trimmed, "+")
 	trimmed = strings.TrimSpace(trimmed)
@@ -500,7 +548,14 @@ func (p *Parser) parseMSONProperty(line string, parent *model.Schema) {
 			attrs := rest[start+1 : end]
 			attrParts := strings.Split(attrs, ",")
 			for _, attr := range attrParts {
-				attr = strings.ToLower(strings.TrimSpace(attr))
+				rawAttr := strings.TrimSpace(attr)
+				attr = strings.ToLower(rawAttr)
+				if strings.HasPrefix(attr, "array[") && strings.HasSuffix(attr, "]") {
+					itemType := strings.TrimSpace(rawAttr[len("array[") : len(rawAttr)-1])
+					propSchema.Type = model.TypeArray
+					propSchema.Items = msonArrayItem(itemType)
+					continue
+				}
 				switch attr {
 				case "required":
 					parent.Required = append(parent.Required, name)
@@ -540,4 +595,88 @@ func (p *Parser) parseMSONProperty(line string, parent *model.Schema) {
 		parent.Properties = make(map[string]*model.Schema)
 	}
 	parent.Properties[name] = propSchema
+	return propSchema
+}
+
+// indentation counts the nesting level while allowing Markdown tabs.
+func indentation(line string) int {
+	n := 0
+	for _, r := range line {
+		switch r {
+		case ' ':
+			n++
+		case '\t':
+			n += 4
+		default:
+			return n
+		}
+	}
+	return n
+}
+
+type msonLevel struct {
+	indent int
+	schema *model.Schema
+}
+type msonParser struct {
+	root   *model.Schema
+	levels []msonLevel
+}
+
+func newMSONParser(root *model.Schema) *msonParser { return &msonParser{root: root} }
+func (p *msonParser) add(line string) {
+	indent := indentation(line)
+	for len(p.levels) > 0 && p.levels[len(p.levels)-1].indent >= indent {
+		p.levels = p.levels[:len(p.levels)-1]
+	}
+	parent := p.root
+	if len(p.levels) > 0 {
+		parent = p.levels[len(p.levels)-1].schema
+	}
+	if parent.Type == model.TypeArray {
+		if parent.Items == nil {
+			parent.Items = &model.Schema{Type: model.TypeObject}
+		}
+		parent = parent.Items
+	}
+	if child := parseMSONProperty(line, parent); child != nil {
+		p.levels = append(p.levels, msonLevel{indent: indent, schema: child})
+	}
+}
+
+// parseBlueprintParameter infers path versus query from the URI template.
+func parseBlueprintParameter(line, path string) model.Parameter {
+	text := strings.TrimSpace(strings.TrimPrefix(line, "+"))
+	head, desc, _ := strings.Cut(text, " - ")
+	name := strings.TrimSpace(head)
+	if i := strings.IndexAny(name, ": ("); i >= 0 {
+		name = name[:i]
+	}
+	param := model.Parameter{Name: name, In: model.ParameterInQuery, Description: strings.TrimSpace(desc), Schema: &model.Schema{Type: model.TypeString}}
+	if name != "" && strings.Contains(path, "{"+name+"}") {
+		param.In = model.ParameterInPath
+		param.Required = true
+	}
+	for _, group := range reParameterAttrs.FindAllStringSubmatch(head, -1) {
+		for _, raw := range strings.Split(group[1], ",") {
+			attr := strings.ToLower(strings.TrimSpace(raw))
+			switch {
+			case attr == "required":
+				param.Required = true
+			case isPrimitiveType(attr):
+				param.Schema.Type = model.SchemaType(attr)
+			case attr != "" && attr != "optional":
+				param.Schema.Format = attr
+			}
+		}
+	}
+	return param
+}
+
+func msonArrayItem(itemType string) *model.Schema {
+	itemType = strings.TrimSpace(itemType)
+	if isPrimitiveType(itemType) {
+		return &model.Schema{Type: model.SchemaType(itemType)}
+	}
+	return &model.Schema{Ref: "#/components/schemas/" + itemType}
 }
