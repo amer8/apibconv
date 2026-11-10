@@ -55,6 +55,7 @@ type conversionCase struct {
 	toProtocol        string
 	encoding          string
 	wantError         string
+	wantErrorAny      []string
 	wantParseError    string
 }
 
@@ -108,7 +109,7 @@ func localConversionCases() []conversionCase {
 	var cases []conversionCase
 	add := func(tc conversionCase) {
 		if tc.fromFormat == format.FormatAPIBlueprint && tc.toFormat == format.FormatAsyncAPI {
-			tc.wantError = "operations that cannot be represented in AsyncAPI"
+			tc.wantErrorAny = []string{"operations that cannot be represented in AsyncAPI", "has a non-channel operation parameter"}
 		}
 		if tc.inputFile == "asyncapi_v2.yaml" || tc.inputFile == "asyncapi_v2.json" || tc.inputFile == "asyncapi_v3.yaml" {
 			tc.wantParseError = "different server security policies"
@@ -157,13 +158,17 @@ func localConversionCases() []conversionCase {
 			})
 
 			if src.version != "2.0" {
+				wantErrors := []string{"cannot be represented in Swagger 2.0"}
+				if src.version == "3.1" {
+					wantErrors = append(wantErrors, "cannot represent OpenAPI webhooks without loss")
+				}
 				add(conversionCase{
 					name:             fmt.Sprintf("%s (%s) to OpenAPI v2.0", src.label, inputEncoding),
 					inputFile:        file,
 					fromFormat:       format.FormatOpenAPI,
 					toFormat:         format.FormatOpenAPI,
 					toOpenAPIVersion: "2.0",
-					wantError:        "cannot be represented in Swagger 2.0",
+					wantErrorAny:     wantErrors,
 				})
 			}
 			switch src.version {
@@ -416,7 +421,7 @@ func validSpecificationCases() []conversionCase {
 	})
 	add(conversionCase{
 		name:              "Valid API Blueprint fixture to AsyncAPI v2.6",
-		wantError:         "operations that cannot be represented in AsyncAPI",
+		wantErrorAny:      []string{"operations that cannot be represented in AsyncAPI", "has a non-channel operation parameter"},
 		inputFile:         "valid/warehouse.apib",
 		fromFormat:        format.FormatAPIBlueprint,
 		toFormat:          format.FormatAsyncAPI,
@@ -445,6 +450,7 @@ func validSpecificationCases() []conversionCase {
 	})
 	add(conversionCase{
 		name:              "Valid OpenAPI fixture to AsyncAPI v3.0",
+		wantError:         "has a schema that AsyncAPI 3 cannot represent",
 		inputFile:         "valid/checkout-openapi.yaml",
 		fromFormat:        format.FormatOpenAPI,
 		toFormat:          format.FormatAsyncAPI,
@@ -460,6 +466,7 @@ func validSpecificationCases() []conversionCase {
 	})
 	add(conversionCase{
 		name:              "Valid OpenAPI v2 fixture to AsyncAPI v2.6",
+		wantError:         "has a non-channel operation parameter",
 		inputFile:         "valid/catalog-openapi-v2.json",
 		fromFormat:        format.FormatOpenAPI,
 		toFormat:          format.FormatAsyncAPI,
@@ -468,12 +475,14 @@ func validSpecificationCases() []conversionCase {
 	})
 	add(conversionCase{
 		name:       "Valid OpenAPI v3.1 fixture to API Blueprint",
+		wantError:  "cannot represent OpenAPI webhooks without loss",
 		inputFile:  "valid/subscriptions-openapi-v3_1.yaml",
 		fromFormat: format.FormatOpenAPI,
 		toFormat:   format.FormatAPIBlueprint,
 	})
 	add(conversionCase{
 		name:              "Valid OpenAPI v3.1 fixture to AsyncAPI v3.0",
+		wantError:         "cannot represent OpenAPI webhooks without loss",
 		inputFile:         "valid/subscriptions-openapi-v3_1.yaml",
 		fromFormat:        format.FormatOpenAPI,
 		toFormat:          format.FormatAsyncAPI,
@@ -538,9 +547,22 @@ func assertConverts(t *testing.T, tc *conversionCase, input []byte) {
 
 	var output bytes.Buffer
 	err = conv.Convert(ctx, bytes.NewReader(input), &output, tc.fromFormat, tc.toFormat)
-	if tc.wantError != "" {
-		if err == nil || !strings.Contains(err.Error(), tc.wantError) {
-			t.Fatalf("conversion error = %v, want error containing %q", err, tc.wantError)
+	if tc.wantError != "" || len(tc.wantErrorAny) > 0 {
+		want := append([]string(nil), tc.wantErrorAny...)
+		if tc.wantError != "" {
+			want = append(want, tc.wantError)
+		}
+		matched := false
+		if err != nil {
+			for _, fragment := range want {
+				if strings.Contains(err.Error(), fragment) {
+					matched = true
+					break
+				}
+			}
+		}
+		if !matched {
+			t.Fatalf("conversion error = %v, want an error containing one of %q", err, want)
 		}
 		if output.Len() != 0 {
 			t.Fatalf("failed conversion produced output: %s", output.String())

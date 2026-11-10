@@ -61,7 +61,7 @@ Description of My API.
 						Get: &model.Operation{
 							Summary:    "Get User",
 							Tags:       []string{"Users"},
-							Parameters: nil,
+							Parameters: []model.Parameter{{Name: "id", In: model.ParameterInPath, Required: true, Description: "User ID", Schema: &model.Schema{Type: model.TypeNumber}}},
 							Responses: model.Responses{
 								"200": model.Response{
 									Content: map[string]model.MediaType{

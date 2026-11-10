@@ -48,11 +48,20 @@ func (w *Writer) Write(ctx context.Context, api *model.API, wr io.Writer) error 
 	if err := security.CheckServerOverrides(api, "API Blueprint"); err != nil {
 		return err
 	}
+	if len(api.Webhooks) > 0 {
+		return fmt.Errorf("API Blueprint output cannot represent OpenAPI webhooks without loss")
+	}
 	for path := range api.Paths {
 		item := api.Paths[path]
+		if err := validateBlueprintParameters(item.Parameters, path); err != nil {
+			return err
+		}
 		for _, op := range []*model.Operation{item.Get, item.Post, item.Put, item.Delete, item.Patch, item.Head, item.Options, item.Trace} {
 			if op == nil {
 				continue
+			}
+			if err := validateBlueprintParameters(op.Parameters, path); err != nil {
+				return err
 			}
 			for code, response := range op.Responses {
 				if len(response.Content) > 1 {
@@ -140,6 +149,16 @@ func (w *Writer) Write(ctx context.Context, api *model.API, wr io.Writer) error 
 	return err
 }
 
+// Blueprint parameters describe URI-template values, not HTTP header or cookie fields.
+func validateBlueprintParameters(params []model.Parameter, path string) error {
+	for _, param := range params {
+		if param.In != "" && param.In != model.ParameterInPath && param.In != model.ParameterInQuery {
+			return fmt.Errorf("path %q parameter %q has location %q that API Blueprint cannot represent", path, param.Name, param.In)
+		}
+	}
+	return nil
+}
+
 // Format returns the format type for the writer.
 func (w *Writer) Format() format.Format {
 	return format.FormatAPIBlueprint
@@ -184,6 +203,8 @@ func (w *Writer) writeResource(path string, item *model.PathItem) string {
 		sb.WriteString(item.Description + "\n")
 	}
 
+	sb.WriteString(writeParameters(item.Parameters))
+
 	// Write actions
 	sb.WriteString(w.writeAction("GET", item.Get))
 	sb.WriteString(w.writeAction("POST", item.Post))
@@ -194,6 +215,38 @@ func (w *Writer) writeResource(path string, item *model.PathItem) string {
 	sb.WriteString(w.writeAction("OPTIONS", item.Options))
 	sb.WriteString(w.writeAction("TRACE", item.Trace))
 
+	return sb.String()
+}
+
+// writeParameters writes the common resource- and action-level representation.
+func writeParameters(params []model.Parameter) string {
+	if len(params) == 0 {
+		return ""
+	}
+	var sb strings.Builder
+	sb.WriteString("\n+ Parameters\n")
+	for _, param := range params {
+		fmt.Fprintf(&sb, "    + %s", param.Name)
+		if param.Schema != nil {
+			var typeInfo []string
+			if param.Schema.Type != "" {
+				typeInfo = append(typeInfo, string(param.Schema.Type))
+			}
+			if param.Schema.Format != "" {
+				typeInfo = append(typeInfo, param.Schema.Format)
+			}
+			if len(typeInfo) > 0 {
+				fmt.Fprintf(&sb, " (%s)", strings.Join(typeInfo, ", "))
+			}
+		}
+		if param.Required {
+			sb.WriteString(" (required)")
+		}
+		if param.Description != "" {
+			fmt.Fprintf(&sb, " - %s", param.Description)
+		}
+		sb.WriteByte('\n')
+	}
 	return sb.String()
 }
 
@@ -213,39 +266,7 @@ func (w *Writer) writeAction(method string, op *model.Operation) string {
 		sb.WriteString(op.Description + "\n")
 	}
 
-	// Parameters
-	if len(op.Parameters) > 0 {
-		sb.WriteString("\n+ Parameters\n")
-		for _, param := range op.Parameters {
-			// Parameter Name (type, format) - Description (required)
-			paramLine := fmt.Sprintf("    + %s", param.Name)
-
-			if param.Schema != nil {
-				typeInfo := ""
-				if param.Schema.Type != "" {
-					typeInfo = string(param.Schema.Type)
-				}
-				if param.Schema.Format != "" {
-					if typeInfo != "" {
-						typeInfo += ", "
-					}
-					typeInfo += param.Schema.Format
-				}
-				if typeInfo != "" {
-					paramLine += fmt.Sprintf(" (%s)", typeInfo)
-				}
-			}
-
-			if param.Required {
-				paramLine += " (required)"
-			}
-
-			if param.Description != "" {
-				paramLine += fmt.Sprintf(" - %s", param.Description)
-			}
-			sb.WriteString(paramLine + "\n")
-		}
-	}
+	sb.WriteString(writeParameters(op.Parameters))
 
 	// Request Body
 	if op.RequestBody != nil {
@@ -315,15 +336,21 @@ func (w *Writer) writePayloadAttributes(sb *strings.Builder, schema *model.Schem
 	typ := string(schema.Type)
 	if schema.Ref != "" {
 		typ = strings.TrimPrefix(schema.Ref, "#/components/schemas/")
-	} else if schema.Type == model.TypeArray && schema.Items != nil && schema.Items.Ref != "" {
-		typ = "array[" + strings.TrimPrefix(schema.Items.Ref, "#/components/schemas/") + "]"
+	} else if schema.Type == model.TypeArray && schema.Items != nil {
+		typ = msonArrayType(schema.Items)
 	}
 	if typ == "" {
 		typ = "object"
 	}
 	fmt.Fprintf(sb, "    + Attributes (%s)\n", typ)
 	if schema.Ref == "" {
-		sb.WriteString(w.writeMSONSchema(schema, 3))
+		if schema.Type == model.TypeArray && schema.Items != nil {
+			if schema.Items.Ref == "" {
+				sb.WriteString(w.writeMSONSchema(schema.Items, 3))
+			}
+		} else {
+			sb.WriteString(w.writeMSONSchema(schema, 3))
+		}
 	}
 }
 
@@ -342,6 +369,9 @@ func (w *Writer) writeSchemas(api *model.API) string {
 		for _, name := range schemaNames {
 			schema := api.Components.Schemas[name]
 			typ := string(schema.Type)
+			if schema.Type == model.TypeArray && schema.Items != nil {
+				typ = msonArrayType(schema.Items)
+			}
 			if typ == "" {
 				typ = "object"
 			}
@@ -349,7 +379,13 @@ func (w *Writer) writeSchemas(api *model.API) string {
 			if schema.Description != "" {
 				fmt.Fprintf(&sb, "    %s\n", schema.Description)
 			}
-			sb.WriteString(w.writeMSONSchema(schema, 1)) // Start with 1 indentation level
+			if schema.Type == model.TypeArray && schema.Items != nil {
+				if schema.Items.Ref == "" {
+					sb.WriteString(w.writeMSONSchema(schema.Items, 1))
+				}
+			} else {
+				sb.WriteString(w.writeMSONSchema(schema, 1))
+			}
 		}
 	}
 	return sb.String()
@@ -390,6 +426,15 @@ func (w *Writer) writeMSONSchema(schema *model.Schema, indentLevel int) string {
 		for _, propName := range propNames {
 			propSchema := schema.Properties[propName]
 			propType := string(propSchema.Type)
+			if propSchema.Type == model.TypeArray && propSchema.Items != nil {
+				itemType := string(propSchema.Items.Type)
+				if propSchema.Items.Ref != "" {
+					itemType = strings.TrimPrefix(propSchema.Items.Ref, "#/components/schemas/")
+				}
+				if itemType != "" {
+					propType = "array[" + itemType + "]"
+				}
+			}
 			if propType == "" {
 				propType = "string"
 			} // Default to string if type is unknown
@@ -414,11 +459,24 @@ func (w *Writer) writeMSONSchema(schema *model.Schema, indentLevel int) string {
 			}
 
 			// Recursively write nested properties for objects or items for arrays
-			if propSchema.Type == model.TypeObject || propSchema.Type == model.TypeArray {
+			if propSchema.Type == model.TypeObject {
 				sb.WriteString(w.writeMSONSchema(propSchema, indentLevel+1))
+			} else if propSchema.Type == model.TypeArray && propSchema.Items != nil && propSchema.Items.Ref == "" {
+				sb.WriteString(w.writeMSONSchema(propSchema.Items, indentLevel+1))
 			}
 		}
 	}
 
 	return sb.String()
+}
+
+func msonArrayType(item *model.Schema) string {
+	name := string(item.Type)
+	if item.Ref != "" {
+		name = strings.TrimPrefix(item.Ref, "#/components/schemas/")
+	}
+	if name == "" {
+		return "array"
+	}
+	return "array[" + name + "]"
 }

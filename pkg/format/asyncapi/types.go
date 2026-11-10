@@ -2,11 +2,12 @@ package asyncapi
 
 // AsyncAPI2 represents the root of an AsyncAPI 2.x document.
 type AsyncAPI2 struct {
-	AsyncAPI   string                 `yaml:"asyncapi" json:"asyncapi"`
-	Info       Info                   `yaml:"info" json:"info"`
-	Channels   map[string]Channel2    `yaml:"channels" json:"channels"`
-	Servers    map[string]Server      `yaml:"servers,omitempty" json:"servers,omitempty"`
-	Components map[string]interface{} `yaml:"components,omitempty" json:"components,omitempty"`
+	AsyncAPI           string                 `yaml:"asyncapi" json:"asyncapi"`
+	DefaultContentType string                 `yaml:"defaultContentType,omitempty" json:"defaultContentType,omitempty"`
+	Info               Info                   `yaml:"info" json:"info"`
+	Channels           map[string]Channel2    `yaml:"channels" json:"channels"`
+	Servers            map[string]Server      `yaml:"servers,omitempty" json:"servers,omitempty"`
+	Components         map[string]interface{} `yaml:"components,omitempty" json:"components,omitempty"`
 }
 
 // Channel2 represents a channel in AsyncAPI 2.x.
@@ -28,12 +29,13 @@ type Parameter struct {
 
 // AsyncAPI3 represents the root of an AsyncAPI 3.0 document.
 type AsyncAPI3 struct {
-	AsyncAPI   string                 `yaml:"asyncapi" json:"asyncapi"`
-	Info       Info                   `yaml:"info" json:"info"`
-	Channels   map[string]Channel3    `yaml:"channels,omitempty" json:"channels,omitempty"`
-	Operations map[string]Operation3  `yaml:"operations,omitempty" json:"operations,omitempty"`
-	Servers    map[string]ServerV3    `yaml:"servers,omitempty" json:"servers,omitempty"`
-	Components map[string]interface{} `yaml:"components,omitempty" json:"components,omitempty"`
+	AsyncAPI           string                 `yaml:"asyncapi" json:"asyncapi"`
+	DefaultContentType string                 `yaml:"defaultContentType,omitempty" json:"defaultContentType,omitempty"`
+	Info               Info                   `yaml:"info" json:"info"`
+	Channels           map[string]Channel3    `yaml:"channels,omitempty" json:"channels,omitempty"`
+	Operations         map[string]Operation3  `yaml:"operations,omitempty" json:"operations,omitempty"`
+	Servers            map[string]ServerV3    `yaml:"servers,omitempty" json:"servers,omitempty"`
+	Components         map[string]interface{} `yaml:"components,omitempty" json:"components,omitempty"`
 }
 
 // ServerV3 object represents a message broker or server in AsyncAPI 3.0.
@@ -101,11 +103,12 @@ type Server struct {
 
 // Message object represents a message exchanged via a channel.
 type Message struct {
-	Ref         string        `yaml:"$ref,omitempty" json:"$ref,omitempty"`
-	Name        string        `yaml:"name,omitempty" json:"name,omitempty"`
-	Title       string        `yaml:"title,omitempty" json:"title,omitempty"`
-	Summary     string        `yaml:"summary,omitempty" json:"summary,omitempty"`
-	ContentType string        `yaml:"contentType,omitempty" json:"contentType,omitempty"`
-	Payload     interface{}   `yaml:"payload,omitempty" json:"payload,omitempty"`
-	OneOf       []interface{} `yaml:"oneOf,omitempty" json:"oneOf,omitempty"`
+	Ref         string                   `yaml:"$ref,omitempty" json:"$ref,omitempty"`
+	Name        string                   `yaml:"name,omitempty" json:"name,omitempty"`
+	Title       string                   `yaml:"title,omitempty" json:"title,omitempty"`
+	Summary     string                   `yaml:"summary,omitempty" json:"summary,omitempty"`
+	ContentType string                   `yaml:"contentType,omitempty" json:"contentType,omitempty"`
+	Traits      []map[string]interface{} `yaml:"traits,omitempty" json:"traits,omitempty"`
+	Payload     interface{}              `yaml:"payload,omitempty" json:"payload,omitempty"`
+	OneOf       []interface{}            `yaml:"oneOf,omitempty" json:"oneOf,omitempty"`
 }

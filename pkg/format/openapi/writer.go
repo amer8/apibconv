@@ -120,12 +120,18 @@ func (w *Writer) Write(ctx context.Context, api *model.API, wr io.Writer) error 
 
 	switch w.version {
 	case "2.0", "2.0.0":
+		if len(api.Webhooks) > 0 {
+			return fmt.Errorf("OpenAPI 2.0 output cannot represent OpenAPI webhooks without loss")
+		}
 		if err := security.CheckServerOverrides(api, "OpenAPI 2.0"); err != nil {
 			return err
 		}
 		doc, err = w.convertV2(api)
 	case "3.0", "3.0.0", "3.0.1", "3.0.2", "3.0.3", "3.1", "3.1.0": // All OpenAPI 3.x
 		if strings.HasPrefix(w.version, "3.0") {
+			if len(api.Webhooks) > 0 {
+				return fmt.Errorf("OpenAPI 3.0 output cannot represent OpenAPI webhooks without loss")
+			}
 			for name := range api.Components.SecuritySchemes {
 				if api.Components.SecuritySchemes[name].Type == "mutualTLS" {
 					return fmt.Errorf("security scheme %q: mutualTLS cannot be represented in OpenAPI 3.0", name)
@@ -524,6 +530,22 @@ func (w *Writer) convertParametersV2(params []model.Parameter, api *model.API) [
 			schema = &model.Schema{Type: model.TypeString}
 		}
 		assignV2ParameterSchema(&p, w.convertSchema(schema, api))
+		if p.Type == "array" {
+			switch param.Style {
+			case "spaceDelimited":
+				p.CollectionFormat = "ssv"
+			case "pipeDelimited":
+				p.CollectionFormat = "pipes"
+			case "form":
+				if param.Explode || !param.ExplodeSet {
+					p.CollectionFormat = "multi"
+				}
+			case "":
+				if p.In == "query" && (param.Explode || !param.ExplodeSet) {
+					p.CollectionFormat = "multi"
+				}
+			}
+		}
 		result = append(result, p)
 	}
 	return result
@@ -594,6 +616,12 @@ func assignV2ParameterSchema(param *Parameter, schema *Schema) {
 	}
 
 	param.Format = schema.Format
+	param.Default, param.Enum = schema.Default, schema.Enum
+	param.Minimum, param.Maximum, param.MultipleOf = schema.Minimum, schema.Maximum, schema.MultipleOf
+	param.ExclusiveMinimum, _ = schema.ExclusiveMinimum.(bool)
+	param.ExclusiveMaximum, _ = schema.ExclusiveMaximum.(bool)
+	param.MinLength, param.MaxLength, param.Pattern = schema.MinLength, schema.MaxLength, schema.Pattern
+	param.MinItems, param.MaxItems, param.UniqueItems = schema.MinItems, schema.MaxItems, schema.UniqueItems
 	if param.Type == "array" && schema.Items != nil {
 		param.Items = schema.Items
 	}

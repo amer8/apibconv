@@ -78,7 +78,9 @@ func prepareSecurity(api *model.API, v3 bool, protocol string) (*securityPlan, e
 		if v3 && item.Name != "" {
 			channelID = item.Name
 		}
-		if item.Get == nil && item.Post == nil {
+		// V3 emits every path as a channel, even when it has no operations.
+		// V2 only emits channels that contain a publish or subscribe operation.
+		if !v3 && item.Get == nil && item.Post == nil {
 			continue
 		}
 		if channelIDs[channelID] {
