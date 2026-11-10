@@ -2,6 +2,7 @@ package apiblueprint
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"sort"
@@ -46,6 +47,26 @@ func (w *Writer) Write(ctx context.Context, api *model.API, wr io.Writer) error 
 	}
 	if err := security.CheckServerOverrides(api, "API Blueprint"); err != nil {
 		return err
+	}
+	for path := range api.Paths {
+		item := api.Paths[path]
+		for _, op := range []*model.Operation{item.Get, item.Post, item.Put, item.Delete, item.Patch, item.Head, item.Options, item.Trace} {
+			if op == nil {
+				continue
+			}
+			for code, response := range op.Responses {
+				if len(response.Content) > 1 {
+					return fmt.Errorf("path %q response %s has multiple content types that API Blueprint cannot represent without loss", path, code)
+				}
+				for _, media := range response.Content {
+					if media.Schema != nil {
+						if _, err := json.Marshal(media.Schema); err != nil {
+							return fmt.Errorf("path %q response %s schema: %w", path, code, err)
+						}
+					}
+				}
+			}
+		}
 	}
 	var builder strings.Builder
 
@@ -228,18 +249,23 @@ func (w *Writer) writeAction(method string, op *model.Operation) string {
 
 	// Request Body
 	if op.RequestBody != nil {
-		sb.WriteString("\n+ Request\n")
-		// Assuming JSON content for simplicity based on previous examples
-		for contentType, mediaType := range op.RequestBody.Content {
-			fmt.Fprintf(&sb, "    + Body (%s)\n", contentType)
-			if mediaType.Example != nil {
-				sb.WriteString("            ")
-				fmt.Fprintf(&sb, "%v\n", mediaType.Example)
-				sb.WriteString("\n")
+		contentTypes := make([]string, 0, len(op.RequestBody.Content))
+		for contentType := range op.RequestBody.Content {
+			contentTypes = append(contentTypes, contentType)
+		}
+		sort.Strings(contentTypes)
+		for _, contentType := range contentTypes {
+			mediaType := op.RequestBody.Content[contentType]
+			fmt.Fprintf(&sb, "\n+ Request (%s)\n", contentType)
+			if mediaType.Schema != nil {
+				w.writePayloadAttributes(&sb, mediaType.Schema)
 			}
-			// If schema is present, we should reference it if Data Structures are implemented
-			if mediaType.Schema != nil && mediaType.Schema.Ref != "" {
-				fmt.Fprintf(&sb, "            + Attributes (array[%s])\n", strings.TrimPrefix(mediaType.Schema.Ref, "#/components/schemas/"))
+			if mediaType.Example != nil {
+				sb.WriteString("    + Body\n")
+				for _, line := range strings.Split(strings.TrimSpace(fmt.Sprint(mediaType.Example)), "\n") {
+					fmt.Fprintf(&sb, "\n        %s", line)
+				}
+				sb.WriteString("\n")
 			}
 		}
 	}
@@ -262,12 +288,20 @@ func (w *Writer) writeAction(method string, op *model.Operation) string {
 		}
 
 		fmt.Fprintf(&sb, "\n+ Response %s (%s)\n", code, ct)
+		if mt, ok := resp.Content[ct]; ok && mt.Schema != nil {
+			w.writePayloadAttributes(&sb, mt.Schema)
+			data, _ := json.Marshal(mt.Schema) // Checked before writing.
+			fmt.Fprintf(&sb, "\n    + Schema\n\n        %s\n", data)
+		}
 		if resp.Description != "" {
 			fmt.Fprintf(&sb, "\n    %s\n", resp.Description)
 		}
 
 		// Write response body example if available
 		if mt, ok := resp.Content[ct]; ok && mt.Example != nil {
+			if mt.Schema != nil {
+				sb.WriteString("\n    + Body\n")
+			}
 			sb.WriteString("\n        ") // Indentation for body
 			fmt.Fprint(&sb, mt.Example)
 			sb.WriteString("\n")
@@ -275,6 +309,22 @@ func (w *Writer) writeAction(method string, op *model.Operation) string {
 	}
 
 	return sb.String()
+}
+
+func (w *Writer) writePayloadAttributes(sb *strings.Builder, schema *model.Schema) {
+	typ := string(schema.Type)
+	if schema.Ref != "" {
+		typ = strings.TrimPrefix(schema.Ref, "#/components/schemas/")
+	} else if schema.Type == model.TypeArray && schema.Items != nil && schema.Items.Ref != "" {
+		typ = "array[" + strings.TrimPrefix(schema.Items.Ref, "#/components/schemas/") + "]"
+	}
+	if typ == "" {
+		typ = "object"
+	}
+	fmt.Fprintf(sb, "    + Attributes (%s)\n", typ)
+	if schema.Ref == "" {
+		sb.WriteString(w.writeMSONSchema(schema, 3))
+	}
 }
 
 func (w *Writer) writeSchemas(api *model.API) string {
@@ -291,7 +341,11 @@ func (w *Writer) writeSchemas(api *model.API) string {
 
 		for _, name := range schemaNames {
 			schema := api.Components.Schemas[name]
-			fmt.Fprintf(&sb, "\n### %s (object)\n", name)
+			typ := string(schema.Type)
+			if typ == "" {
+				typ = "object"
+			}
+			fmt.Fprintf(&sb, "\n### %s (%s)\n", name, typ)
 			if schema.Description != "" {
 				fmt.Fprintf(&sb, "    %s\n", schema.Description)
 			}

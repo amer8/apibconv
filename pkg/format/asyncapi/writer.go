@@ -88,6 +88,26 @@ func (w *Writer) Write(ctx context.Context, api *model.API, wr io.Writer) error 
 		if item.Put != nil || item.Delete != nil || item.Patch != nil || item.Head != nil || item.Options != nil || item.Trace != nil {
 			return fmt.Errorf("path %q has operations that cannot be represented in AsyncAPI", path)
 		}
+		for _, param := range item.Parameters {
+			if param.In != model.ParameterInPath {
+				return fmt.Errorf("path %q has a non-channel parameter %q", path, param.Name)
+			}
+			if w.version >= "3.0.0" && param.Schema != nil {
+				return fmt.Errorf("channel %q parameter %q has a schema that AsyncAPI 3 cannot represent", path, param.Name)
+			}
+		}
+		if item.Post != nil && item.Post.RequestBody != nil && len(item.Post.RequestBody.Content) > 1 {
+			return fmt.Errorf("channel %q has multiple message payloads that cannot be represented without loss", path)
+		}
+		if item.Get != nil {
+			count := 0
+			for _, response := range item.Get.Responses {
+				count += len(response.Content)
+			}
+			if count > 1 {
+				return fmt.Errorf("channel %q has multiple message payloads that cannot be represented without loss", path)
+			}
+		}
 	}
 
 	// Check if protocol is overridden in context
@@ -107,6 +127,21 @@ func (w *Writer) Write(ctx context.Context, api *model.API, wr io.Writer) error 
 		return w.writeV3(api, wr, targetProtocol, jsonOutput, plan)
 	}
 	return w.writeV2(api, wr, targetProtocol, jsonOutput, plan)
+}
+
+func writeChannelParameters(params []model.Parameter) map[string]Parameter {
+	if len(params) == 0 {
+		return nil
+	}
+	result := make(map[string]Parameter, len(params))
+	for _, param := range params {
+		p := Parameter{Description: param.Description}
+		if param.Schema != nil {
+			p.Schema = param.Schema
+		}
+		result[param.Name] = p
+	}
+	return result
 }
 
 // Format returns the format type for the writer.

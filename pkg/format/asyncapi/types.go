@@ -49,11 +49,12 @@ type ServerV3 struct {
 
 // Channel3 represents a channel in AsyncAPI 3.0.
 type Channel3 struct {
-	Ref      string                   `yaml:"$ref,omitempty" json:"$ref,omitempty"`
-	Address  string                   `yaml:"address,omitempty" json:"address,omitempty"`
-	Messages map[string]interface{}   `yaml:"messages,omitempty" json:"messages,omitempty"`
-	Servers  []map[string]interface{} `yaml:"servers,omitempty" json:"servers,omitempty"`
-	Bindings map[string]interface{}   `yaml:"bindings,omitempty" json:"bindings,omitempty"` // Channel Bindings
+	Ref        string                   `yaml:"$ref,omitempty" json:"$ref,omitempty"`
+	Address    string                   `yaml:"address,omitempty" json:"address,omitempty"`
+	Messages   map[string]interface{}   `yaml:"messages,omitempty" json:"messages,omitempty"`
+	Parameters map[string]Parameter     `yaml:"parameters,omitempty" json:"parameters,omitempty"`
+	Servers    []map[string]interface{} `yaml:"servers,omitempty" json:"servers,omitempty"`
+	Bindings   map[string]interface{}   `yaml:"bindings,omitempty" json:"bindings,omitempty"` // Channel Bindings
 }
 
 // Operation3 represents an operation in AsyncAPI 3.0.
@@ -100,10 +101,11 @@ type Server struct {
 
 // Message object represents a message exchanged via a channel.
 type Message struct {
-	Ref         string      `yaml:"$ref,omitempty" json:"$ref,omitempty"`
-	Name        string      `yaml:"name,omitempty" json:"name,omitempty"`
-	Title       string      `yaml:"title,omitempty" json:"title,omitempty"`
-	Summary     string      `yaml:"summary,omitempty" json:"summary,omitempty"`
-	ContentType string      `yaml:"contentType,omitempty" json:"contentType,omitempty"`
-	Payload     interface{} `yaml:"payload,omitempty" json:"payload,omitempty"`
+	Ref         string        `yaml:"$ref,omitempty" json:"$ref,omitempty"`
+	Name        string        `yaml:"name,omitempty" json:"name,omitempty"`
+	Title       string        `yaml:"title,omitempty" json:"title,omitempty"`
+	Summary     string        `yaml:"summary,omitempty" json:"summary,omitempty"`
+	ContentType string        `yaml:"contentType,omitempty" json:"contentType,omitempty"`
+	Payload     interface{}   `yaml:"payload,omitempty" json:"payload,omitempty"`
+	OneOf       []interface{} `yaml:"oneOf,omitempty" json:"oneOf,omitempty"`
 }

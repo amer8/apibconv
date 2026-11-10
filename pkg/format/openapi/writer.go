@@ -688,6 +688,18 @@ func (w *Writer) convertSchema(s *model.Schema, api *model.API) *Schema {
 		AdditionalProperties: s.AdditionalProperties,
 		Example:              s.Example, ReadOnly: s.ReadOnly, WriteOnly: s.WriteOnly, Deprecated: s.Deprecated,
 	}
+	switch nested := s.AdditionalProperties.(type) {
+	case *model.Schema:
+		ms.AdditionalProperties = w.convertSchema(nested, api)
+	case map[string]interface{}:
+		// Schemas decoded through JSON can contain an untyped nested object.
+		if data, err := json.Marshal(s.AdditionalProperties); err == nil {
+			var nested model.Schema
+			if json.Unmarshal(data, &nested) == nil {
+				ms.AdditionalProperties = w.convertSchema(&nested, api)
+			}
+		}
+	}
 	if s.Nullable && strings.HasPrefix(w.version, "3.0") {
 		ms.Nullable = true
 	}
