@@ -296,7 +296,7 @@ func (w *Writer) writeV2(api *model.API, wr io.Writer, targetProtocol string, js
 
 	for _, path := range paths {
 		item := api.Paths[path]
-		ch := Channel2{}
+		ch := Channel2{Parameters: writeChannelParameters(item.Parameters)}
 
 		// AsyncAPI 2.x channel addresses should not contain query params or fragments
 		cleanPath := path
@@ -318,27 +318,9 @@ func (w *Writer) writeV2(api *model.API, wr io.Writer, targetProtocol string, js
 
 			// Try to find payload
 			if item.Post.RequestBody != nil {
-				for _, mt := range item.Post.RequestBody.Content {
+				for contentType, mt := range item.Post.RequestBody.Content {
 					if mt.Schema != nil {
-						msg := &Message{}
-						if mt.Schema.Ref != "" {
-							// Rewrite ref to message if possible, or schema
-							ref := mt.Schema.Ref
-							if strings.HasPrefix(ref, "#/components/schemas/") {
-								// In AsyncAPI, we often refer to messages.
-								// If we created a message wrapper above, point to it.
-								name := strings.TrimPrefix(ref, "#/components/schemas/")
-								msg.Ref = "#/components/messages/" + name
-							} else {
-								msg.Ref = ref
-							}
-						} else {
-							// Inline payload
-							data, _ := json.Marshal(mt.Schema)
-							var payload interface{}
-							_ = json.Unmarshal(data, &payload)
-							msg.Payload = payload
-						}
+						msg := &Message{ContentType: contentType, Payload: mt.Schema}
 						op.Message = msg
 						break // Only one message
 					}
@@ -366,23 +348,9 @@ func (w *Writer) writeV2(api *model.API, wr io.Writer, targetProtocol string, js
 
 				for _, code := range codes {
 					resp := item.Get.Responses[code]
-					for _, mt := range resp.Content {
+					for contentType, mt := range resp.Content {
 						if mt.Schema != nil {
-							msg := &Message{}
-							if mt.Schema.Ref != "" {
-								ref := mt.Schema.Ref
-								if strings.HasPrefix(ref, "#/components/schemas/") {
-									name := strings.TrimPrefix(ref, "#/components/schemas/")
-									msg.Ref = "#/components/messages/" + name
-								} else {
-									msg.Ref = ref
-								}
-							} else {
-								data, _ := json.Marshal(mt.Schema)
-								var payload interface{}
-								_ = json.Unmarshal(data, &payload)
-								msg.Payload = payload
-							}
+							msg := &Message{ContentType: contentType, Payload: mt.Schema}
 							op.Message = msg
 							break
 						}

@@ -382,8 +382,18 @@ func (p *Parser) convertSchema(s *Schema) *model.Schema {
 		AdditionalProperties: s.AdditionalProperties,
 		Example:              s.Example, ReadOnly: s.ReadOnly, WriteOnly: s.WriteOnly, Deprecated: s.Deprecated, Nullable: s.Nullable,
 	}
-	ms.ExclusiveMinimum, ms.Minimum = schemaExclusive(s.ExclusiveMinimum, ms.Minimum)
-	ms.ExclusiveMaximum, ms.Maximum = schemaExclusive(s.ExclusiveMaximum, ms.Maximum)
+	ms.ExclusiveMinimum, ms.Minimum = schemaExclusive(s.ExclusiveMinimum, ms.Minimum, false)
+	ms.ExclusiveMaximum, ms.Maximum = schemaExclusive(s.ExclusiveMaximum, ms.Maximum, true)
+	if s.AdditionalProperties != nil {
+		if _, ok := s.AdditionalProperties.(bool); !ok {
+			if data, err := yaml.Marshal(s.AdditionalProperties); err == nil {
+				var nested Schema
+				if yaml.Unmarshal(data, &nested) == nil {
+					ms.AdditionalProperties = p.convertSchema(&nested)
+				}
+			}
+		}
+	}
 
 	// Rewrite Swagger 2.0 definitions to OpenAPI 3.0 components/schemas
 	if ms.Ref != "" && strings.HasPrefix(ms.Ref, "#/definitions/") {
@@ -450,21 +460,24 @@ func (p *Parser) convertSchema(s *Schema) *model.Schema {
 	return ms
 }
 
-func schemaExclusive(value interface{}, bound *float64) (exclusive bool, limit *float64) {
+func schemaExclusive(value interface{}, bound *float64, upper bool) (exclusive bool, limit *float64) {
+	var f float64
 	switch v := value.(type) {
 	case bool:
 		return v, bound
 	case int:
-		f := float64(v)
-		return true, &f
+		f = float64(v)
 	case int64:
-		f := float64(v)
-		return true, &f
+		f = float64(v)
 	case uint64:
-		f := float64(v)
-		return true, &f
+		f = float64(v)
 	case float64:
-		return true, &v
+		f = v
+	default:
+		return false, bound
 	}
-	return false, bound
+	if bound != nil && ((!upper && *bound > f) || (upper && *bound < f)) {
+		return false, bound
+	}
+	return true, &f
 }

@@ -47,7 +47,8 @@ func TestWrite(t *testing.T) {
     "events": {
       "subscribe": {
         "message": {
-          "payload": {
+                      "contentType": "application/json",
+                      "payload": {
             "type": "object"
           }
         },

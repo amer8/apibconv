@@ -42,6 +42,13 @@ output reject server-level security that they cannot represent. The parser rejec
 unsupported security mechanisms, unresolved security references, and different server
 security policies rather than silently dropping them.
 
+AsyncAPI output preserves a single message's content type and rejects operations
+with multiple payload variants instead of choosing one. AsyncAPI 2 message
+`oneOf` alternatives are rejected on input. Channel parameters and their schemas
+are preserved in AsyncAPI 2; conversion to AsyncAPI 3 rejects parameter schemas,
+which that version cannot represent directly. API Blueprint response output
+includes a JSON Schema asset when a response schema is available.
+
 ## Installation
 
 ### Using Homebrew

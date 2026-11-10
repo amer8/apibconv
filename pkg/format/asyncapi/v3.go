@@ -143,6 +143,7 @@ func (p *Parser) parseV3(data []byte) (*model.API, error) {
 
 		// Get or Create PathItem
 		pi, _ := api.GetPath(path)
+		pi.Parameters = p.convertV3Parameters(channel.Parameters)
 
 		modelOp := &model.Operation{
 			Summary:     op.Summary,
@@ -189,6 +190,13 @@ func (p *Parser) parseV3(data []byte) (*model.API, error) {
 	}
 
 	return api, nil
+}
+
+func (p *Parser) convertV3Parameters(params map[string]Parameter) []model.Parameter {
+	if len(params) == 0 {
+		return nil
+	}
+	return p.convertParameters(params)
 }
 
 func (p *Parser) parseV3Schemas(components map[string]interface{}, api *model.API) error {
@@ -391,30 +399,9 @@ func (w *Writer) writeV3(api *model.API, wr io.Writer, targetProtocol string, js
 					if mt.Schema == nil {
 						continue
 					}
-					msg := &Message{}
-					var msgKey string
-					if mt.Schema.Ref != "" {
-						ref := mt.Schema.Ref
-						if strings.HasPrefix(ref, "#/components/schemas/") {
-							name := strings.TrimPrefix(ref, "#/components/schemas/")
-							msg.Ref = "#/components/messages/" + name
-							msgKey = name
-						} else {
-							msg.Ref = ref
-							parts := strings.Split(ref, "/")
-							if len(parts) > 0 {
-								msgKey = parts[len(parts)-1]
-							} else {
-								msgKey = asyncMessageKey("message", contentType)
-							}
-						}
-					} else {
-						data, _ := json.Marshal(mt.Schema)
-						var payload interface{}
-						_ = json.Unmarshal(data, &payload)
-						msg.Payload = payload
-						msgKey = asyncMessageKey("message", contentType)
-					}
+					msg := &Message{ContentType: contentType, Payload: mt.Schema}
+
+					msgKey := asyncMessageKey("message", contentType)
 
 					// Add to channel
 					channelMessages[msgKey] = msg
@@ -463,30 +450,9 @@ func (w *Writer) writeV3(api *model.API, wr io.Writer, targetProtocol string, js
 						if mt.Schema == nil {
 							continue
 						}
-						msg := &Message{}
-						var msgKey string
-						if mt.Schema.Ref != "" {
-							ref := mt.Schema.Ref
-							if strings.HasPrefix(ref, "#/components/schemas/") {
-								name := strings.TrimPrefix(ref, "#/components/schemas/")
-								msg.Ref = "#/components/messages/" + name
-								msgKey = name
-							} else {
-								msg.Ref = ref
-								parts := strings.Split(ref, "/")
-								if len(parts) > 0 {
-									msgKey = parts[len(parts)-1]
-								} else {
-									msgKey = asyncMessageKey("message_"+code, contentType)
-								}
-							}
-						} else {
-							data, _ := json.Marshal(mt.Schema)
-							var payload interface{}
-							_ = json.Unmarshal(data, &payload)
-							msg.Payload = payload
-							msgKey = asyncMessageKey("message_"+code, contentType)
-						}
+						msg := &Message{ContentType: contentType, Payload: mt.Schema}
+
+						msgKey := asyncMessageKey("message_"+code, contentType)
 
 						// Add to channel
 						channelMessages[msgKey] = msg
@@ -510,8 +476,9 @@ func (w *Writer) writeV3(api *model.API, wr io.Writer, targetProtocol string, js
 		}
 
 		doc.Channels[channelID] = Channel3{
-			Address:  cleanPath,
-			Messages: channelMessages,
+			Address:    cleanPath,
+			Messages:   channelMessages,
+			Parameters: writeChannelParameters(item.Parameters),
 		}
 	}
 

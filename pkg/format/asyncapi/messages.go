@@ -20,6 +20,9 @@ func (p *Parser) messageSchema(raw any, components map[string]interface{}, chann
 		if err = json.Unmarshal(data, &message); err != nil {
 			return nil, "", fmt.Errorf("decode message: %w", err)
 		}
+		if len(message.OneOf) != 0 {
+			return nil, "", fmt.Errorf("message oneOf alternatives cannot be represented without loss")
+		}
 		if message.Ref == "" {
 			if message.Payload == nil {
 				return nil, message.ContentType, nil

@@ -4,6 +4,8 @@ package apiblueprint
 import (
 	"bufio"
 	"context"
+	"encoding/json"
+	"fmt"
 	"io"
 	"regexp"
 	"strings"
@@ -74,10 +76,11 @@ var (
 	reGroup          = regexp.MustCompile(`^#+\s+Group\s+(.*)$`)
 	reResource       = regexp.MustCompile(`^#+\s+(.*)\[(.*)\]$`)
 	reAction         = regexp.MustCompile(`^#+\s+(.*)\[([A-Z]+)\]$`)
+	reRequest        = regexp.MustCompile(`^\+\s+Request(?:\s+[^()]*)?\s*\(?([^)]*)\)?$`)
 	reResponse       = regexp.MustCompile(`^\+\s+Response\s+(\d+)\s*\(?([^)]*)\)?$`)
 	reAttributes     = regexp.MustCompile(`^\+\s+Attributes\s*\(?([^)]*)\)?$`)
 	reDataStructures = regexp.MustCompile(`^#+\s+Data Structures$`)
-	reNamedType      = regexp.MustCompile(`^##\s+(.*)\s*\((.*)\)$`) // ## Task (object)
+	reNamedType      = regexp.MustCompile(`^#{2,3}\s+(.*)\s*\((.*)\)$`)
 )
 
 func (p *Parser) parseDocument(content string) (*model.API, error) {
@@ -134,7 +137,11 @@ func (p *Parser) parseDocument(content string) (*model.API, error) {
 			if matches := reNamedType.FindStringSubmatch(line); len(matches) > 0 {
 				name := strings.TrimSpace(matches[1])
 				// Parse properties
-				schema := &model.Schema{Type: model.TypeObject, Properties: make(map[string]*model.Schema)}
+				typ := model.TypeObject
+				if isPrimitiveType(strings.TrimSpace(matches[2])) {
+					typ = model.SchemaType(strings.TrimSpace(matches[2]))
+				}
+				schema := &model.Schema{Type: typ, Properties: make(map[string]*model.Schema)}
 				j := i + 1
 				for j < len(lines) {
 					nextLine := lines[j]
@@ -144,6 +151,11 @@ func (p *Parser) parseDocument(content string) (*model.API, error) {
 						p.parseMSONProperty(nextLine, schema)
 						j++
 					case nextLineTrimmed == "":
+						j++
+					case strings.HasPrefix(nextLine, "    ") && !strings.HasPrefix(nextLineTrimmed, "#"):
+						if schema.Description == "" {
+							schema.Description = nextLineTrimmed
+						}
 						j++
 					default:
 						// End of structure properties by breaking inner loop
@@ -217,111 +229,28 @@ func (p *Parser) parseDocument(content string) (*model.API, error) {
 			continue
 		}
 
-		// Response
-		if matches := reResponse.FindStringSubmatch(line); len(matches) > 0 && currentOperation != nil {
-			statusCode := matches[1]
-			contentType := matches[2]
+		// Request
+		if matches := reRequest.FindStringSubmatch(line); len(matches) > 0 && currentOperation != nil {
+			contentType := strings.TrimSpace(matches[1])
 			if contentType == "" {
 				contentType = "application/json"
 			}
-
-			resp := model.Response{
-				Description: "", // Description usually follows
-				Content: map[string]model.MediaType{
-					contentType: {},
-				},
+			media, next := p.parseRequestPayload(lines, i+1)
+			if currentOperation.RequestBody == nil {
+				currentOperation.RequestBody = &model.RequestBody{Content: make(map[string]model.MediaType)}
 			}
+			currentOperation.RequestBody.Content[contentType] = media
+			i = next - 1
+			continue
+		}
 
-			// Check for body or attributes
-			j := i + 1
-			var bodyBuilder strings.Builder
-			var msonProperties map[string]*model.Schema
-			var isMSON bool
-			var isArray bool
-			var hadBody bool
-			var refName string
-
-			// Look ahead for Attributes
-			if j < len(lines) {
-				trimmedNext := strings.TrimSpace(lines[j])
-				if matchesAttr := reAttributes.MatchString(trimmedNext); matchesAttr {
-					isMSON = true
-					// Check if Attributes has type definition/reference
-					// e.g. + Attributes (array[Task])
-					attrContent := reAttributes.FindStringSubmatch(trimmedNext)[1]
-					if strings.Contains(attrContent, "array[") {
-						isArray = true
-						// Extract Ref
-						start := strings.Index(attrContent, "array[") + 6
-						end := strings.Index(attrContent[start:], "]")
-						if end > -1 {
-							refName = attrContent[start : start+end]
-						}
-					} else if attrContent != "" && attrContent != "object" {
-						refName = attrContent
-					}
-
-					j++ // Skip Attributes header
-					msonProperties = make(map[string]*model.Schema)
-				}
+		// Response
+		if matches := reResponse.FindStringSubmatch(line); len(matches) > 0 && currentOperation != nil {
+			var err error
+			i, err = p.parseResponse(lines, i, matches, currentOperation)
+			if err != nil {
+				return nil, err
 			}
-
-			for j < len(lines) {
-				nextLine := lines[j]
-				linePrefix := ""
-				// Determine indentation level. 4 spaces for Attributes properties, 8 for body examples.
-				if isMSON {
-					linePrefix = "            " // 12 spaces if from start (4 for Response, 4 for Attributes, 4 for property)
-				} else {
-					linePrefix = "        " // 8 spaces for body example
-				}
-
-				if !strings.HasPrefix(nextLine, linePrefix) && strings.TrimSpace(nextLine) != "" {
-					break // End of block due to de-indentation
-				}
-
-				if isMSON {
-					if strings.TrimSpace(nextLine) != "" {
-						p.parseMSONProperty(nextLine, &model.Schema{Properties: msonProperties})
-					}
-					j++
-				} else {
-					hadBody = true
-					bodyBuilder.WriteString(strings.TrimSpace(nextLine) + "\n")
-					j++
-				}
-			}
-			i = j - 1 // Advance outer loop
-
-			if isMSON {
-				schema := &model.Schema{}
-				if refName != "" {
-					if isArray {
-						schema.Type = model.TypeArray
-						schema.Items = &model.Schema{
-							Ref: "#/components/schemas/" + refName,
-						}
-					} else {
-						schema.Ref = "#/components/schemas/" + refName
-					}
-				} else {
-					schema.Type = model.TypeObject
-					schema.Properties = msonProperties
-				}
-				resp.Content[contentType] = model.MediaType{
-					Schema: schema,
-				}
-			} else if hadBody && bodyBuilder.String() != "" {
-				example := bodyBuilder.String()
-				if strings.TrimSpace(example) == "" {
-					example = ""
-				}
-				resp.Content[contentType] = model.MediaType{
-					Example: example,
-				}
-			}
-
-			currentOperation.AddResponse(statusCode, resp)
 			continue
 		}
 	}
@@ -332,6 +261,205 @@ func (p *Parser) parseDocument(content string) (*model.API, error) {
 	}
 
 	return api, nil
+}
+
+func (p *Parser) parseResponse(lines []string, i int, matches []string, currentOperation *model.Operation) (int, error) {
+	statusCode := matches[1]
+	contentType := matches[2]
+	if contentType == "" {
+		contentType = "application/json"
+	}
+
+	resp := model.Response{
+		Description: "", // Description usually follows
+		Content: map[string]model.MediaType{
+			contentType: {},
+		},
+	}
+
+	// Check for body or attributes
+	j := i + 1
+	var bodyBuilder strings.Builder
+	var msonSchema *model.Schema
+	var isMSON bool
+	var isArray bool
+	var hadBody bool
+	var refName string
+	var attributeType string
+
+	// Look ahead for Attributes
+	if j < len(lines) {
+		trimmedNext := strings.TrimSpace(lines[j])
+		if matchesAttr := reAttributes.MatchString(trimmedNext); matchesAttr {
+			isMSON = true
+			// Check if Attributes has type definition/reference
+			// e.g. + Attributes (array[Task])
+			attrContent := reAttributes.FindStringSubmatch(trimmedNext)[1]
+			attributeType = attrContent
+			if strings.Contains(attrContent, "array[") {
+				isArray = true
+				// Extract Ref
+				start := strings.Index(attrContent, "array[") + 6
+				end := strings.Index(attrContent[start:], "]")
+				if end > -1 {
+					refName = attrContent[start : start+end]
+				}
+			} else if attrContent != "" && attrContent != "object" && !isPrimitiveType(attrContent) {
+				refName = attrContent
+			}
+
+			j++ // Skip Attributes header
+			msonSchema = &model.Schema{Properties: make(map[string]*model.Schema)}
+		}
+	}
+
+	for j < len(lines) {
+		nextLine := lines[j]
+		linePrefix := ""
+		// Determine indentation level. 4 spaces for Attributes properties, 8 for body examples.
+		if isMSON {
+			linePrefix = "            " // 12 spaces if from start (4 for Response, 4 for Attributes, 4 for property)
+		} else {
+			linePrefix = "        " // 8 spaces for body example
+		}
+
+		if !strings.HasPrefix(nextLine, linePrefix) && strings.TrimSpace(nextLine) != "" {
+			break // End of block due to de-indentation
+		}
+
+		if isMSON {
+			if strings.TrimSpace(nextLine) != "" {
+				p.parseMSONProperty(nextLine, msonSchema)
+			}
+			j++
+		} else {
+			hadBody = true
+			bodyBuilder.WriteString(strings.TrimSpace(nextLine) + "\n")
+			j++
+		}
+	}
+	i = j - 1 // Advance outer loop
+
+	if isMSON {
+		schema := &model.Schema{}
+		if refName != "" {
+			if isArray {
+				schema.Type = model.TypeArray
+				schema.Items = &model.Schema{
+					Ref: "#/components/schemas/" + refName,
+				}
+			} else {
+				schema.Ref = "#/components/schemas/" + refName
+			}
+		} else {
+			schema.Type = model.TypeObject
+			if isPrimitiveType(attributeType) {
+				schema.Type = model.SchemaType(attributeType)
+			}
+			schema.Properties = msonSchema.Properties
+			schema.Required = msonSchema.Required
+		}
+		resp.Content[contentType] = model.MediaType{
+			Schema: schema,
+		}
+	} else if hadBody && bodyBuilder.String() != "" {
+		example := bodyBuilder.String()
+		if strings.TrimSpace(example) == "" {
+			example = ""
+		}
+		resp.Content[contentType] = model.MediaType{
+			Example: example,
+		}
+	}
+
+	// A Blueprint Schema asset preserves JSON Schema constraints that MSON
+	// cannot express. Prefer it to the accompanying Attributes section.
+	if j < len(lines) && strings.TrimSpace(lines[j]) == "+ Schema" {
+		j++
+		var raw strings.Builder
+		for j < len(lines) {
+			line := lines[j]
+			if strings.TrimSpace(line) != "" && !strings.HasPrefix(line, "        ") {
+				break
+			}
+			raw.WriteString(strings.TrimSpace(line))
+			j++
+		}
+		var schema model.Schema
+		if err := json.Unmarshal([]byte(raw.String()), &schema); err != nil {
+			return 0, fmt.Errorf("response %s JSON schema: %w", statusCode, err)
+		}
+		media := resp.Content[contentType]
+		media.Schema = &schema
+		resp.Content[contentType] = media
+		i = j - 1
+	}
+	if j < len(lines) && strings.TrimSpace(lines[j]) == "+ Body" {
+		media, next := p.parseRequestPayload(lines, j)
+		current := resp.Content[contentType]
+		current.Example = media.Example
+		resp.Content[contentType] = current
+		i = next - 1
+	}
+	currentOperation.AddResponse(statusCode, resp)
+	return i, nil
+}
+
+func isPrimitiveType(value string) bool {
+	switch value {
+	case "string", "number", "integer", "boolean", "array", "object":
+		return true
+	}
+	return false
+}
+
+// parseRequestPayload handles both directly indented examples and Blueprint
+// Body/Attributes sections, stopping before the next action or payload.
+func (p *Parser) parseRequestPayload(lines []string, start int) (media model.MediaType, next int) {
+	var body strings.Builder
+	var schema *model.Schema
+	mode := "body"
+	i := start
+	for ; i < len(lines); i++ {
+		raw := lines[i]
+		line := strings.TrimSpace(raw)
+		if line != "" && !strings.HasPrefix(raw, " ") && !strings.HasPrefix(raw, "\t") {
+			break
+		}
+		if matches := reAttributes.FindStringSubmatch(line); len(matches) > 0 {
+			mode = "attributes"
+			typ := strings.TrimSpace(matches[1])
+			schema = &model.Schema{Type: model.TypeObject}
+			switch {
+			case strings.HasPrefix(typ, "array[") && strings.HasSuffix(typ, "]"):
+				schema.Type = model.TypeArray
+				schema.Items = &model.Schema{Ref: "#/components/schemas/" + typ[6:len(typ)-1]}
+			case isPrimitiveType(typ):
+				schema.Type = model.SchemaType(typ)
+			case typ != "":
+				schema = &model.Schema{Ref: "#/components/schemas/" + typ}
+			}
+			continue
+		}
+		if strings.HasPrefix(line, "+ Body") {
+			mode = "body"
+			continue
+		}
+		if strings.HasPrefix(line, "+ Headers") {
+			mode = "headers"
+			continue
+		}
+		if mode == "attributes" && strings.HasPrefix(line, "+ ") {
+			p.parseMSONProperty(raw, schema)
+		} else if mode == "body" && line != "" {
+			body.WriteString(line + "\n")
+		}
+	}
+	media.Schema = schema
+	if body.Len() > 0 {
+		media.Example = body.String()
+	}
+	return media, i
 }
 
 // parseMSONProperty parses a single MSON property line and adds it to the schema.
@@ -361,6 +489,9 @@ func (p *Parser) parseMSONProperty(line string, parent *model.Schema) {
 	}
 
 	name := strings.TrimSpace(namePart)
+	if strings.Contains(rest, ") (required)") {
+		parent.Required = append(parent.Required, name)
+	}
 	propSchema := &model.Schema{Type: model.TypeString} // Default
 
 	// Parse type/attributes in parens ()
@@ -377,6 +508,8 @@ func (p *Parser) parseMSONProperty(line string, parent *model.Schema) {
 					// default
 				case "number":
 					propSchema.Type = model.TypeNumber
+				case "integer":
+					propSchema.Type = model.TypeInteger
 				case "boolean":
 					propSchema.Type = model.TypeBoolean
 				case "array":
