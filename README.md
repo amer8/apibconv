@@ -1,4 +1,4 @@
-![apibconv](https://repository-images.githubusercontent.com/1104692802/990c0067-778c-40bd-be06-a5148304fe3f)
+![API Blueprint to OpenAPI migration demo](docs/demo/apibconv.gif)
 
 [![CI](https://github.com/amer8/apibconv/actions/workflows/ci.yml/badge.svg)](https://github.com/amer8/apibconv/actions/workflows/ci.yml)
 [![Go Reference](https://pkg.go.dev/badge/github.com/amer8/apibconv.svg)](https://pkg.go.dev/github.com/amer8/apibconv)
@@ -6,11 +6,9 @@
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/amer8/apibconv/badge)](https://scorecard.dev/viewer/?uri=github.com/amer8/apibconv)
 [![License](https://img.shields.io/github/license/amer8/apibconv)](LICENSE)
 
-Migrate API Blueprint, OpenAPI, and AsyncAPI specifications to newer versions.
+Migrate API Blueprint and OpenAPI specifications to newer versions.
 
 - [API Blueprint](https://apiblueprint.org/documentation/specification.html) and [MSON](https://apiblueprint.org/documentation/mson/specification.html)
-- [AsyncAPI v3.0](https://www.asyncapi.com/docs/reference/specification/v3.0.0)
-- [AsyncAPI v2.6](https://v2.asyncapi.com/docs/reference/specification/v2.6.0)
 - [OpenAPI v3.1.x](https://swagger.io/specification/)
 - [OpenAPI v3.0.x](https://swagger.io/specification/v3/)
 - [OpenAPI v2.0 (Swagger)](https://swagger.io/specification/v2/)
@@ -26,19 +24,17 @@ Supported conversions through the CLI and `Converter.Convert`:
 
 - API Blueprint → OpenAPI 3.1
 - OpenAPI 2.0 or 3.0 → OpenAPI 3.1
-- AsyncAPI 2.x → AsyncAPI 3.0
-- OpenAPI or AsyncAPI → the same major/minor version, including JSON/YAML conversion
+- OpenAPI → the same major/minor version, including JSON/YAML conversion
 
 Downgrades and other cross-format conversions are rejected. The default output
-versions are OpenAPI 3.1 and AsyncAPI 3.0. For a same-version conversion to an
-older version, specify `--openapi-version` or `--asyncapi-version` explicitly.
+version is OpenAPI 3.1. For a same-version conversion to an
+older version, specify `--openapi-version` explicitly.
 
 Conversion is not lossless, including same-version encoding conversion: it goes
 through a shared model and can omit or change fields. In particular, the API
 Blueprint parser handles a subset of the format; Swagger operation-level
-`schemes`, OpenAPI referenced response headers, and AsyncAPI channel bindings
-are not preserved. Keep the original files, validate the output, and review it
-against the source before using it as an API contract. Unsupported schema
+`schemes` and OpenAPI referenced response headers are not preserved. Keep the
+original files, validate the output, and review it against the source before using it as an API contract. Unsupported schema
 keywords and some unsupported security combinations are rejected.
 The OpenAPI writer also adds a default `404` response when an operation has no
 4xx response.
@@ -156,7 +152,6 @@ API Blueprint. Specify `--to` for stdout. See `apibconv --help` for all options.
 ```sh
 apibconv -o openapi.yaml spec.apib
 apibconv -o openapi.json swagger.yaml
-apibconv --to asyncapi -o asyncapi3.yaml asyncapi2.yaml
 apibconv --to openapi --openapi-version 3.0 -o output.json input.yaml
 apibconv --to openapi -e json < spec.apib > openapi.json
 apibconv --validate spec.json

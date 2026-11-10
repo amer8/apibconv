@@ -31,30 +31,6 @@ paths: {}
 	}
 }
 
-func TestValidateAsyncAPI(t *testing.T) {
-	valid := []byte(`
-asyncapi: 2.6.0
-info:
-  title: Example
-  version: 1.0.0
-channels: {}
-`)
-	if errs := Validate(format.FormatAsyncAPI, valid); len(errs) != 0 {
-		t.Fatalf("Validate() returned unexpected errors: %#v", errs)
-	}
-
-	invalid := []byte(`
-asyncapi: 2.6.0
-info:
-  title: Example
-channels: {}
-`)
-	errs := Validate(format.FormatAsyncAPI, invalid)
-	if len(errs) == 0 {
-		t.Fatal("Validate() returned no errors for an invalid AsyncAPI document")
-	}
-}
-
 func TestValidateSkipsUnsupportedSchemas(t *testing.T) {
 	data := []byte(`
 FORMAT: 1A
@@ -63,19 +39,6 @@ FORMAT: 1A
 `)
 	if errs := Validate(format.FormatAPIBlueprint, data); len(errs) != 0 {
 		t.Fatalf("Validate() returned unexpected errors for API Blueprint: %#v", errs)
-	}
-}
-
-func TestValidateSkipsUnsupportedAsyncAPI2SchemaVersions(t *testing.T) {
-	data := []byte(`
-asyncapi: 2.4.0
-info:
-  title: Example
-  version: 1.0.0
-channels: {}
-`)
-	if errs := Validate(format.FormatAsyncAPI, data); len(errs) != 0 {
-		t.Fatalf("Validate() returned unexpected errors for supported AsyncAPI 2.x: %#v", errs)
 	}
 }
 
@@ -108,18 +71,6 @@ info:
 paths: {}
 `),
 			want: `unsupported OpenAPI version "4.0.0"`,
-		},
-		{
-			name:       "AsyncAPI unsupported major version marker",
-			formatType: format.FormatAsyncAPI,
-			data: []byte(`
-asyncapi: 4.0.0
-info:
-  title: Example
-  version: 1.0.0
-channels: {}
-`),
-			want: `unsupported AsyncAPI version "4.0.0"`,
 		},
 	}
 

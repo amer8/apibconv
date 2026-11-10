@@ -43,7 +43,7 @@ type Server struct {
 	Name        string // Server name/ID (e.g. "production")
 	URL         string
 	Description string
-	Protocol    string                // Protocol (e.g. "kafka", "https") - primarily for AsyncAPI
+	Protocol    string                // Protocol used by a custom format
 	Security    []SecurityRequirement // Security required by this server, independent of operations
 	Variables   map[string]ServerVariable
 	Bindings    map[string]interface{} // Protocol-specific server bindings

@@ -12,7 +12,6 @@ import (
 	"github.com/amer8/apibconv/pkg/converter"
 	"github.com/amer8/apibconv/pkg/errors"
 	"github.com/amer8/apibconv/pkg/format/apiblueprint"
-	"github.com/amer8/apibconv/pkg/format/asyncapi"
 	"github.com/amer8/apibconv/pkg/format/openapi"
 )
 
@@ -56,12 +55,10 @@ func setupConverter() (*converter.Converter, error) {
 	// Register parsers
 	conv.RegisterParser(openapi.NewParser())
 	conv.RegisterParser(apiblueprint.NewParser())
-	conv.RegisterParser(asyncapi.NewParser())
 
 	jsonOutput := false
 	conv.RegisterWriter(openapi.NewWriter(openapi.WithJSONOutput(jsonOutput)))
 	conv.RegisterWriter(apiblueprint.NewWriter())
-	conv.RegisterWriter(asyncapi.NewWriter(asyncapi.WithJSONOutput(jsonOutput)))
 
 	return conv, nil
 }

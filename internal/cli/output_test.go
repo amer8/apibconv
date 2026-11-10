@@ -14,7 +14,6 @@ import (
 	"github.com/amer8/apibconv/pkg/errors"
 	"github.com/amer8/apibconv/pkg/format"
 	"github.com/amer8/apibconv/pkg/format/apiblueprint"
-	"github.com/amer8/apibconv/pkg/format/asyncapi"
 	"github.com/amer8/apibconv/pkg/format/openapi"
 	"github.com/amer8/apibconv/pkg/model"
 )
@@ -76,7 +75,7 @@ components:
 }
 
 func TestUnsupportedCrossFormatPreservesDestination(t *testing.T) {
-	for _, writer := range []format.Writer{apiblueprint.NewWriter(), asyncapi.NewWriter()} {
+	for _, writer := range []format.Writer{apiblueprint.NewWriter()} {
 		t.Run(string(writer.Format()), func(t *testing.T) {
 			dir := t.TempDir()
 			input := filepath.Join(dir, "input.yaml")
@@ -106,7 +105,7 @@ components:
 			c.RegisterWriter(writer)
 			err = NewRunner(c).Convert(context.Background(), &Config{
 				InputPath: input, OutputPath: output, InputFormat: format.FormatOpenAPI,
-				OutputFormat: writer.Format(), Protocol: "kafka",
+				OutputFormat: writer.Format(),
 			})
 			if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
 				if err == nil || !strings.Contains(err.Error(), "ACL") {

@@ -12,7 +12,6 @@ import (
 	"github.com/amer8/apibconv/pkg/converter"
 	"github.com/amer8/apibconv/pkg/format"
 	"github.com/amer8/apibconv/pkg/format/apiblueprint"
-	"github.com/amer8/apibconv/pkg/format/asyncapi"
 	"github.com/amer8/apibconv/pkg/format/openapi"
 	"github.com/amer8/apibconv/pkg/model"
 	"github.com/santhosh-tekuri/jsonschema/v6"
@@ -22,65 +21,6 @@ func checkSpec(t *testing.T, kind format.Format, data []byte) {
 	t.Helper()
 	if issues := specschema.Validate(kind, data); len(issues) != 0 {
 		t.Fatalf("invalid spec: %v\n%s", issues, data)
-	}
-}
-
-func TestP1ChannelServerSelectionAcrossAsyncVersions(t *testing.T) {
-	input := `asyncapi: 2.6.0
-info: {title: T, version: '1'}
-servers:
-  prod: {url: prod.example, protocol: kafka}
-  stage: {url: stage.example, protocol: kafka}
-channels:
-  payments:
-    servers: [prod]
-    publish: {operationId: events, message: {payload: {type: string}}}
-`
-	checkSpec(t, format.FormatAsyncAPI, []byte(input))
-	original, err := asyncapi.NewParser().Parse(context.Background(), strings.NewReader(input))
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, version := range []string{"2.6", "3.0"} {
-		t.Run(version, func(t *testing.T) {
-			var out bytes.Buffer
-			ctx := converter.WithProtocol(context.Background(), "kafka")
-			if err := asyncapi.NewWriter(asyncapi.WithAsyncWriterVersion(version), asyncapi.WithJSONOutput(true)).Write(ctx, original, &out); err != nil {
-				t.Fatal(err)
-			}
-			checkSpec(t, format.FormatAsyncAPI, out.Bytes())
-			round, err := asyncapi.NewParser().Parse(context.Background(), bytes.NewReader(out.Bytes()))
-			if err != nil {
-				t.Fatal(err)
-			}
-			selected := round.Paths["payments"].ChannelServers
-			if len(selected) != 1 || selected[0] != "prod" {
-				t.Fatalf("server restriction lost: %#v\n%s", selected, out.String())
-			}
-			// Check both cross-version directions, not only the same writer.
-			other := "2.6"
-			if version == "2.6" {
-				other = "3.0"
-			}
-			var cross bytes.Buffer
-			if err := asyncapi.NewWriter(asyncapi.WithAsyncWriterVersion(other), asyncapi.WithJSONOutput(true)).Write(ctx, round, &cross); err != nil {
-				t.Fatal(err)
-			}
-			checkSpec(t, format.FormatAsyncAPI, cross.Bytes())
-			again, err := asyncapi.NewParser().Parse(ctx, &cross)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if names := again.Paths["payments"].ChannelServers; len(names) != 1 || names[0] != "prod" {
-				t.Fatalf("cross-version servers: %v", names)
-			}
-		})
-	}
-	for _, writer := range []format.Writer{openapi.NewWriter(), apiblueprint.NewWriter()} {
-		var out bytes.Buffer
-		if err := writer.Write(context.Background(), original, &out); err == nil || out.Len() != 0 {
-			t.Fatalf("%s must reject server restriction: %v %s", writer.Format(), err, out.String())
-		}
 	}
 }
 
@@ -128,7 +68,8 @@ components:
 			})
 		}
 	}
-	for _, writer := range []format.Writer{openapi.NewWriter(openapi.WithWriterVersion("2.0")), asyncapi.NewWriter(asyncapi.WithAsyncWriterVersion("3.0")), apiblueprint.NewWriter()} {
+
+	for _, writer := range []format.Writer{openapi.NewWriter(openapi.WithWriterVersion("2.0")), apiblueprint.NewWriter()} {
 		var out bytes.Buffer
 		if err := writer.Write(context.Background(), api, &out); err == nil || out.Len() != 0 {
 			t.Fatalf("%s must reject callbacks: %v %s", writer.Format(), err, out.String())
@@ -194,13 +135,12 @@ paths:
 			}
 		})
 	}
+
 	for _, target := range []struct {
 		name   string
 		writer format.Writer
 		parser format.Parser
 	}{
-		{"async2", asyncapi.NewWriter(asyncapi.WithAsyncWriterVersion("2.6")), asyncapi.NewParser()},
-		{"async3", asyncapi.NewWriter(asyncapi.WithAsyncWriterVersion("3.0")), asyncapi.NewParser()},
 		{"blueprint", apiblueprint.NewWriter(), apiblueprint.NewParser()},
 	} {
 		t.Run(target.name, func(t *testing.T) {
@@ -238,13 +178,6 @@ paths:
 		if _, err := openapi.NewParser().Parse(context.Background(), strings.NewReader(bad)); err == nil || !strings.Contains(err.Error(), "unsupported schema keyword") {
 			t.Fatalf("unsupported schema accepted: %v", err)
 		}
-	}
-	async := `asyncapi: 2.6.0
-info: {title: T, version: '1'}
-channels: {events: {publish: {message: {payload: {type: string, const: x}}}}}
-`
-	if _, err := asyncapi.NewParser().Parse(context.Background(), strings.NewReader(async)); err == nil {
-		t.Fatal("AsyncAPI unsupported schema silently accepted")
 	}
 }
 

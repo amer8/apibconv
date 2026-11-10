@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"path"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -32,17 +31,15 @@ var (
 )
 
 var schemaRefs = map[string]schemaRef{
-	"openapi:2.0":  {name: "OpenAPI 2.0", file: "openapi-2.0.json"},
-	"openapi:3.0":  {name: "OpenAPI 3.0", file: "openapi-3.0.json"},
-	"openapi:3.1":  {name: "OpenAPI 3.1", file: "openapi-3.1.json"},
-	"asyncapi:2.6": {name: "AsyncAPI 2.6.0", file: "asyncapi-2.6.0.json"},
-	"asyncapi:3.0": {name: "AsyncAPI 3.0.0", file: "asyncapi-3.0.0.json"},
+	"openapi:2.0": {name: "OpenAPI 2.0", file: "openapi-2.0.json"},
+	"openapi:3.0": {name: "OpenAPI 3.0", file: "openapi-3.0.json"},
+	"openapi:3.1": {name: "OpenAPI 3.1", file: "openapi-3.1.json"},
 }
 
 // Validate validates a YAML or JSON API document against a pinned JSON Schema when
 // one is available for the requested format and declared version.
 func Validate(formatType format.Format, data []byte) []format.ValidationError {
-	if formatType != format.FormatOpenAPI && formatType != format.FormatAsyncAPI {
+	if formatType != format.FormatOpenAPI {
 		return nil
 	}
 
@@ -57,9 +54,6 @@ func Validate(formatType format.Format, data []byte) []format.ValidationError {
 
 	key := schemaKey(formatType, doc)
 	if key == "" {
-		if schemaUnavailableButSupported(formatType, doc) {
-			return nil
-		}
 		return []format.ValidationError{unsupportedVersionError(formatType, doc)}
 	}
 
@@ -116,50 +110,19 @@ func schemaKey(formatType format.Format, doc any) string {
 		return ""
 	}
 
-	switch formatType {
-	case format.FormatOpenAPI:
-		if swagger := stringField(obj, "swagger"); swagger == "2.0" {
-			return "openapi:2.0"
-		}
-		switch majorMinor(stringField(obj, "openapi")) {
-		case "3.0":
-			return "openapi:3.0"
-		case "3.1":
-			return "openapi:3.1"
-		}
-	case format.FormatAsyncAPI:
-		switch majorMinor(stringField(obj, "asyncapi")) {
-		case "2.6":
-			return "asyncapi:2.6"
-		case "3.0":
-			return "asyncapi:3.0"
-		}
+	if formatType != format.FormatOpenAPI {
+		return ""
+	}
+	if swagger := stringField(obj, "swagger"); swagger == "2.0" {
+		return "openapi:2.0"
+	}
+	switch majorMinor(stringField(obj, "openapi")) {
+	case "3.0":
+		return "openapi:3.0"
+	case "3.1":
+		return "openapi:3.1"
 	}
 	return ""
-}
-
-func schemaUnavailableButSupported(formatType format.Format, doc any) bool {
-	obj, ok := doc.(map[string]any)
-	if !ok {
-		return false
-	}
-
-	switch formatType {
-	case format.FormatAsyncAPI:
-		version := stringField(obj, "asyncapi")
-		return isUnpinnedAsyncAPI2Version(version)
-	default:
-		return false
-	}
-}
-
-func isUnpinnedAsyncAPI2Version(version string) bool {
-	parts := strings.Split(version, ".")
-	if len(parts) < 2 || parts[0] != "2" || majorMinor(version) == "2.6" {
-		return false
-	}
-	_, err := strconv.Atoi(parts[1])
-	return err == nil
 }
 
 func unsupportedVersionError(formatType format.Format, doc any) format.ValidationError {
@@ -173,13 +136,6 @@ func unsupportedVersionError(formatType format.Format, doc any) format.Validatio
 			message = "missing OpenAPI version: expected swagger: 2.0 or openapi: 3.0/3.1"
 		} else {
 			message = fmt.Sprintf("unsupported OpenAPI version %q: expected 2.0, 3.0, or 3.1", version)
-		}
-	case format.FormatAsyncAPI:
-		version := stringField(obj, "asyncapi")
-		if version == "" {
-			message = "missing AsyncAPI version: expected asyncapi: 2.6 or 3.0"
-		} else {
-			message = fmt.Sprintf("unsupported AsyncAPI version %q: expected 2.6 or 3.0", version)
 		}
 	default:
 		message = "missing or unsupported specification version"
