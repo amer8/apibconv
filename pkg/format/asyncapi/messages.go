@@ -36,6 +36,12 @@ func (p *Parser) messageSchema(raw any, components map[string]interface{}, chann
 		if len(message.OneOf) != 0 {
 			return nil, "", fmt.Errorf("message oneOf alternatives cannot be represented without loss")
 		}
+		if message.Headers != nil {
+			return nil, "", fmt.Errorf("message headers cannot be represented without loss")
+		}
+		if message.SchemaFormat != nil {
+			return nil, "", fmt.Errorf("explicit message schemaFormat %q cannot be represented without loss", *message.SchemaFormat)
+		}
 		if message.Ref == "" {
 			contentType, err := messageTraitContentType(&message, components, v3)
 			if err != nil {
@@ -133,6 +139,12 @@ func messageTraitContentType(message *Message, components map[string]interface{}
 			if err := json.Unmarshal(data, &trait); err != nil || trait == nil {
 				return "", fmt.Errorf("invalid message trait %q", ref)
 			}
+		}
+		if trait["headers"] != nil {
+			return "", fmt.Errorf("message trait headers cannot be represented without loss")
+		}
+		if trait["schemaFormat"] != nil {
+			return "", fmt.Errorf("message trait schemaFormat cannot be represented without loss")
 		}
 		raw, ok := trait["contentType"]
 		if !ok || (v3 && explicit) {

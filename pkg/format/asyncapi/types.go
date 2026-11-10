@@ -103,12 +103,14 @@ type Server struct {
 
 // Message object represents a message exchanged via a channel.
 type Message struct {
-	Ref         string                   `yaml:"$ref,omitempty" json:"$ref,omitempty"`
-	Name        string                   `yaml:"name,omitempty" json:"name,omitempty"`
-	Title       string                   `yaml:"title,omitempty" json:"title,omitempty"`
-	Summary     string                   `yaml:"summary,omitempty" json:"summary,omitempty"`
-	ContentType string                   `yaml:"contentType,omitempty" json:"contentType,omitempty"`
-	Traits      []map[string]interface{} `yaml:"traits,omitempty" json:"traits,omitempty"`
-	Payload     interface{}              `yaml:"payload,omitempty" json:"payload,omitempty"`
-	OneOf       []interface{}            `yaml:"oneOf,omitempty" json:"oneOf,omitempty"`
+	Ref          string                   `yaml:"$ref,omitempty" json:"$ref,omitempty"`
+	Name         string                   `yaml:"name,omitempty" json:"name,omitempty"`
+	Title        string                   `yaml:"title,omitempty" json:"title,omitempty"`
+	Summary      string                   `yaml:"summary,omitempty" json:"summary,omitempty"`
+	ContentType  string                   `yaml:"contentType,omitempty" json:"contentType,omitempty"`
+	Headers      interface{}              `yaml:"headers,omitempty" json:"headers,omitempty"`
+	SchemaFormat *string                  `yaml:"schemaFormat,omitempty" json:"schemaFormat,omitempty"`
+	Traits       []map[string]interface{} `yaml:"traits,omitempty" json:"traits,omitempty"`
+	Payload      interface{}              `yaml:"payload,omitempty" json:"payload,omitempty"`
+	OneOf        []interface{}            `yaml:"oneOf,omitempty" json:"oneOf,omitempty"`
 }

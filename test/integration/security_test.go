@@ -278,7 +278,7 @@ func TestSecurityCheckHandlesCallbackCycles(t *testing.T) {
 	api.Info = model.Info{Title: "Test", Version: "1"}
 	api.Paths["/x"] = model.PathItem{Post: op}
 	var output bytes.Buffer
-	if err := apiblueprint.NewWriter().Write(context.Background(), api, &output); err != nil {
-		t.Fatalf("Write() with unsecured callback cycle failed: %v", err)
+	if err := apiblueprint.NewWriter().Write(context.Background(), api, &output); err == nil || output.Len() != 0 {
+		t.Fatalf("Write() must reject the unsupported callback cycle: %v", err)
 	}
 }

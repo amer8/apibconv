@@ -4,7 +4,6 @@ package apiblueprint
 import (
 	"bufio"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"regexp"
@@ -84,8 +83,11 @@ var (
 	reParameterAttrs = regexp.MustCompile(`\(([^)]*)\)`)
 )
 
+//nolint:gocyclo // The Markdown parser handles distinct document states here.
 func (p *Parser) parseDocument(content string) (*model.API, error) {
 	api := model.NewAPI()
+	assetSchemas := make(map[string]*model.Schema)
+	generatedSchemas := make(map[string]bool)
 	api.Version = "1A" // Default version for API Blueprint
 
 	lines := strings.Split(content, "\n")
@@ -277,7 +279,10 @@ func (p *Parser) parseDocument(content string) (*model.API, error) {
 			if contentType == "" {
 				contentType = "application/json"
 			}
-			media, next := p.parseRequestPayload(lines, i+1)
+			media, next, err := p.parseRequestPayload(lines, i+1, assetSchemas, generatedSchemas)
+			if err != nil {
+				return nil, fmt.Errorf("request JSON schema: %w", err)
+			}
 			if currentOperation.RequestBody == nil {
 				currentOperation.RequestBody = &model.RequestBody{Content: make(map[string]model.MediaType)}
 			}
@@ -289,7 +294,7 @@ func (p *Parser) parseDocument(content string) (*model.API, error) {
 		// Response
 		if matches := reResponse.FindStringSubmatch(line); len(matches) > 0 && currentOperation != nil {
 			var err error
-			i, err = p.parseResponse(lines, i, matches, currentOperation)
+			i, err = p.parseResponse(lines, i, matches, currentOperation, assetSchemas, generatedSchemas)
 			if err != nil {
 				return nil, err
 			}
@@ -301,11 +306,17 @@ func (p *Parser) parseDocument(content string) (*model.API, error) {
 	if currentPath != "" && currentPathItem != nil {
 		api.AddPath(currentPath, currentPathItem)
 	}
+	for name, schema := range assetSchemas {
+		if generatedSchemas[name] && api.Components.Schemas[name] != nil {
+			return nil, fmt.Errorf("generated schema name %q conflicts with a data structure", name)
+		}
+		api.Components.Schemas[name] = schema
+	}
 
 	return api, nil
 }
 
-func (p *Parser) parseResponse(lines []string, i int, matches []string, currentOperation *model.Operation) (int, error) {
+func (p *Parser) parseResponse(lines []string, i int, matches []string, currentOperation *model.Operation, assetSchemas map[string]*model.Schema, generatedSchemas map[string]bool) (int, error) {
 	statusCode := matches[1]
 	contentType := matches[2]
 	if contentType == "" {
@@ -431,17 +442,20 @@ func (p *Parser) parseResponse(lines []string, i int, matches []string, currentO
 			raw.WriteString(strings.TrimSpace(line))
 			j++
 		}
-		var schema model.Schema
-		if err := json.Unmarshal([]byte(raw.String()), &schema); err != nil {
+		schema, err := parseSchemaAsset([]byte(raw.String()), assetSchemas, generatedSchemas)
+		if err != nil {
 			return 0, fmt.Errorf("response %s JSON schema: %w", statusCode, err)
 		}
 		media := resp.Content[contentType]
-		media.Schema = &schema
+		media.Schema = schema
 		resp.Content[contentType] = media
 		i = j - 1
 	}
 	if j < len(lines) && strings.TrimSpace(lines[j]) == "+ Body" {
-		media, next := p.parseRequestPayload(lines, j)
+		media, next, err := p.parseRequestPayload(lines, j, assetSchemas, generatedSchemas)
+		if err != nil {
+			return 0, fmt.Errorf("response %s body: %w", statusCode, err)
+		}
 		current := resp.Content[contentType]
 		current.Example = media.Example
 		resp.Content[contentType] = current
@@ -461,8 +475,9 @@ func isPrimitiveType(value string) bool {
 
 // parseRequestPayload handles both directly indented examples and Blueprint
 // Body/Attributes sections, stopping before the next action or payload.
-func (p *Parser) parseRequestPayload(lines []string, start int) (media model.MediaType, next int) {
+func (p *Parser) parseRequestPayload(lines []string, start int, assetSchemas map[string]*model.Schema, generatedSchemas map[string]bool) (media model.MediaType, next int, err error) {
 	var body strings.Builder
+	var schemaJSON strings.Builder
 	var schema *model.Schema
 	var properties *msonParser
 	mode := "body"
@@ -493,21 +508,35 @@ func (p *Parser) parseRequestPayload(lines []string, start int) (media model.Med
 			mode = "body"
 			continue
 		}
+		if line == "+ Schema" {
+			mode = "schema"
+			continue
+		}
 		if strings.HasPrefix(line, "+ Headers") {
 			mode = "headers"
 			continue
 		}
-		if mode == "attributes" && strings.HasPrefix(line, "+ ") {
+		switch {
+		case mode == "attributes" && strings.HasPrefix(line, "+ "):
 			properties.add(raw)
-		} else if mode == "body" && line != "" {
+		case mode == "schema" && line != "":
+			schemaJSON.WriteString(line)
+		case mode == "body" && line != "":
 			body.WriteString(line + "\n")
+		}
+	}
+	if schemaJSON.Len() > 0 {
+		var err error
+		schema, err = parseSchemaAsset([]byte(schemaJSON.String()), assetSchemas, generatedSchemas)
+		if err != nil {
+			return media, i, err
 		}
 	}
 	media.Schema = schema
 	if body.Len() > 0 {
 		media.Example = body.String()
 	}
-	return media, i
+	return media, i, nil
 }
 
 // parseMSONProperty parses a single MSON property line and adds it to the schema.

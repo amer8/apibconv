@@ -18,7 +18,7 @@ func checkOutputACL(path string) error {
 	if err != nil {
 		return err
 	}
-	cmd := exec.Command("/bin/ls", "-lde", absolute)
+	cmd := exec.Command("/bin/ls", "-lde", absolute) // #nosec G204 -- The executable is fixed and the absolute path is passed as one argument without a shell.
 	cmd.Env = []string{"LC_ALL=C"}
 	out, err := cmd.Output()
 	if err != nil {

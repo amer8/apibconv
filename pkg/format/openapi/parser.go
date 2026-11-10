@@ -99,6 +99,18 @@ func (p *Parser) SupportsVersion(version string) bool {
 
 func (p *Parser) convertToModel(doc *OpenAPI) (*model.API, error) {
 	api := model.NewAPI()
+	for name, callback := range doc.Components.Callbacks {
+		resolved, err := resolveCallback(callback, doc, 0)
+		if err != nil {
+			return nil, fmt.Errorf("callback component %q: %w", name, err)
+		}
+		converted := make(model.Callback, len(resolved.Paths))
+		for expression := range resolved.Paths {
+			path := resolved.Paths[expression]
+			converted[expression] = p.convertPathItem(&path)
+		}
+		api.Components.Callbacks[name] = converted
+	}
 	api.Version = doc.OpenAPI
 	api.Security = securityRequirementsToModel(doc.Security)
 	for name := range doc.Components.SecuritySchemes {
@@ -256,6 +268,17 @@ func (p *Parser) convertOperation(op *Operation) *model.Operation {
 		Security:    securityRequirementsToModel(op.Security),
 		Servers:     serversToModel(op.Servers),
 	}
+	if len(op.Callbacks) != 0 {
+		res.Callbacks = make(map[string]model.Callback, len(op.Callbacks))
+		for name, callback := range op.Callbacks {
+			converted := make(model.Callback, len(callback.Paths))
+			for expression := range callback.Paths {
+				path := callback.Paths[expression]
+				converted[expression] = p.convertPathItem(&path)
+			}
+			res.Callbacks[name] = converted
+		}
+	}
 
 	if op.RequestBody != nil {
 		res.RequestBody = &model.RequestBody{
@@ -276,6 +299,16 @@ func (p *Parser) convertOperation(op *Operation) *model.Operation {
 	}
 
 	return res
+}
+
+func (p *Parser) convertPathItem(item *PathItem) model.PathItem {
+	return model.PathItem{
+		Summary: item.Summary, Description: item.Description,
+		Parameters: p.convertParameters(item.Parameters), Servers: serversToModel(item.Servers),
+		Get: p.convertOperation(item.Get), Put: p.convertOperation(item.Put), Post: p.convertOperation(item.Post),
+		Delete: p.convertOperation(item.Delete), Options: p.convertOperation(item.Options), Head: p.convertOperation(item.Head),
+		Patch: p.convertOperation(item.Patch), Trace: p.convertOperation(item.Trace),
+	}
 }
 
 func serversToModel(servers []Server) []model.Server {

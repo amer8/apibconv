@@ -84,6 +84,9 @@ func (w *Writer) Write(ctx context.Context, api *model.API, wr io.Writer) error 
 	if err != nil {
 		return err
 	}
+	if err := security.CheckCallbacks(api, "AsyncAPI"); err != nil {
+		return err
+	}
 	if len(api.Webhooks) > 0 {
 		return fmt.Errorf("AsyncAPI output cannot represent OpenAPI webhooks without loss")
 	}
@@ -93,6 +96,22 @@ func (w *Writer) Write(ctx context.Context, api *model.API, wr io.Writer) error 
 	}
 	for path := range api.Paths {
 		item := api.Paths[path]
+		if w.version < "3.0.0" && len(item.ChannelServers) != 0 && item.Get == nil && item.Post == nil {
+			return fmt.Errorf("channel %q has server restrictions without a representable operation", path)
+		}
+		names := make(map[string]bool, len(api.Servers))
+		for i, server := range api.Servers {
+			name := server.Name
+			if name == "" {
+				name = fmt.Sprintf("server%d", i)
+			}
+			names[name] = true
+		}
+		for _, name := range item.ChannelServers {
+			if !names[name] {
+				return fmt.Errorf("channel %q references unknown server %q", path, name)
+			}
+		}
 		if item.Put != nil || item.Delete != nil || item.Patch != nil || item.Head != nil || item.Options != nil || item.Trace != nil {
 			return fmt.Errorf("path %q has operations that cannot be represented in AsyncAPI", path)
 		}
@@ -176,19 +195,23 @@ func promoteOperationParameters(api *model.API) (*model.API, error) {
 	return &copyAPI, nil
 }
 
-func writeChannelParameters(params []model.Parameter) map[string]Parameter {
+func writeChannelParameters(params []model.Parameter) (map[string]Parameter, error) {
 	if len(params) == 0 {
-		return nil
+		return nil, nil
 	}
 	result := make(map[string]Parameter, len(params))
 	for _, param := range params {
 		p := Parameter{Description: param.Description}
 		if param.Schema != nil {
-			p.Schema = param.Schema
+			schema, err := asyncSchemaObject(param.Schema)
+			if err != nil {
+				return nil, fmt.Errorf("parameter %q schema: %w", param.Name, err)
+			}
+			p.Schema = schema
 		}
 		result[param.Name] = p
 	}
-	return result
+	return result, nil
 }
 
 // Format returns the format type for the writer.
