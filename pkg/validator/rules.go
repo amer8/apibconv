@@ -26,10 +26,6 @@ func (r *PathValidationRule) Name() string { return "path-validation" }
 
 // Validate validates paths in the API model.
 func (r *PathValidationRule) Validate(ctx context.Context, api *model.API) []format.ValidationError {
-	if formatFromContext(ctx) == format.FormatAsyncAPI {
-		return nil
-	}
-
 	var errors []format.ValidationError
 	for path := range api.Paths {
 		if !strings.HasPrefix(path, "/") {

@@ -67,8 +67,7 @@ func (a *App) printUsage() error {
 Supported conversions:
     API Blueprint -> OpenAPI 3.1
     OpenAPI 2.0 or 3.0 -> OpenAPI 3.1
-    AsyncAPI 2.x -> AsyncAPI 3.0
-    OpenAPI and AsyncAPI -> the same version (JSON/YAML)
+    OpenAPI -> the same version (JSON/YAML)
 
 Conversion can be lossy; retain and review the original specification.
 Cross-format conversions other than API Blueprint to OpenAPI, and downgrades,
@@ -79,12 +78,10 @@ Usage: apibconv [OPTIONS] [INPUT_FILE]
 
 Options:
     -o, --output FILE          Output file; - or omitted writes to stdout
-    --from FORMAT              Input: apiblueprint, openapi, asyncapi
-    --to FORMAT                Output: openapi, asyncapi
+    --from FORMAT              Input: apiblueprint, openapi
+    --to FORMAT                Output: openapi
     -e, --encoding FORMAT      json or yaml (default: output extension)
     --openapi-version VERSION  Output version (default: 3.1)
-    --asyncapi-version VERSION Output version (default: 3.0)
-    --protocol PROTO           Default AsyncAPI server protocol
     --validate                 Validate input without converting
     --verbose                  Report progress
     -v, --version              Print version
@@ -92,15 +89,13 @@ Options:
 
 JSON/YAML output defaults to the input format, or OpenAPI for API Blueprint.
 Use --to when writing to stdout. Output versions other than the default are
-accepted only for same-version OpenAPI or AsyncAPI conversion.
+accepted only for same-version OpenAPI conversion.
 
-Environment variables: APIBCONV_DEFAULT_ENCODING,
-APIBCONV_OPENAPI_VERSION, APIBCONV_ASYNCAPI_VERSION.
+Environment variables: APIBCONV_DEFAULT_ENCODING, APIBCONV_OPENAPI_VERSION.
 
 Examples:
     apibconv -o openapi.yaml api.apib
     apibconv -o openapi.json swagger.yaml
-    apibconv --to asyncapi -o asyncapi3.yaml asyncapi2.yaml
     apibconv --to openapi --openapi-version 3.0 -o output.json input.yaml
     apibconv --validate spec.yaml`)
 	return nil

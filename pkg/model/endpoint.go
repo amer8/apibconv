@@ -2,7 +2,7 @@ package model
 
 // PathItem represents an OpenAPI Path Item object.
 type PathItem struct {
-	Name        string // Original name/key if available (e.g. AsyncAPI channel name)
+	Name        string // Original name/key if available to custom formats
 	Summary     string
 	Description string
 	Get         *Operation
@@ -14,8 +14,8 @@ type PathItem struct {
 	Patch       *Operation
 	Trace       *Operation
 	Servers     []Server
-	// ChannelServers lists the AsyncAPI server names selected by this channel.
-	// An empty list means all servers, as specified by AsyncAPI.
+	// ChannelServers lists server names selected by a custom channel-based format.
+	// An empty list means all servers.
 	ChannelServers []string
 	Parameters     []Parameter
 }

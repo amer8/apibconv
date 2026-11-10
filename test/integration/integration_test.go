@@ -16,7 +16,6 @@ import (
 	apierrors "github.com/amer8/apibconv/pkg/errors"
 	"github.com/amer8/apibconv/pkg/format"
 	"github.com/amer8/apibconv/pkg/format/apiblueprint"
-	"github.com/amer8/apibconv/pkg/format/asyncapi"
 	"github.com/amer8/apibconv/pkg/format/openapi"
 	"github.com/amer8/apibconv/pkg/model"
 )
@@ -46,17 +45,15 @@ paths:
 }
 
 type conversionCase struct {
-	name              string
-	inputFile         string
-	fromFormat        format.Format
-	toFormat          format.Format
-	toAsyncAPIVersion string
-	toOpenAPIVersion  string
-	toProtocol        string
-	encoding          string
-	wantError         string
-	wantErrorAny      []string
-	wantParseError    string
+	name             string
+	inputFile        string
+	fromFormat       format.Format
+	toFormat         format.Format
+	toOpenAPIVersion string
+	encoding         string
+	wantError        string
+	wantErrorAny     []string
+	wantParseError   string
 }
 
 func TestConversions(t *testing.T) {
@@ -108,12 +105,6 @@ func TestInvalidSpecifications(t *testing.T) {
 func localConversionCases() []conversionCase {
 	var cases []conversionCase
 	add := func(tc conversionCase) {
-		if tc.fromFormat == format.FormatAPIBlueprint && tc.toFormat == format.FormatAsyncAPI {
-			tc.wantErrorAny = []string{"operations that cannot be represented in AsyncAPI", "has a non-channel operation parameter"}
-		}
-		if tc.inputFile == "asyncapi_v2.yaml" || tc.inputFile == "asyncapi_v2.json" || tc.inputFile == "asyncapi_v3.yaml" {
-			tc.wantParseError = "different server security policies"
-		}
 		cases = append(cases, expandEncodingVariants(&tc)...)
 	}
 
@@ -137,24 +128,6 @@ func localConversionCases() []conversionCase {
 				fromFormat: format.FormatOpenAPI,
 				toFormat:   format.FormatAPIBlueprint,
 				wantError:  apierrors.ErrUnsupportedSecurity.Error(),
-			})
-			add(conversionCase{
-				name:              fmt.Sprintf("%s (%s) to AsyncAPI v2.6 (kafka)", src.label, inputEncoding),
-				inputFile:         file,
-				fromFormat:        format.FormatOpenAPI,
-				toFormat:          format.FormatAsyncAPI,
-				toAsyncAPIVersion: "2.6",
-				toProtocol:        "kafka",
-				wantError:         apierrors.ErrUnsupportedSecurity.Error(),
-			})
-			add(conversionCase{
-				name:              fmt.Sprintf("%s (%s) to AsyncAPI v3.0 (kafka)", src.label, inputEncoding),
-				inputFile:         file,
-				fromFormat:        format.FormatOpenAPI,
-				toFormat:          format.FormatAsyncAPI,
-				toAsyncAPIVersion: "3.0",
-				toProtocol:        "kafka",
-				wantError:         apierrors.ErrUnsupportedSecurity.Error(),
 			})
 
 			if src.version != "2.0" {
@@ -200,111 +173,6 @@ func localConversionCases() []conversionCase {
 	}
 
 	add(conversionCase{
-		name:              "OpenAPI v2.0 (json) to AsyncAPI v2.6 (amqp)",
-		inputFile:         "openapi_v2.json",
-		fromFormat:        format.FormatOpenAPI,
-		toFormat:          format.FormatAsyncAPI,
-		toAsyncAPIVersion: "2.6",
-		toProtocol:        "amqp",
-		wantError:         apierrors.ErrUnsupportedSecurity.Error(),
-	})
-	add(conversionCase{
-		name:              "OpenAPI v3.0 (json) to AsyncAPI v2.6 (http)",
-		inputFile:         "openapi_v3_0.json",
-		fromFormat:        format.FormatOpenAPI,
-		toFormat:          format.FormatAsyncAPI,
-		toAsyncAPIVersion: "2.6",
-		toProtocol:        "http",
-		wantError:         apierrors.ErrUnsupportedSecurity.Error(),
-	})
-	add(conversionCase{
-		name:              "OpenAPI v3.0 (json) to AsyncAPI v3.0 (http)",
-		inputFile:         "openapi_v3_0.json",
-		fromFormat:        format.FormatOpenAPI,
-		toFormat:          format.FormatAsyncAPI,
-		toAsyncAPIVersion: "3.0",
-		toProtocol:        "http",
-		wantError:         apierrors.ErrUnsupportedSecurity.Error(),
-	})
-	add(conversionCase{
-		name:              "OpenAPI v3.0 (yaml) to AsyncAPI v3.0 (mqtt)",
-		inputFile:         "openapi_v3_0.yaml",
-		fromFormat:        format.FormatOpenAPI,
-		toFormat:          format.FormatAsyncAPI,
-		toAsyncAPIVersion: "3.0",
-		toProtocol:        "mqtt",
-		wantError:         apierrors.ErrUnsupportedSecurity.Error(),
-	})
-
-	for _, file := range []string{"asyncapi_v2.yaml", "asyncapi_v2.json"} {
-		inputEncoding := filepath.Ext(file)[1:]
-
-		add(conversionCase{
-			name:       fmt.Sprintf("AsyncAPI v2.x (%s) to API Blueprint", inputEncoding),
-			inputFile:  file,
-			fromFormat: format.FormatAsyncAPI,
-			toFormat:   format.FormatAPIBlueprint,
-		})
-		add(conversionCase{
-			name:             fmt.Sprintf("AsyncAPI v2.x (%s) to OpenAPI v3.0", inputEncoding),
-			inputFile:        file,
-			fromFormat:       format.FormatAsyncAPI,
-			toFormat:         format.FormatOpenAPI,
-			toOpenAPIVersion: "3.0",
-		})
-		add(conversionCase{
-			name:             fmt.Sprintf("AsyncAPI v2.x (%s) to OpenAPI v2.0", inputEncoding),
-			inputFile:        file,
-			fromFormat:       format.FormatAsyncAPI,
-			toFormat:         format.FormatOpenAPI,
-			toOpenAPIVersion: "2.0",
-		})
-		add(conversionCase{
-			name:             fmt.Sprintf("AsyncAPI v2.x (%s) to OpenAPI v3.1", inputEncoding),
-			inputFile:        file,
-			fromFormat:       format.FormatAsyncAPI,
-			toFormat:         format.FormatOpenAPI,
-			toOpenAPIVersion: "3.1",
-		})
-		add(conversionCase{
-			name:              fmt.Sprintf("AsyncAPI v2.x (%s) to AsyncAPI v3.0", inputEncoding),
-			inputFile:         file,
-			fromFormat:        format.FormatAsyncAPI,
-			toFormat:          format.FormatAsyncAPI,
-			toAsyncAPIVersion: "3.0",
-			toProtocol:        "kafka",
-		})
-	}
-
-	add(conversionCase{
-		name:       "AsyncAPI v3.0 (yaml) to API Blueprint",
-		inputFile:  "asyncapi_v3.yaml",
-		fromFormat: format.FormatAsyncAPI,
-		toFormat:   format.FormatAPIBlueprint,
-	})
-	add(conversionCase{
-		name:             "AsyncAPI v3.0 (yaml) to OpenAPI v3.0",
-		inputFile:        "asyncapi_v3.yaml",
-		fromFormat:       format.FormatAsyncAPI,
-		toFormat:         format.FormatOpenAPI,
-		toOpenAPIVersion: "3.0",
-	})
-	add(conversionCase{
-		name:             "AsyncAPI v3.0 (yaml) to OpenAPI v2.0",
-		inputFile:        "asyncapi_v3.yaml",
-		fromFormat:       format.FormatAsyncAPI,
-		toFormat:         format.FormatOpenAPI,
-		toOpenAPIVersion: "2.0",
-	})
-	add(conversionCase{
-		name:             "AsyncAPI v3.0 (yaml) to OpenAPI v3.1",
-		inputFile:        "asyncapi_v3.yaml",
-		fromFormat:       format.FormatAsyncAPI,
-		toFormat:         format.FormatOpenAPI,
-		toOpenAPIVersion: "3.1",
-	})
-
-	add(conversionCase{
 		name:             "API Blueprint (apib) to OpenAPI v3.0",
 		inputFile:        "apiblueprint.apib",
 		fromFormat:       format.FormatAPIBlueprint,
@@ -324,38 +192,6 @@ func localConversionCases() []conversionCase {
 		fromFormat:       format.FormatAPIBlueprint,
 		toFormat:         format.FormatOpenAPI,
 		toOpenAPIVersion: "3.1",
-	})
-	add(conversionCase{
-		name:              "API Blueprint (apib) to AsyncAPI v2.6 (kafka)",
-		inputFile:         "apiblueprint.apib",
-		fromFormat:        format.FormatAPIBlueprint,
-		toFormat:          format.FormatAsyncAPI,
-		toAsyncAPIVersion: "2.6",
-		toProtocol:        "kafka",
-	})
-	add(conversionCase{
-		name:              "API Blueprint (apib) to AsyncAPI v2.6 (ws)",
-		inputFile:         "apiblueprint.apib",
-		fromFormat:        format.FormatAPIBlueprint,
-		toFormat:          format.FormatAsyncAPI,
-		toAsyncAPIVersion: "2.6",
-		toProtocol:        "ws",
-	})
-	add(conversionCase{
-		name:              "API Blueprint (apib) to AsyncAPI v3.0 (kafka)",
-		inputFile:         "apiblueprint.apib",
-		fromFormat:        format.FormatAPIBlueprint,
-		toFormat:          format.FormatAsyncAPI,
-		toAsyncAPIVersion: "3.0",
-		toProtocol:        "kafka",
-	})
-	add(conversionCase{
-		name:              "API Blueprint (apib) to AsyncAPI v3.0 (wss)",
-		inputFile:         "apiblueprint.apib",
-		fromFormat:        format.FormatAPIBlueprint,
-		toFormat:          format.FormatAsyncAPI,
-		toAsyncAPIVersion: "3.0",
-		toProtocol:        "wss",
 	})
 
 	return cases
@@ -389,21 +225,6 @@ func invalidSpecificationCases() []invalidSpecificationCase {
 			inputFile:  "openapi_v3_1_missing_paths.yaml",
 			fromFormat: format.FormatOpenAPI,
 		},
-		{
-			name:       "AsyncAPI v2.6 missing info version",
-			inputFile:  "asyncapi_v2_missing_info_version.yaml",
-			fromFormat: format.FormatAsyncAPI,
-		},
-		{
-			name:       "AsyncAPI v2.6 missing channels",
-			inputFile:  "asyncapi_v2_missing_channels.yaml",
-			fromFormat: format.FormatAsyncAPI,
-		},
-		{
-			name:       "AsyncAPI v3.0 missing info version",
-			inputFile:  "asyncapi_v3_missing_info_version.yaml",
-			fromFormat: format.FormatAsyncAPI,
-		},
 	}
 }
 
@@ -419,15 +240,7 @@ func validSpecificationCases() []conversionCase {
 		fromFormat: format.FormatAPIBlueprint,
 		toFormat:   format.FormatOpenAPI,
 	})
-	add(conversionCase{
-		name:              "Valid API Blueprint fixture to AsyncAPI v2.6",
-		wantErrorAny:      []string{"operations that cannot be represented in AsyncAPI", "has a non-channel operation parameter"},
-		inputFile:         "valid/warehouse.apib",
-		fromFormat:        format.FormatAPIBlueprint,
-		toFormat:          format.FormatAsyncAPI,
-		toAsyncAPIVersion: "2.6",
-		toProtocol:        "kafka",
-	})
+
 	add(conversionCase{
 		name:             "Valid API Blueprint support fixture to OpenAPI v3.1",
 		inputFile:        "valid/support.apib",
@@ -448,15 +261,7 @@ func validSpecificationCases() []conversionCase {
 		toFormat:         format.FormatOpenAPI,
 		toOpenAPIVersion: "2.0",
 	})
-	add(conversionCase{
-		name:              "Valid OpenAPI fixture to AsyncAPI v3.0",
-		wantError:         "has a schema that AsyncAPI 3 cannot represent",
-		inputFile:         "valid/checkout-openapi.yaml",
-		fromFormat:        format.FormatOpenAPI,
-		toFormat:          format.FormatAsyncAPI,
-		toAsyncAPIVersion: "3.0",
-		toProtocol:        "kafka",
-	})
+
 	add(conversionCase{
 		name:             "Valid OpenAPI v2 fixture to OpenAPI v3.0",
 		inputFile:        "valid/catalog-openapi-v2.json",
@@ -464,64 +269,13 @@ func validSpecificationCases() []conversionCase {
 		toFormat:         format.FormatOpenAPI,
 		toOpenAPIVersion: "3.0",
 	})
-	add(conversionCase{
-		name:              "Valid OpenAPI v2 fixture to AsyncAPI v2.6",
-		wantError:         "has a non-channel operation parameter",
-		inputFile:         "valid/catalog-openapi-v2.json",
-		fromFormat:        format.FormatOpenAPI,
-		toFormat:          format.FormatAsyncAPI,
-		toAsyncAPIVersion: "2.6",
-		toProtocol:        "amqp",
-	})
+
 	add(conversionCase{
 		name:       "Valid OpenAPI v3.1 fixture to API Blueprint",
 		wantError:  "cannot represent OpenAPI webhooks without loss",
 		inputFile:  "valid/subscriptions-openapi-v3_1.yaml",
 		fromFormat: format.FormatOpenAPI,
 		toFormat:   format.FormatAPIBlueprint,
-	})
-	add(conversionCase{
-		name:              "Valid OpenAPI v3.1 fixture to AsyncAPI v3.0",
-		wantError:         "cannot represent OpenAPI webhooks without loss",
-		inputFile:         "valid/subscriptions-openapi-v3_1.yaml",
-		fromFormat:        format.FormatOpenAPI,
-		toFormat:          format.FormatAsyncAPI,
-		toAsyncAPIVersion: "3.0",
-		toProtocol:        "http",
-	})
-	add(conversionCase{
-		name:       "Valid AsyncAPI fixture to API Blueprint",
-		inputFile:  "valid/fulfillment-asyncapi.yaml",
-		fromFormat: format.FormatAsyncAPI,
-		toFormat:   format.FormatAPIBlueprint,
-	})
-	add(conversionCase{
-		name:             "Valid AsyncAPI fixture to OpenAPI v3.0",
-		inputFile:        "valid/fulfillment-asyncapi.yaml",
-		fromFormat:       format.FormatAsyncAPI,
-		toFormat:         format.FormatOpenAPI,
-		toOpenAPIVersion: "3.0",
-	})
-	add(conversionCase{
-		name:              "Valid AsyncAPI fixture to AsyncAPI v3.0",
-		inputFile:         "valid/fulfillment-asyncapi.yaml",
-		fromFormat:        format.FormatAsyncAPI,
-		toFormat:          format.FormatAsyncAPI,
-		toAsyncAPIVersion: "3.0",
-		toProtocol:        "kafka",
-	})
-	add(conversionCase{
-		name:       "Valid AsyncAPI v3 fixture to API Blueprint",
-		inputFile:  "valid/notifications-asyncapi-v3.yaml",
-		fromFormat: format.FormatAsyncAPI,
-		toFormat:   format.FormatAPIBlueprint,
-	})
-	add(conversionCase{
-		name:             "Valid AsyncAPI v3 fixture to OpenAPI v3.1",
-		inputFile:        "valid/notifications-asyncapi-v3.yaml",
-		fromFormat:       format.FormatAsyncAPI,
-		toFormat:         format.FormatOpenAPI,
-		toOpenAPIVersion: "3.1",
 	})
 
 	return cases
@@ -556,8 +310,7 @@ func assertConverts(t *testing.T, tc *conversionCase, input []byte) {
 	unsupported := tc.toFormat == format.FormatAPIBlueprint ||
 		(tc.fromFormat != tc.toFormat && (tc.fromFormat != format.FormatAPIBlueprint || tc.toFormat != format.FormatOpenAPI || targetVersion != "3.1")) ||
 		(tc.fromFormat == format.FormatAPIBlueprint && targetVersion != "3.1") ||
-		(tc.fromFormat == format.FormatOpenAPI && tc.toFormat == format.FormatOpenAPI && targetVersion != "3.1" && !strings.HasPrefix(sourceModel.Version, targetVersion)) ||
-		(tc.fromFormat == format.FormatAsyncAPI && tc.toFormat == format.FormatAsyncAPI && tc.toAsyncAPIVersion == "2.6" && !strings.HasPrefix(sourceModel.Version, "2.6"))
+		(tc.fromFormat == format.FormatOpenAPI && tc.toFormat == format.FormatOpenAPI && targetVersion != "3.1" && !strings.HasPrefix(sourceModel.Version, targetVersion))
 	if unsupported {
 		if err == nil || !strings.Contains(err.Error(), "unsupported conversion") || output.Len() != 0 {
 			t.Fatalf("conversion = %v, output %q; want unsupported conversion and no output", err, output.String())
@@ -612,7 +365,7 @@ func assertConverts(t *testing.T, tc *conversionCase, input []byte) {
 }
 
 func expandEncodingVariants(tc *conversionCase) []conversionCase {
-	if tc.encoding != "" || (tc.toFormat != format.FormatOpenAPI && tc.toFormat != format.FormatAsyncAPI) {
+	if tc.encoding != "" || tc.toFormat != format.FormatOpenAPI {
 		return []conversionCase{*tc}
 	}
 
@@ -636,10 +389,9 @@ func newTestConverter(t *testing.T) *converter.Converter {
 	}
 	conv.RegisterParser(openapi.NewParser())
 	conv.RegisterParser(apiblueprint.NewParser())
-	conv.RegisterParser(asyncapi.NewParser())
+
 	conv.RegisterWriter(openapi.NewWriter())
 	conv.RegisterWriter(apiblueprint.NewWriter())
-	conv.RegisterWriter(asyncapi.NewWriter())
 
 	return conv
 }
@@ -652,12 +404,7 @@ func testContext(tc *conversionCase) context.Context {
 	if tc.toOpenAPIVersion != "" {
 		ctx = converter.WithOpenAPIVersion(ctx, tc.toOpenAPIVersion)
 	}
-	if tc.toAsyncAPIVersion != "" {
-		ctx = converter.WithAsyncAPIVersion(ctx, tc.toAsyncAPIVersion)
-	}
-	if tc.toProtocol != "" {
-		ctx = converter.WithProtocol(ctx, tc.toProtocol)
-	}
+
 	return ctx
 }
 
@@ -677,9 +424,7 @@ func assertFormatMarker(t *testing.T, tc *conversionCase, output []byte) {
 			return
 		}
 		assertFieldEquals(t, doc, "openapi", version)
-	case format.FormatAsyncAPI:
-		doc := decodeObject(t, output)
-		assertFieldEquals(t, doc, "asyncapi", normalizeAsyncAPIVersion(tc.toAsyncAPIVersion))
+
 	default:
 		t.Fatalf("unsupported target format in test: %s", tc.toFormat)
 	}
@@ -723,17 +468,6 @@ func normalizeOpenAPIVersion(version string) string {
 	}
 }
 
-func normalizeAsyncAPIVersion(version string) string {
-	switch version {
-	case "2.6":
-		return "2.6.0"
-	case "", "3.0":
-		return "3.0.0"
-	default:
-		return version
-	}
-}
-
 func assertMeaningfulModel(t *testing.T, label string, api *model.API) {
 	t.Helper()
 
@@ -755,7 +489,7 @@ func assertSemanticShape(t *testing.T, source, converted *model.API, tc *convers
 		t.Fatalf("converted output lost all operations from source")
 	}
 
-	if tc.fromFormat == tc.toFormat && (tc.toFormat == format.FormatOpenAPI || tc.toFormat == format.FormatAsyncAPI) {
+	if tc.fromFormat == tc.toFormat && tc.toFormat == format.FormatOpenAPI {
 		assertPathCountPreserved(t, source, converted)
 	}
 

@@ -54,38 +54,6 @@ func TestDetectFromBytes(t *testing.T) {
 			wantVersion: "3.0.x",
 		},
 
-		// AsyncAPI Cases
-		{
-			name:        "AsyncAPI 2.0.0",
-			input:       `asyncapi: 2.0.0`,
-			wantFormat:  format.FormatAsyncAPI,
-			wantVersion: "2.0",
-		},
-		{
-			name:        "AsyncAPI 2.6.0",
-			input:       `asyncapi: '2.6.0'`,
-			wantFormat:  format.FormatAsyncAPI,
-			wantVersion: "2.6",
-		},
-		{
-			name:        "AsyncAPI 3.0.0",
-			input:       `asyncapi: 3.0.0`,
-			wantFormat:  format.FormatAsyncAPI,
-			wantVersion: "3.0",
-		},
-		{
-			name:        "AsyncAPI JSON",
-			input:       `{"asyncapi": "2.6.0"}`,
-			wantFormat:  format.FormatAsyncAPI,
-			wantVersion: "2.6",
-		},
-		{
-			name:        "AsyncAPI Unknown Version Falls Back",
-			input:       `asyncapi: 1.0.0`,
-			wantFormat:  format.FormatAsyncAPI,
-			wantVersion: "2.6",
-		},
-
 		// API Blueprint Cases
 		{
 			name:        "API Blueprint Format Header",
@@ -180,5 +148,26 @@ func TestDetect_Reader(t *testing.T) {
 	}
 	if gotVersion != "3.0.x" {
 		t.Errorf("Detect() version = %v, want %v", gotVersion, "3.0.x")
+	}
+}
+
+func TestRejectUnknownStructuredAPIDetection(t *testing.T) {
+	for _, input := range []string{
+		"eventapi: 2.6.0\ninfo: {title: Test, version: '1'}\nchannels: {}\n",
+		`{"eventapi":"3.0.0","info":{"title":"Test","version":"1"}}`,
+		"eventapi: 3.0.0\nopenapi: 3.1.0\n",
+	} {
+		got, _, err := NewDetector().DetectFromBytes([]byte(input))
+		if got != format.FormatUnknown || err == nil || !strings.Contains(err.Error(), "unsupported specification format") {
+			t.Fatalf("DetectFromBytes(%q) = %q, %v", input, got, err)
+		}
+	}
+}
+
+func TestOpenAPIExtensionEndingInAPIDoesNotChangeDetection(t *testing.T) {
+	input := []byte("openapi: 3.1.0\nx-external-api: true\ninfo: {title: Example, version: '1'}\npaths: {}\n")
+	got, _, err := NewDetector().DetectFromBytes(input)
+	if err != nil || got != format.FormatOpenAPI {
+		t.Fatalf("DetectFromBytes() = %q, %v", got, err)
 	}
 }

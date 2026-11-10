@@ -8,7 +8,7 @@ import (
 	"github.com/amer8/apibconv/pkg/model"
 )
 
-// CheckChannelServers rejects AsyncAPI channel server restrictions when the
+// CheckChannelServers rejects channel server restrictions when the
 // target cannot preserve their meaning.
 func CheckChannelServers(api *model.API, target string) error {
 	for path := range api.Paths {

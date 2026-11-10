@@ -8,16 +8,14 @@ import (
 
 // Config holds the runtime configuration for the application
 type Config struct {
-	InputPath       string
-	OutputPath      string
-	InputFormat     format.Format
-	OutputFormat    format.Format
-	Encoding        string
-	Verbose         bool
-	Mode            Mode
-	Protocol        string
-	AsyncAPIVersion string
-	OpenAPIVersion  string
+	InputPath      string
+	OutputPath     string
+	InputFormat    format.Format
+	OutputFormat   format.Format
+	Encoding       string
+	Verbose        bool
+	Mode           Mode
+	OpenAPIVersion string
 }
 
 // Mode represents the operation mode of the application.
@@ -39,13 +37,11 @@ const (
 // ConfigFromFlags creates a Config object from parsed flags and positional arguments
 func ConfigFromFlags(f *Flags, args []string) (*Config, error) {
 	cfg := &Config{
-		OutputPath:      f.Output,
-		Encoding:        f.Encoding,
-		Verbose:         f.Verbose,
-		Protocol:        f.Protocol,
-		AsyncAPIVersion: f.AsyncAPIVersion,
-		OpenAPIVersion:  f.OpenAPIVersion,
-		Mode:            ModeConvert, // Default
+		OutputPath:     f.Output,
+		Encoding:       f.Encoding,
+		Verbose:        f.Verbose,
+		OpenAPIVersion: f.OpenAPIVersion,
+		Mode:           ModeConvert, // Default
 	}
 
 	// Determine Mode
@@ -78,13 +74,6 @@ func ConfigFromFlags(f *Flags, args []string) (*Config, error) {
 	if cfg.Encoding == "" {
 		if envVal := os.Getenv("APIBCONV_DEFAULT_ENCODING"); envVal != "" {
 			cfg.Encoding = envVal
-		}
-	}
-
-	if cfg.AsyncAPIVersion == "" {
-		cfg.AsyncAPIVersion = os.Getenv("APIBCONV_ASYNCAPI_VERSION")
-		if cfg.AsyncAPIVersion == "" {
-			cfg.AsyncAPIVersion = "3.0"
 		}
 	}
 

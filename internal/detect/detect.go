@@ -17,9 +17,8 @@ import (
 type Detector struct{}
 
 type specEnvelope struct {
-	OpenAPI  string `yaml:"openapi"`
-	Swagger  string `yaml:"swagger"`
-	AsyncAPI string `yaml:"asyncapi"`
+	OpenAPI string `yaml:"openapi"`
+	Swagger string `yaml:"swagger"`
 }
 
 // FormatReader interface for types that can inspect data to determine format.
@@ -49,6 +48,9 @@ func (d *Detector) Detect(ctx context.Context, r io.Reader) (format.Format, stri
 // DetectFromBytes attempts to determine the API format and version from a byte slice.
 func (d *Detector) DetectFromBytes(data []byte) (format.Format, string, error) {
 	if detectedFormat, ver, ok := detectStructuredSpec(data); ok {
+		if detectedFormat == format.FormatUnknown {
+			return format.FormatUnknown, "", fmt.Errorf("unsupported specification format")
+		}
 		return detectedFormat, ver, nil
 	}
 	if APIBlueprint(data) {
@@ -63,9 +65,18 @@ func detectStructuredSpec(data []byte) (format.Format, string, bool) {
 		return format.FormatUnknown, "", false
 	}
 
+	// Do not mistake another structured API format for an OpenAPI document,
+	// even if a document contains markers for multiple specifications.
+	var fields map[string]interface{}
+	if err := yaml.Unmarshal(data, &fields); err == nil {
+		for key, value := range fields {
+			if key != "openapi" && !strings.HasPrefix(key, "x-") && strings.HasSuffix(key, "api") && value != nil && fmt.Sprint(value) != "" {
+				return format.FormatUnknown, "", true
+			}
+		}
+	}
+
 	switch {
-	case strings.TrimSpace(doc.AsyncAPI) != "":
-		return format.FormatAsyncAPI, normalizeAsyncAPIVersion(doc.AsyncAPI), true
 	case strings.TrimSpace(doc.OpenAPI) != "":
 		return format.FormatOpenAPI, normalizeOpenAPIVersion(doc.OpenAPI), true
 	case strings.TrimSpace(doc.Swagger) != "":
@@ -84,20 +95,6 @@ func normalizeOpenAPIVersion(version string) string {
 		return "3.0.x"
 	default:
 		return "3.0.x"
-	}
-}
-
-func normalizeAsyncAPIVersion(version string) string {
-	version = strings.TrimSpace(version)
-	switch {
-	case strings.HasPrefix(version, "3"):
-		return "3.0"
-	case strings.HasPrefix(version, "2.6"):
-		return "2.6"
-	case strings.HasPrefix(version, "2"):
-		return "2.0"
-	default:
-		return "2.6"
 	}
 }
 

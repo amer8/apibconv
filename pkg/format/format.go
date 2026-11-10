@@ -14,13 +14,11 @@ type Format string
 
 const (
 	// FormatOpenAPI indicates the OpenAPI specification format.
-	FormatOpenAPI      Format = "openapi"
+	FormatOpenAPI Format = "openapi"
 	// FormatAPIBlueprint indicates the API Blueprint specification format.
 	FormatAPIBlueprint Format = "apiblueprint"
-	// FormatAsyncAPI indicates the AsyncAPI specification format.
-	FormatAsyncAPI     Format = "asyncapi"
 	// FormatUnknown indicates an unknown or unrecognised format.
-	FormatUnknown      Format = "unknown"
+	FormatUnknown Format = "unknown"
 )
 
 // Parser defines the interface for parsing an API specification into a unified model.
@@ -55,11 +53,11 @@ type ValidationLevel string
 
 const (
 	// LevelError indicates a critical validation error.
-	LevelError   ValidationLevel = "error"
+	LevelError ValidationLevel = "error"
 	// LevelWarning indicates a non-critical validation warning.
 	LevelWarning ValidationLevel = "warning"
 	// LevelInfo provides informational messages from validation.
-	LevelInfo    ValidationLevel = "info"
+	LevelInfo ValidationLevel = "info"
 )
 
 // Detector defines the interface for detecting the format of an API specification.
@@ -75,7 +73,7 @@ func (f Format) String() string {
 // IsValid checks if the Format is one of the known supported formats.
 func (f Format) IsValid() bool {
 	switch f {
-	case FormatOpenAPI, FormatAPIBlueprint, FormatAsyncAPI:
+	case FormatOpenAPI, FormatAPIBlueprint:
 		return true
 	default:
 		return false

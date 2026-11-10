@@ -83,9 +83,6 @@ func (r *Runner) Convert(ctx context.Context, cfg *Config) error {
 				outputFormat = format.FormatAPIBlueprint
 			case ".json", ".yaml", ".yml":
 				outputFormat = format.FormatOpenAPI
-				if inputFormat == format.FormatAsyncAPI {
-					outputFormat = format.FormatAsyncAPI
-				}
 			}
 		}
 
@@ -114,14 +111,8 @@ func (r *Runner) Convert(ctx context.Context, cfg *Config) error {
 	if outputEncoding != "" {
 		ctx = converter.WithEncoding(ctx, outputEncoding)
 	}
-	if cfg.Protocol != "" {
-		ctx = converter.WithProtocol(ctx, cfg.Protocol)
-	}
 	if cfg.OpenAPIVersion != "" {
 		ctx = converter.WithOpenAPIVersion(ctx, cfg.OpenAPIVersion)
-	}
-	if cfg.AsyncAPIVersion != "" {
-		ctx = converter.WithAsyncAPIVersion(ctx, cfg.AsyncAPIVersion)
 	}
 
 	if cfg.Verbose {

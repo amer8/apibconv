@@ -243,9 +243,9 @@ func TestRegistration(t *testing.T) {
 	}
 
 	// Test Writer Registration
-	mw := &mockWriter{fmt: format.FormatAsyncAPI}
+	mw := &mockWriter{fmt: format.Format("custom")}
 	c.RegisterWriter(mw)
-	if _, ok := c.writers[format.FormatAsyncAPI]; !ok {
+	if _, ok := c.writers[format.Format("custom")]; !ok {
 		t.Error("RegisterWriter failed to register writer")
 	}
 }
@@ -275,17 +275,17 @@ func TestConvert(t *testing.T) {
 		{
 			name: "Parser Not Registered",
 			from: format.FormatOpenAPI,
-			to:   format.FormatAsyncAPI,
+			to:   format.Format("custom"),
 			setup: func(c *Converter) {
 				// No parser registered
-				c.RegisterWriter(&mockWriter{fmt: format.FormatAsyncAPI})
+				c.RegisterWriter(&mockWriter{fmt: format.Format("custom")})
 			},
 			wantErr: true,
 		},
 		{
 			name: "Writer Not Registered",
 			from: format.FormatOpenAPI,
-			to:   format.FormatAsyncAPI,
+			to:   format.Format("custom"),
 			setup: func(c *Converter) {
 				c.RegisterParser(&mockParser{fmt: format.FormatOpenAPI, api: mockAPI})
 				// No writer registered
@@ -295,10 +295,10 @@ func TestConvert(t *testing.T) {
 		{
 			name: "Parser Error",
 			from: format.FormatOpenAPI,
-			to:   format.FormatAsyncAPI,
+			to:   format.Format("custom"),
 			setup: func(c *Converter) {
 				c.RegisterParser(&mockParser{fmt: format.FormatOpenAPI, err: errors.New("parse error")})
-				c.RegisterWriter(&mockWriter{fmt: format.FormatAsyncAPI})
+				c.RegisterWriter(&mockWriter{fmt: format.Format("custom")})
 			},
 			wantErr: true,
 		},
@@ -372,33 +372,6 @@ func TestCustomPluginFormatsAreNotRestrictedByMigrationPolicy(t *testing.T) {
 	}
 }
 
-func TestValidateSkipsAsyncAPIPathRule(t *testing.T) {
-	c, _ := New()
-	c.RegisterParser(&mockParser{
-		fmt: format.FormatAsyncAPI,
-		api: &model.API{
-			Paths: map[string]model.PathItem{
-				"user/signedup": {},
-			},
-		},
-	})
-
-	input := []byte(`
-asyncapi: 2.6.0
-info:
-  title: Example
-  version: 1.0.0
-channels: {}
-`)
-	errs, err := c.Validate(context.Background(), bytes.NewReader(input), format.FormatAsyncAPI)
-	if err != nil {
-		t.Fatalf("Validate() error = %v", err)
-	}
-	if len(errs) != 0 {
-		t.Fatalf("Validate() returned unexpected errors: %#v", errs)
-	}
-}
-
 func TestValidateStillChecksOpenAPIPaths(t *testing.T) {
 	c, _ := New()
 	c.RegisterParser(&mockParser{
@@ -448,15 +421,15 @@ func TestValidateHonorsCanceledContextBeforeRead(t *testing.T) {
 func TestParseToModelValidateInputUsesFormatAwareRules(t *testing.T) {
 	c, _ := New(WithValidation(true, false))
 	c.RegisterParser(&mockParser{
-		fmt: format.FormatAsyncAPI,
+		fmt: format.Format("custom"),
 		api: &model.API{
 			Paths: map[string]model.PathItem{
-				"user/signedup": {},
+				"/user/signedup": {},
 			},
 		},
 	})
 
-	api, err := c.ParseToModel(context.Background(), bytes.NewReader([]byte("dummy input")), format.FormatAsyncAPI)
+	api, err := c.ParseToModel(context.Background(), bytes.NewReader([]byte("dummy input")), format.Format("custom"))
 	if err != nil {
 		t.Fatalf("ParseToModel() error = %v", err)
 	}
@@ -467,16 +440,16 @@ func TestParseToModelValidateInputUsesFormatAwareRules(t *testing.T) {
 
 func TestWriteFromModelValidateOutputUsesFormatAwareRules(t *testing.T) {
 	c, _ := New(WithValidation(false, true))
-	c.RegisterWriter(&mockWriter{fmt: format.FormatAsyncAPI})
+	c.RegisterWriter(&mockWriter{fmt: format.Format("custom")})
 
 	api := &model.API{
 		Paths: map[string]model.PathItem{
-			"user/signedup": {},
+			"/user/signedup": {},
 		},
 	}
 
 	var buf bytes.Buffer
-	if err := c.WriteFromModel(context.Background(), api, &buf, format.FormatAsyncAPI); err != nil {
+	if err := c.WriteFromModel(context.Background(), api, &buf, format.Format("custom")); err != nil {
 		t.Fatalf("WriteFromModel() error = %v", err)
 	}
 	if buf.String() != "mock output" {

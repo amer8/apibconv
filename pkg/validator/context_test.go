@@ -15,9 +15,9 @@ func TestFormatFromContext(t *testing.T) {
 	})
 
 	t.Run("stored format", func(t *testing.T) {
-		ctx := WithFormat(context.Background(), format.FormatAsyncAPI)
-		if got := formatFromContext(ctx); got != format.FormatAsyncAPI {
-			t.Fatalf("formatFromContext(with format) = %q, want %q", got, format.FormatAsyncAPI)
+		ctx := WithFormat(context.Background(), format.FormatOpenAPI)
+		if got := formatFromContext(ctx); got != format.FormatOpenAPI {
+			t.Fatalf("formatFromContext(with format) = %q, want %q", got, format.FormatOpenAPI)
 		}
 	})
 }
