@@ -55,10 +55,19 @@ func (c *Converter) RegisterWriter(w format.Writer) {
 	c.writers[w.Format()] = w
 }
 
-// Convert converts the input from one format to another.
+// Convert migrates built-in formats in the supported directions: API Blueprint
+// to OpenAPI 3.1, OpenAPI 2.0/3.0 to 3.1, AsyncAPI 2.x to 3.0, or OpenAPI and
+// AsyncAPI within the same major/minor version. Custom formats are unrestricted.
 func (c *Converter) Convert(ctx context.Context, input io.Reader, output io.Writer, from, to format.Format) error {
 	api, err := c.ParseToModel(ctx, input, from)
 	if err != nil {
+		return err
+	}
+	writer, ok := c.writers[to]
+	if !ok {
+		return fmt.Errorf("no writer registered for format: %s", to)
+	}
+	if err := checkMigration(ctx, from, to, api.Version, writer.Version()); err != nil {
 		return err
 	}
 

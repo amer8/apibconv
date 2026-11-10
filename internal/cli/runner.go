@@ -82,7 +82,10 @@ func (r *Runner) Convert(ctx context.Context, cfg *Config) error {
 			case ".apib", ".md":
 				outputFormat = format.FormatAPIBlueprint
 			case ".json", ".yaml", ".yml":
-				outputFormat = format.FormatOpenAPI // Default to OpenAPI for JSON/YAML
+				outputFormat = format.FormatOpenAPI
+				if inputFormat == format.FormatAsyncAPI {
+					outputFormat = format.FormatAsyncAPI
+				}
 			}
 		}
 

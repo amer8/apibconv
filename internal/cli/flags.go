@@ -10,15 +10,15 @@ import (
 
 // Flags represents the parsed command-line flags
 type Flags struct {
-	Output         string
-	InputFormat    string
-	OutputFormat   string
-	Encoding       string
-	Validate       bool
-	Verbose        bool
-	Version        bool
-	Help           bool
-	Protocol       string // For AsyncAPI
+	Output          string
+	InputFormat     string
+	OutputFormat    string
+	Encoding        string
+	Validate        bool
+	Verbose         bool
+	Version         bool
+	Help            bool
+	Protocol        string // For AsyncAPI
 	AsyncAPIVersion string
 	OpenAPIVersion  string
 }
@@ -31,13 +31,13 @@ func ParseFlags(args []string) (*Flags, []string, error) {
 
 	fs.StringVar(&f.Output, "o", "", "Output file path (shorthand)")
 	fs.StringVar(&f.Output, "output", "", "Output file path")
-	
+
 	fs.StringVar(&f.InputFormat, "from", "", "Input format (openapi, apiblueprint, asyncapi)")
 	fs.StringVar(&f.OutputFormat, "to", "", "Target format (openapi, apiblueprint, asyncapi)")
-	
-	fs.StringVar(&f.Encoding, "e", "", "Output encoding (json, yaml) (shorthand)")	
+
+	fs.StringVar(&f.Encoding, "e", "", "Output encoding (json, yaml) (shorthand)")
 	fs.StringVar(&f.Encoding, "encoding", "", "Output encoding (json, yaml)")
-	
+
 	fs.BoolVar(&f.Validate, "validate", false, "Validate input without converting")
 	fs.BoolVar(&f.Verbose, "verbose", false, "Enable verbose output (including progress)")
 	fs.BoolVar(&f.Version, "v", false, "Print version information (shorthand)")
@@ -47,10 +47,10 @@ func ParseFlags(args []string) (*Flags, []string, error) {
 
 	// AsyncAPI specific
 	fs.StringVar(&f.Protocol, "protocol", "", "Protocol for AsyncAPI (ws, kafka, etc.) or 'auto'")
-	fs.StringVar(&f.AsyncAPIVersion, "asyncapi-version", "2.6", "AsyncAPI version to generate")
+	fs.StringVar(&f.AsyncAPIVersion, "asyncapi-version", "", "AsyncAPI version to generate")
 
 	// OpenAPI specific
-	fs.StringVar(&f.OpenAPIVersion, "openapi-version", "3.0", "OpenAPI version to generate")
+	fs.StringVar(&f.OpenAPIVersion, "openapi-version", "", "OpenAPI version to generate")
 
 	if err := fs.Parse(args); err != nil {
 		return nil, nil, err

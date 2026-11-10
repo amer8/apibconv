@@ -27,10 +27,9 @@ func main() {
 	conv.RegisterParser(openapi.NewParser())
 	conv.RegisterWriter(openapi.NewWriter())
 	conv.RegisterParser(apiblueprint.NewParser())
-	conv.RegisterWriter(apiblueprint.NewWriter())
 
 	// Open input file from testdata
-	inputPath := "test/integration/testdata/openapi_v3_0.yaml"
+	inputPath := "test/integration/testdata/apiblueprint.apib"
 	fmt.Printf("Opening input from %s...\n", inputPath)
 	inputFile, err := os.Open(inputPath)
 	if err != nil {
@@ -43,7 +42,7 @@ func main() {
 	}()
 
 	// Create output file
-	outputFile, err := os.Create("petstore.apib")
+	outputFile, err := os.Create("petstore.json")
 	if err != nil {
 		log.Printf("failed to create output file: %v", err)
 		return
@@ -56,16 +55,16 @@ func main() {
 
 	ctx := context.Background()
 
-	// Convert OpenAPI to API Blueprint
-	fmt.Println("Converting OpenAPI to API Blueprint...")
+	// Migrate API Blueprint to OpenAPI 3.1
+	fmt.Println("Migrating API Blueprint to OpenAPI 3.1...")
 	err = conv.Convert(ctx, inputFile, outputFile,
-		format.FormatOpenAPI,
 		format.FormatAPIBlueprint,
+		format.FormatOpenAPI,
 	)
 	if err != nil {
 		log.Printf("conversion failed: %v", err)
 		return
 	}
 
-	fmt.Println("Conversion successful: petstore.apib created")
+	fmt.Println("Conversion successful: petstore.json created")
 }

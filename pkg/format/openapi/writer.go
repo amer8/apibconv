@@ -59,7 +59,7 @@ func WithJSONOutput(enabled bool) WriterOption {
 // NewWriter creates a new OpenAPI writer with optional configurations.
 func NewWriter(opts ...WriterOption) *Writer {
 	w := &Writer{
-		version: "3.0.0",
+		version: "3.1.0",
 		indent:  2,
 		yaml:    false,
 	}

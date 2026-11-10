@@ -8,14 +8,14 @@ import (
 
 // Config holds the runtime configuration for the application
 type Config struct {
-	InputPath      string
-	OutputPath     string
-	InputFormat    format.Format
-	OutputFormat   format.Format
-	Encoding       string
-	Verbose        bool
-	Mode           Mode
-	Protocol       string
+	InputPath       string
+	OutputPath      string
+	InputFormat     format.Format
+	OutputFormat    format.Format
+	Encoding        string
+	Verbose         bool
+	Mode            Mode
+	Protocol        string
 	AsyncAPIVersion string
 	OpenAPIVersion  string
 }
@@ -81,15 +81,17 @@ func ConfigFromFlags(f *Flags, args []string) (*Config, error) {
 		}
 	}
 
-	if cfg.AsyncAPIVersion == "2.6" { // Default set in flags, check if it was explicitly changed
-		if envVal := os.Getenv("APIBCONV_ASYNCAPI_VERSION"); envVal != "" {
-			cfg.AsyncAPIVersion = envVal
+	if cfg.AsyncAPIVersion == "" {
+		cfg.AsyncAPIVersion = os.Getenv("APIBCONV_ASYNCAPI_VERSION")
+		if cfg.AsyncAPIVersion == "" {
+			cfg.AsyncAPIVersion = "3.0"
 		}
 	}
 
-	if cfg.OpenAPIVersion == "3.0" { // Default set in flags, check if it was explicitly changed
-		if envVal := os.Getenv("APIBCONV_OPENAPI_VERSION"); envVal != "" {
-			cfg.OpenAPIVersion = envVal
+	if cfg.OpenAPIVersion == "" {
+		cfg.OpenAPIVersion = os.Getenv("APIBCONV_OPENAPI_VERSION")
+		if cfg.OpenAPIVersion == "" {
+			cfg.OpenAPIVersion = "3.1"
 		}
 	}
 

@@ -32,7 +32,7 @@ func (failedOutputWriter) Write(_ context.Context, _ *model.API, w io.Writer) er
 	return fmt.Errorf("injected write failure")
 }
 
-func TestConvertReportsUnsupportedSecurity(t *testing.T) {
+func TestConvertRejectsDowngradeAndPreservesDestination(t *testing.T) {
 	dir := t.TempDir()
 	input := filepath.Join(dir, "input.yaml")
 	output := filepath.Join(dir, "output.yaml")
@@ -63,8 +63,8 @@ components:
 		if err == nil || !strings.Contains(err.Error(), "ACL") {
 			t.Fatalf("expected ACL preservation error, got %v", err)
 		}
-	} else if !errors.Is(err, errors.ErrConversionFailed) || !strings.Contains(err.Error(), `security scheme "bearerAuth"`) {
-		t.Fatalf("conversion error = %v, want conversion failure with security scheme details", err)
+	} else if !errors.Is(err, errors.ErrConversionFailed) || !strings.Contains(err.Error(), "unsupported conversion") {
+		t.Fatalf("conversion error = %v, want unsupported conversion", err)
 	}
 	got, err := os.ReadFile(output)
 	if err != nil {
@@ -75,7 +75,7 @@ components:
 	}
 }
 
-func TestCrossFormatSecurityFailurePreservesDestination(t *testing.T) {
+func TestUnsupportedCrossFormatPreservesDestination(t *testing.T) {
 	for _, writer := range []format.Writer{apiblueprint.NewWriter(), asyncapi.NewWriter()} {
 		t.Run(string(writer.Format()), func(t *testing.T) {
 			dir := t.TempDir()
@@ -112,8 +112,8 @@ components:
 				if err == nil || !strings.Contains(err.Error(), "ACL") {
 					t.Fatalf("expected ACL preservation error, got %v", err)
 				}
-			} else if !errors.Is(err, errors.ErrConversionFailed) || !errors.Is(err, errors.ErrUnsupportedSecurity) {
-				t.Fatalf("conversion error = %v, want unsupported security failure", err)
+			} else if !errors.Is(err, errors.ErrConversionFailed) || !strings.Contains(err.Error(), "unsupported conversion") {
+				t.Fatalf("conversion error = %v, want unsupported conversion", err)
 			}
 			got, err := os.ReadFile(output)
 			if err != nil {

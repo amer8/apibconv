@@ -9,6 +9,8 @@ import (
 var (
 	// ErrUnsupportedFormat indicates that the requested format is not supported.
 	ErrUnsupportedFormat = errors.New("unsupported format")
+	// ErrUnsupportedConversion indicates that a format or version direction is not supported.
+	ErrUnsupportedConversion = errors.New("unsupported conversion")
 	// ErrInvalidSpec indicates that the specification is invalid.
 	ErrInvalidSpec = errors.New("invalid specification")
 	// ErrParseFailure indicates a failure during parsing of the specification.

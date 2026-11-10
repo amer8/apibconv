@@ -6,7 +6,7 @@
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/amer8/apibconv/badge)](https://scorecard.dev/viewer/?uri=github.com/amer8/apibconv)
 [![License](https://img.shields.io/github/license/amer8/apibconv)](LICENSE)
 
-Convert between API Blueprint (*.apib), OpenAPI 2.0/3.0/3.1, and AsyncAPI 2.x/3.0 specifications.
+Migrate API Blueprint, OpenAPI, and AsyncAPI specifications to newer versions.
 
 - [API Blueprint](https://apiblueprint.org/documentation/specification.html) and [MSON](https://apiblueprint.org/documentation/mson/specification.html)
 - [AsyncAPI v3.0](https://www.asyncapi.com/docs/reference/specification/v3.0.0)
@@ -22,47 +22,31 @@ and recommends converting API Blueprint specifications to OpenAPI. See the
 [Oracle service change announcement](https://docs.oracle.com/en-us/iaas/Content/servicechanges.htm#oracle-apiary)
 for details. apibconv can help convert saved API Blueprint files to OpenAPI.
 
-Conversion is not lossless: the API Blueprint parser handles a subset of the format,
-and request bodies and parameters may be omitted. The OpenAPI writer also adds a
-default `404` response when an operation has no 4xx response. Keep the original files,
-validate the output, and review it against the source before using it as an API contract.
+Supported conversions through the CLI and `Converter.Convert`:
 
-OpenAPI-to-OpenAPI conversion preserves security requirements and supported security
-schemes. Conversion to Swagger 2.0 fails if a scheme cannot be represented in that
-version, such as HTTP bearer authentication or multiple OAuth flows. Conversion to
-OpenAPI 3.0 also fails for OpenAPI 3.1 mutual TLS schemes. AsyncAPI conversion maps
-representable security requirements onto each generated operation, including
-inherited requirements and public operation overrides. Unsupported combinations,
-schemes, protocols, or secured operations that cannot be emitted cause an error.
-API Blueprint has no equivalent machine-readable security requirement; its writer
-rejects operations with effective authentication requirements. Public operations and
-unused security definitions can still be converted. The AsyncAPI parser preserves
-representable server and operation requirements separately. OpenAPI and API Blueprint
-output reject server-level security that they cannot represent. The parser rejects
-unsupported security mechanisms, unresolved security references, and different server
-security policies rather than silently dropping them.
+- API Blueprint → OpenAPI 3.1
+- OpenAPI 2.0 or 3.0 → OpenAPI 3.1
+- AsyncAPI 2.x → AsyncAPI 3.0
+- OpenAPI or AsyncAPI → the same major/minor version, including JSON/YAML conversion
 
-AsyncAPI output preserves a single message's content type and rejects operations
-with multiple payload variants instead of choosing one. AsyncAPI 2 message
-`oneOf` alternatives are rejected on input. Channel parameters and their schemas
-are preserved in AsyncAPI 2; conversion to AsyncAPI 3 rejects parameter schemas,
-which that version cannot represent directly. API Blueprint response output
-includes a self-contained JSON Schema asset when a response schema is available.
-AsyncAPI channel server selections are preserved between AsyncAPI versions;
-OpenAPI and API Blueprint output reject channel-specific server selections.
-OpenAPI 3 callbacks and local callback references are preserved in OpenAPI 3
-output; targets that cannot express callbacks reject them.
+Downgrades and other cross-format conversions are rejected. The default output
+versions are OpenAPI 3.1 and AsyncAPI 3.0. For a same-version conversion to an
+older version, specify `--openapi-version` or `--asyncapi-version` explicitly.
 
-Schema conversion supports a subset of each specification's schema vocabulary.
-OpenAPI schema keywords not represented by the model are rejected rather than
-silently dropped. OpenAPI 3.1 `const` is represented as an equivalent
-single-value enum constraint. Swagger 2.0 output rejects unsupported schema
-constructs and differing schemas for content types of the same body or response.
-AsyncAPI and API Blueprint schema assets likewise reject schema fields the
-shared model cannot represent.
-AsyncAPI schema bounds and nullability are translated to its JSON Schema
-dialect. AsyncAPI messages with headers or an explicit schema format are rejected
-because those details cannot yet be preserved by the shared model.
+Conversion is not lossless, including same-version encoding conversion: it goes
+through a shared model and can omit or change fields. In particular, the API
+Blueprint parser handles a subset of the format; Swagger operation-level
+`schemes`, OpenAPI referenced response headers, and AsyncAPI channel bindings
+are not preserved. Keep the original files, validate the output, and review it
+against the source before using it as an API contract. Unsupported schema
+keywords and some unsupported security combinations are rejected.
+The OpenAPI writer also adds a default `404` response when an operation has no
+4xx response.
+
+The Go `ParseToModel` and `WriteFromModel` methods and individual parser/writer
+packages are lower-level building blocks. They do not enforce conversion direction
+because a standalone model does not record a trustworthy source format. Custom
+plugin formats registered with `Converter` define their own conversion rules.
 
 ## Installation
 
@@ -165,64 +149,27 @@ gh attestation verify oci://ghcr.io/amer8/apibconv@sha256:IMAGE_DIGEST \
 
 ### CLI Usage
 
-The tool automatically detects the input format based on file extension and content. It supports both file arguments and stdin.
+The input format is detected from content, or can be set with `--from`. For
+JSON/YAML output files, the output defaults to the input format, or OpenAPI for
+API Blueprint. Specify `--to` for stdout. See `apibconv --help` for all options.
+
+```sh
+apibconv -o openapi.yaml spec.apib
+apibconv -o openapi.json swagger.yaml
+apibconv --to asyncapi -o asyncapi3.yaml asyncapi2.yaml
+apibconv --to openapi --openapi-version 3.0 -o output.json input.yaml
+apibconv --to openapi -e json < spec.apib > openapi.json
+apibconv --validate spec.json
+```
 
 Output files are replaced atomically. On macOS and Linux, replacing an existing
 file is refused when its ACL or ownership cannot be preserved safely. The
 existing destination must be readable for change detection; changes detected
 during conversion abort replacement. The final check and rename are separate
 filesystem operations, so concurrent writers must coordinate or use distinct
-output paths to avoid a remaining race. On other
-platforms, including Windows, choose a new output path: replacing an existing
-file is currently unavailable because its ACL cannot be checked reliably.
-AsyncAPI output rejects unsupported HTTP methods. OpenAPI path, parameter,
-request-body, and response references must be local and resolvable.
-
-```sh
-Usage: apibconv [OPTIONS] [INPUT_FILE]
-
-Arguments:
-  INPUT_FILE
-      Input specification file (OpenAPI, AsyncAPI, or API Blueprint)
-
-Options:
-  -o, --output FILE
-      Output file path (required for conversion)
-  
-  --to FORMAT
-      Target format: openapi, asyncapi, apib
-      Auto-detected from --output extension if not specified
-  
-  -e, --encoding FORMAT
-      Output encoding: json, yaml (default: auto-detected from output extension)
-  
-  --validate
-      Validate input without converting. Pinned OpenAPI and AsyncAPI versions
-      are checked against specification JSON Schemas plus model validation
-  
-  -v, --version
-      Print version information
-  
-  -h, --help
-      Show this help message
-
-AsyncAPI Options:
-  --protocol PROTO
-      Protocol: ws, wss, mqtt, kafka, amqp, http, https, auto (required)
-  
-  --asyncapi-version VERSION
-      Version: 2.6, 3.0 (default: "2.6")
-
-OpenAPI Options:
-  --openapi-version VERSION
-      Version: 2.0, 3.0, 3.1 (default: "3.0")
-
-Examples:
-  apibconv -o output.json spec.apib
-  apibconv -o output.yaml --protocol ws spec.apib
-  apibconv -o output.json --to openapi --openapi-version 3.1 < spec.apib
-  apibconv --validate spec.json
-```
+output paths. On other platforms, including Windows, choose a new output path:
+replacing an existing file is currently unavailable because its ACL cannot be
+checked reliably.
 
 ### GitHub Actions
 
@@ -235,8 +182,8 @@ Pin the action itself to a full commit SHA and pin the binary version to a relea
   with:
     version: vX.Y.Z
 
-- name: Convert OpenAPI to API Blueprint
-  run: apibconv -o api-blueprint.apib openapi.json
+- name: Migrate API Blueprint to OpenAPI
+  run: apibconv -o openapi.json api-blueprint.apib
 ```
 
 The action downloads the published release asset for the current runner, verifies its SHA-256 checksum,
