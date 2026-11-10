@@ -554,7 +554,7 @@ func assertConverts(t *testing.T, tc *conversionCase, input []byte) {
 		targetVersion = "3.1"
 	}
 	unsupported := tc.toFormat == format.FormatAPIBlueprint ||
-		(tc.fromFormat != tc.toFormat && !(tc.fromFormat == format.FormatAPIBlueprint && tc.toFormat == format.FormatOpenAPI && targetVersion == "3.1")) ||
+		(tc.fromFormat != tc.toFormat && (tc.fromFormat != format.FormatAPIBlueprint || tc.toFormat != format.FormatOpenAPI || targetVersion != "3.1")) ||
 		(tc.fromFormat == format.FormatAPIBlueprint && targetVersion != "3.1") ||
 		(tc.fromFormat == format.FormatOpenAPI && tc.toFormat == format.FormatOpenAPI && targetVersion != "3.1" && !strings.HasPrefix(sourceModel.Version, targetVersion)) ||
 		(tc.fromFormat == format.FormatAsyncAPI && tc.toFormat == format.FormatAsyncAPI && tc.toAsyncAPIVersion == "2.6" && !strings.HasPrefix(sourceModel.Version, "2.6"))
