@@ -547,6 +547,23 @@ func assertConverts(t *testing.T, tc *conversionCase, input []byte) {
 
 	var output bytes.Buffer
 	err = conv.Convert(ctx, bytes.NewReader(input), &output, tc.fromFormat, tc.toFormat)
+	// Legacy conversion cases remain useful as checks that the public converter
+	// rejects directions outside its migration policy without writing output.
+	targetVersion := tc.toOpenAPIVersion
+	if targetVersion == "" {
+		targetVersion = "3.1"
+	}
+	unsupported := tc.toFormat == format.FormatAPIBlueprint ||
+		(tc.fromFormat != tc.toFormat && !(tc.fromFormat == format.FormatAPIBlueprint && tc.toFormat == format.FormatOpenAPI && targetVersion == "3.1")) ||
+		(tc.fromFormat == format.FormatAPIBlueprint && targetVersion != "3.1") ||
+		(tc.fromFormat == format.FormatOpenAPI && tc.toFormat == format.FormatOpenAPI && targetVersion != "3.1" && !strings.HasPrefix(sourceModel.Version, targetVersion)) ||
+		(tc.fromFormat == format.FormatAsyncAPI && tc.toFormat == format.FormatAsyncAPI && tc.toAsyncAPIVersion == "2.6" && !strings.HasPrefix(sourceModel.Version, "2.6"))
+	if unsupported {
+		if err == nil || !strings.Contains(err.Error(), "unsupported conversion") || output.Len() != 0 {
+			t.Fatalf("conversion = %v, output %q; want unsupported conversion and no output", err, output.String())
+		}
+		return
+	}
 	if tc.wantError != "" || len(tc.wantErrorAny) > 0 {
 		want := append([]string(nil), tc.wantErrorAny...)
 		if tc.wantError != "" {
@@ -695,9 +712,9 @@ func assertFieldEquals(t *testing.T, doc map[string]interface{}, field, want str
 
 func normalizeOpenAPIVersion(version string) string {
 	switch version {
-	case "", "3.0":
+	case "3.0":
 		return "3.0.0"
-	case "3.1":
+	case "", "3.1":
 		return "3.1.0"
 	case "2.0", "2.0.0":
 		return "2.0"
@@ -708,9 +725,9 @@ func normalizeOpenAPIVersion(version string) string {
 
 func normalizeAsyncAPIVersion(version string) string {
 	switch version {
-	case "", "2.6":
+	case "2.6":
 		return "2.6.0"
-	case "3.0":
+	case "", "3.0":
 		return "3.0.0"
 	default:
 		return version

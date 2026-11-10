@@ -154,6 +154,9 @@ func (m *mockParser) Parse(ctx context.Context, r io.Reader) (*model.API, error)
 	if m.err != nil {
 		return nil, m.err
 	}
+	if m.api != nil && m.api.Version == "" {
+		m.api.Version = "3.1.0"
+	}
 	return m.api, nil
 }
 
@@ -208,7 +211,7 @@ func (m *mockWriter) Format() format.Format {
 }
 
 func (m *mockWriter) Version() string {
-	return "1.0"
+	return "3.1.0"
 }
 
 // --- Tests ---
@@ -261,10 +264,10 @@ func TestConvert(t *testing.T) {
 		{
 			name: "Success",
 			from: format.FormatOpenAPI,
-			to:   format.FormatAsyncAPI,
+			to:   format.FormatOpenAPI,
 			setup: func(c *Converter) {
 				c.RegisterParser(&mockParser{fmt: format.FormatOpenAPI, api: mockAPI})
-				c.RegisterWriter(&mockWriter{fmt: format.FormatAsyncAPI})
+				c.RegisterWriter(&mockWriter{fmt: format.FormatOpenAPI})
 			},
 			wantErr:    false,
 			wantOutput: "mock output",
@@ -302,10 +305,10 @@ func TestConvert(t *testing.T) {
 		{
 			name: "Writer Error",
 			from: format.FormatOpenAPI,
-			to:   format.FormatAsyncAPI,
+			to:   format.FormatOpenAPI,
 			setup: func(c *Converter) {
 				c.RegisterParser(&mockParser{fmt: format.FormatOpenAPI, api: mockAPI})
-				c.RegisterWriter(&mockWriter{fmt: format.FormatAsyncAPI, err: errors.New("write error")})
+				c.RegisterWriter(&mockWriter{fmt: format.FormatOpenAPI, err: errors.New("write error")})
 			},
 			wantErr: true,
 		},
@@ -342,15 +345,30 @@ func TestTransformOption(t *testing.T) {
 
 	c, _ := New(WithTransform(transformFn))
 	c.RegisterParser(&mockParser{fmt: format.FormatOpenAPI, api: &model.API{}})
-	c.RegisterWriter(&mockWriter{fmt: format.FormatAsyncAPI})
+	c.RegisterWriter(&mockWriter{fmt: format.FormatOpenAPI})
 
-	err := c.Convert(context.Background(), bytes.NewReader(nil), &bytes.Buffer{}, format.FormatOpenAPI, format.FormatAsyncAPI)
+	err := c.Convert(context.Background(), bytes.NewReader(nil), &bytes.Buffer{}, format.FormatOpenAPI, format.FormatOpenAPI)
 	if err != nil {
 		t.Fatalf("Convert failed: %v", err)
 	}
 
 	if !wasCalled {
 		t.Error("Transform function was not called")
+	}
+}
+
+func TestCustomPluginFormatsAreNotRestrictedByMigrationPolicy(t *testing.T) {
+	const source format.Format = "custom-input"
+	const target format.Format = "custom-output"
+	c, err := New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.RegisterParser(&mockParser{fmt: source, api: &model.API{Version: "custom"}})
+	c.RegisterWriter(&mockWriter{fmt: target})
+	var out bytes.Buffer
+	if err := c.Convert(context.Background(), strings.NewReader("input"), &out, source, target); err != nil || out.String() != "mock output" {
+		t.Fatalf("custom conversion = %q, %v", out.String(), err)
 	}
 }
 

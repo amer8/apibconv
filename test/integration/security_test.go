@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"reflect"
 	"strings"
 	"testing"
@@ -46,11 +47,11 @@ components:
 				conv := newTestConverter(t)
 				ctx := converter.WithEncoding(converter.WithAsyncAPIVersion(context.Background(), version), encoding)
 				var intermediate bytes.Buffer
-				if err := conv.Convert(ctx, strings.NewReader(input), &intermediate, format.FormatOpenAPI, format.FormatAsyncAPI); err != nil {
+				if err := convertLowLevel(conv, ctx, strings.NewReader(input), &intermediate, format.FormatOpenAPI, format.FormatAsyncAPI); err != nil {
 					t.Fatal(err)
 				}
 				var output bytes.Buffer
-				if err := conv.Convert(ctx, bytes.NewReader(intermediate.Bytes()), &output, format.FormatAsyncAPI, format.FormatOpenAPI); err != nil {
+				if err := convertLowLevel(conv, ctx, bytes.NewReader(intermediate.Bytes()), &output, format.FormatAsyncAPI, format.FormatOpenAPI); err != nil {
 					t.Fatalf("convert back: %v\n%s", err, intermediate.String())
 				}
 				api, err := conv.ParseToModel(ctx, bytes.NewReader(output.Bytes()), format.FormatOpenAPI)
@@ -87,7 +88,7 @@ components:
 	for _, target := range []format.Format{format.FormatOpenAPI, format.FormatAPIBlueprint} {
 		t.Run(string(target), func(t *testing.T) {
 			var output bytes.Buffer
-			err := newTestConverter(t).Convert(context.Background(), strings.NewReader(input), &output, format.FormatAsyncAPI, target)
+			err := convertLowLevel(newTestConverter(t), context.Background(), strings.NewReader(input), &output, format.FormatAsyncAPI, target)
 			if !errors.Is(err, apierrors.ErrUnsupportedSecurity) || output.Len() != 0 {
 				t.Fatalf("Convert() = %v, output %q; want unsupported server security and no output", err, output.String())
 			}
@@ -104,7 +105,7 @@ components:
     auth: {type: scramSha256}
 `
 	var output bytes.Buffer
-	err := newTestConverter(t).Convert(context.Background(), strings.NewReader(input), &output, format.FormatAsyncAPI, format.FormatOpenAPI)
+	err := convertLowLevel(newTestConverter(t), context.Background(), strings.NewReader(input), &output, format.FormatAsyncAPI, format.FormatOpenAPI)
 	if !errors.Is(err, apierrors.ErrUnsupportedSecurity) || output.Len() != 0 {
 		t.Fatalf("Convert() = %v, output %q; want unsupported scheme and no output", err, output.String())
 	}
@@ -131,7 +132,7 @@ components:
 		t.Run(version, func(t *testing.T) {
 			ctx := converter.WithEncoding(converter.WithAsyncAPIVersion(context.Background(), version), "json")
 			var output bytes.Buffer
-			if err := newTestConverter(t).Convert(ctx, strings.NewReader(input), &output, format.FormatOpenAPI, format.FormatAsyncAPI); err != nil {
+			if err := convertLowLevel(newTestConverter(t), ctx, strings.NewReader(input), &output, format.FormatOpenAPI, format.FormatAsyncAPI); err != nil {
 				t.Fatal(err)
 			}
 			if issues := specschema.Validate(format.FormatAsyncAPI, output.Bytes()); len(issues) > 0 {
@@ -176,7 +177,7 @@ components:
     key: {type: apiKey, in: header, name: X-Key}
 `
 	var output bytes.Buffer
-	if err := newTestConverter(t).Convert(context.Background(), strings.NewReader(input), &output, format.FormatOpenAPI, format.FormatAPIBlueprint); err != nil {
+	if err := convertLowLevel(newTestConverter(t), context.Background(), strings.NewReader(input), &output, format.FormatOpenAPI, format.FormatAPIBlueprint); err != nil {
 		t.Fatal(err)
 	}
 	if output.Len() == 0 {
@@ -218,7 +219,7 @@ info: {title: Test, version: '1'}
 				t.Run(version+"/"+tc.name+"/"+target.name, func(t *testing.T) {
 					ctx := converter.WithAsyncAPIVersion(context.Background(), target.version)
 					var output bytes.Buffer
-					err := newTestConverter(t).Convert(ctx, strings.NewReader(input), &output, format.FormatOpenAPI, target.format)
+					err := convertLowLevel(newTestConverter(t), ctx, strings.NewReader(input), &output, format.FormatOpenAPI, target.format)
 					if !errors.Is(err, apierrors.ErrUnsupportedSecurity) {
 						t.Fatalf("Convert() error = %v, want ErrUnsupportedSecurity", err)
 					}
@@ -281,4 +282,14 @@ func TestSecurityCheckHandlesCallbackCycles(t *testing.T) {
 	if err := apiblueprint.NewWriter().Write(context.Background(), api, &output); err == nil || output.Len() != 0 {
 		t.Fatalf("Write() must reject the unsupported callback cycle: %v", err)
 	}
+}
+
+// These tests exercise the low-level parser/writer security checks separately
+// from the public conversion policy, which now rejects cross-format migrations.
+func convertLowLevel(c *converter.Converter, ctx context.Context, input io.Reader, output io.Writer, from, to format.Format) error {
+	api, err := c.ParseToModel(ctx, input, from)
+	if err != nil {
+		return err
+	}
+	return c.WriteFromModel(ctx, api, output, to)
 }

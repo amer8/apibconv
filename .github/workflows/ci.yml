@@ -136,7 +136,7 @@ jobs:
           docker run --rm apibconv:ci --help
           docker run --rm -i apibconv:ci --from apiblueprint --to openapi --encoding json \
             < test/integration/testdata/apiblueprint.apib > "$RUNNER_TEMP/docker-openapi.json"
-          jq -e '.openapi == "3.0.0" and (.paths | length > 0)' "$RUNNER_TEMP/docker-openapi.json"
+          jq -e '.openapi == "3.1.0" and (.paths | length > 0)' "$RUNNER_TEMP/docker-openapi.json"
 
       - name: Upload artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

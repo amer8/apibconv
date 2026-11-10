@@ -62,187 +62,47 @@ func (a *App) Run(ctx context.Context, args []string) error {
 }
 
 func (a *App) printUsage() error {
-	fmt.Println(`apibconv is a command-line tool for converting between API specification formats.
+	fmt.Println(`apibconv migrates API specifications to newer versions.
 
-Supported formats:
+Supported conversions:
+    API Blueprint -> OpenAPI 3.1
+    OpenAPI 2.0 or 3.0 -> OpenAPI 3.1
+    AsyncAPI 2.x -> AsyncAPI 3.0
+    OpenAPI and AsyncAPI -> the same version (JSON/YAML)
 
-  - OpenAPI 2.0 (Swagger)
-  - OpenAPI 3.0.x
-  - OpenAPI 3.1.x
-  - API Blueprint
-  - AsyncAPI 2.x, 3.0
+Conversion can be lossy; retain and review the original specification.
+Cross-format conversions other than API Blueprint to OpenAPI, and downgrades,
+are not supported.
 
-Usage:
-
-    apibconv [OPTIONS] [INPUT_FILE]
-
-Arguments:
-
-    INPUT_FILE
-        Input specification file (OpenAPI, AsyncAPI, or API Blueprint)
-        If omitted or "-", reads from stdin
+Usage: apibconv [OPTIONS] [INPUT_FILE]
+    Omit INPUT_FILE or use - to read stdin.
 
 Options:
+    -o, --output FILE          Output file; - or omitted writes to stdout
+    --from FORMAT              Input: apiblueprint, openapi, asyncapi
+    --to FORMAT                Output: openapi, asyncapi
+    -e, --encoding FORMAT      json or yaml (default: output extension)
+    --openapi-version VERSION  Output version (default: 3.1)
+    --asyncapi-version VERSION Output version (default: 3.0)
+    --protocol PROTO           Default AsyncAPI server protocol
+    --validate                 Validate input without converting
+    --verbose                  Report progress
+    -v, --version              Print version
+    -h, --help                 Show help
 
-    -o, --output FILE
-        Output file path (required for conversion)
-        Use "-" to write to stdout
+JSON/YAML output defaults to the input format, or OpenAPI for API Blueprint.
+Use --to when writing to stdout. Output versions other than the default are
+accepted only for same-version OpenAPI or AsyncAPI conversion.
 
-    --to FORMAT
-        Target format: openapi, asyncapi, apib
-        Auto-detected from --output extension if not specified
-
-    -e, --encoding FORMAT
-        Output encoding: json, yaml (default: auto-detected from output extension)
-
-    --validate
-        Validate input without converting
-        Performs format detection and structural validation
-
-    -v, --version
-        Print version information
-
-    -h, --help
-        Show this help message
-
-AsyncAPI Options:
-
-    --protocol PROTO
-        Protocol: ws, wss, mqtt, kafka, amqp, http, https, auto (required)
-        Required when converting to AsyncAPI format
-        "auto" attempts to detect from input specification
-
-    --asyncapi-version VERSION
-        AsyncAPI version: 2.6, 3.0 (default: "2.6")
-        Determines which AsyncAPI schema version to generate
-
-OpenAPI Options:
-
-    --openapi-version VERSION
-        OpenAPI version: 2.0, 3.0, 3.1 (default: "3.0")
-        Determines which OpenAPI schema version to generate
-
-Format Detection:
-
-    Input format is automatically detected by analyzing file content:
-    - OpenAPI: Checks for "openapi" or "swagger" version field
-    - AsyncAPI: Checks for "asyncapi" version field
-    - API Blueprint: Checks for Markdown structure and FORMAT directive
-
-    Output format is determined in this order:
-    1. --to flag (if specified)
-    2. File extension of --output flag
-    3. Error if cannot determine
-
-Encoding Detection:
-
-    Output encoding (JSON or YAML) is determined in this order:
-    1. -e/--encoding flag (if specified)
-    2. File extension of --output flag (.json → JSON, .yaml/.yml → YAML)
-    3. Default to JSON
+Environment variables: APIBCONV_DEFAULT_ENCODING,
+APIBCONV_OPENAPI_VERSION, APIBCONV_ASYNCAPI_VERSION.
 
 Examples:
-
-    # Convert API Blueprint to OpenAPI JSON
-    apibconv -o output.json spec.apib
-
-    # Convert API Blueprint to AsyncAPI YAML with WebSocket protocol
-    apibconv -o output.yaml --protocol ws spec.apib
-
-    # Convert OpenAPI to specific version
-    apibconv -o output.yaml --to openapi --openapi-version 3.1 spec.json
-
-    # Read from stdin, write to stdout
-    apibconv -o output.json --to openapi < spec.apib
-    cat spec.apib | apibconv --to openapi > output.json
-
-    # Validate a specification
-    apibconv --validate spec.json
-    cat spec.yaml | apibconv --validate
-
-    # Specify encoding explicitly
-    apibconv -o output.txt --to openapi -e json spec.apib
-
-    # Convert to AsyncAPI with auto-detected protocol
-    apibconv -o output.yaml --to asyncapi --protocol auto spec.json
-
-Exit Codes:
-
-    0    Success
-    1    General error (invalid arguments, file not found, etc.)
-    2    Validation error (invalid specification)
-    3    Conversion error (format incompatibility)
-
-Environment Variables:
-
-    APIBCONV_DEFAULT_ENCODING
-        Default encoding when not specified: json, yaml
-
-    APIBCONV_ASYNCAPI_VERSION
-        Default AsyncAPI version: 2.6, 3.0
-
-    APIBCONV_OPENAPI_VERSION
-        Default OpenAPI version: 2.0, 3.0, 3.1
-
-File Extensions:
-
-    Input (auto-detected):
-    - .json, .yaml, .yml    → Content-based detection
-    - .apib, .md            → API Blueprint
-    - Any other             → Content-based detection
-
-    Output (determines format/encoding):
-    - .json                 → JSON encoding
-    - .yaml, .yml           → YAML encoding
-    - .apib, .md            → API Blueprint format
-
-Validation:
-
-    The --validate flag performs structural validation:
-    - Format detection and syntax validation
-    - JSON Schema validation for pinned OpenAPI and AsyncAPI versions
-    - Basic path, schema type, and reference validation
-
-    Validation output shows errors and warnings with:
-    - Path to the problematic field
-    - Description of the issue
-    - Severity level (error/warning)
-
-Conversion Notes:
-
-    OpenAPI ↔ API Blueprint:
-    - Basic bidirectional conversion support
-    - Maps paths, operations, and basic schema structures including MSON attributes
-    - API Blueprint groups are mapped to operation tags
-
-    OpenAPI → AsyncAPI:
-    - HTTP operations become publish/subscribe operations
-    - Request/response become message schemas
-    - Protocol derived from --protocol flag, environment variable, or server URL
-
-    AsyncAPI → OpenAPI:
-    - Publish/subscribe become POST/GET operations
-    - Channel names become path segments
-    - Message schemas become request/response bodies
-
-    API Blueprint → AsyncAPI:
-    - Similar to OpenAPI → AsyncAPI conversion
-    - Resource groups map to channel groups
-    - Actions map to operations
-
-Protocol Specification (AsyncAPI):
-
-    When converting to AsyncAPI, the protocol determines how the API
-    operates. Common protocols:
-
-    - ws/wss: WebSocket (real-time bidirectional)
-    - mqtt: MQTT (pub/sub messaging)
-    - kafka: Apache Kafka (distributed streaming)
-    - amqp: Advanced Message Queuing Protocol
-    - http/https: HTTP-based webhooks/polling
-
-    The --protocol flag sets the default protocol for generated servers.
-    "auto" detection is currently experimental.`)
+    apibconv -o openapi.yaml api.apib
+    apibconv -o openapi.json swagger.yaml
+    apibconv --to asyncapi -o asyncapi3.yaml asyncapi2.yaml
+    apibconv --to openapi --openapi-version 3.0 -o output.json input.yaml
+    apibconv --validate spec.yaml`)
 	return nil
 }
 

@@ -266,7 +266,7 @@ components:
 			writerOpts: []WriterOption{WithJSONOutput(true)},                 // Default to JSON
 			ctx:        converter.WithEncoding(context.Background(), "yaml"), // Context forces YAML
 			wantOutput: strings.TrimSpace(`
-openapi: 3.0.0
+openapi: 3.1.0
 info:
   title: Context Test
   version: ""
