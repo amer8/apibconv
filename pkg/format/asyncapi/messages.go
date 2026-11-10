@@ -37,7 +37,7 @@ func (p *Parser) messageSchema(raw any, components map[string]interface{}, chann
 			return nil, "", fmt.Errorf("message oneOf alternatives cannot be represented without loss")
 		}
 		if message.Ref == "" {
-			contentType, err := messageTraitContentType(message, components, v3)
+			contentType, err := messageTraitContentType(&message, components, v3)
 			if err != nil {
 				return nil, "", err
 			}
@@ -97,7 +97,7 @@ func (p *Parser) messageSchema(raw any, components map[string]interface{}, chann
 
 // V2 uses JSON merge patch in trait order, while V3 forbids traits from
 // overriding a property explicitly set on the target message.
-func messageTraitContentType(message Message, components map[string]interface{}, v3 bool) (string, error) {
+func messageTraitContentType(message *Message, components map[string]interface{}, v3 bool) (string, error) {
 	contentType := message.ContentType
 	explicit := contentType != ""
 	for _, trait := range message.Traits {

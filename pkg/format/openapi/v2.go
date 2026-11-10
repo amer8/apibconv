@@ -356,7 +356,8 @@ func (p *Parser) convertV2SchemaFields(schemaType, format string, items *Schema)
 // validateV2ParameterSerialization rejects Swagger array encodings for which the
 // unified model and OpenAPI 3 output cannot express the original wire format.
 func validateV2ParameterSerialization(params []Parameter) error {
-	for _, p := range params {
+	for i := range params {
+		p := &params[i]
 		if p.Type != "array" || p.In == "body" {
 			continue
 		}
