@@ -75,14 +75,17 @@ are not supported.
 
 Usage: apibconv [OPTIONS] [INPUT_FILE]
     Omit INPUT_FILE or use - to read stdin.
+    Options may appear before or after INPUT_FILE; use -- before a filename starting with -.
 
 Options:
     -o, --output FILE          Output file; - or omitted writes to stdout
     --from FORMAT              Input: apiblueprint, openapi
     --to FORMAT                Output: openapi
-    -e, --encoding FORMAT      json or yaml (default: output extension)
+    -e, --encoding FORMAT      json or yaml
     --openapi-version VERSION  Output version (default: 3.1)
     --validate                 Validate input without converting
+    --validate-output          Validate generated OpenAPI before writing it
+    --report FORMAT            Validation report: text or json (requires --validate)
     --verbose                  Report progress
     -v, --version              Print version
     -h, --help                 Show help
@@ -92,12 +95,19 @@ Use --to when writing to stdout. Output versions other than the default are
 accepted only for same-version OpenAPI conversion.
 
 Environment variables: APIBCONV_DEFAULT_ENCODING, APIBCONV_OPENAPI_VERSION.
+Precedence: explicit option, then environment variable, then default.
+Encoding defaults to the output extension, or YAML when no encoding is inferred.
+--validate-output checks the generated document against its OpenAPI schema and
+the built-in model rules; it does not guarantee a lossless conversion or a
+non-empty info.version.
 
 Examples:
     apibconv -o openapi.yaml api.apib
     apibconv -o openapi.json swagger.yaml
     apibconv --to openapi --openapi-version 3.0 -o output.json input.yaml
-    apibconv --validate spec.yaml`)
+    apibconv --to openapi -e json < api.apib > openapi.json
+    apibconv --validate --report json spec.yaml
+    apibconv --validate-output -o openapi.yaml api.apib`)
 	return nil
 }
 
