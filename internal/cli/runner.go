@@ -201,7 +201,7 @@ func openInput(path string) (io.Reader, func(), error) {
 	if path == "" || path == "-" {
 		return os.Stdin, func() {}, nil
 	}
-	file, err := os.Open(path)
+	file, err := os.Open(path) // #nosec G304 -- The CLI intentionally reads the input file selected by the user.
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to open input file: %w", err)
 	}
