@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -123,6 +124,7 @@ func (r *Runner) Convert(ctx context.Context, cfg *Config) error {
 	}
 
 	var output io.Writer = os.Stdout
+	var pending bytes.Buffer
 	var destination *atomicOutput
 	if cfg.OutputPath != "" && cfg.OutputPath != "-" {
 		var err error
@@ -133,10 +135,34 @@ func (r *Runner) Convert(ctx context.Context, cfg *Config) error {
 		defer destination.cleanup()
 		output = destination.file
 	}
+	if cfg.ValidateOutput {
+		output = &pending
+	}
 
 	err := r.conv.Convert(ctx, input, output, inputFormat, outputFormat)
 	if err != nil {
 		return errors.Wrap("convert", string(outputFormat), fmt.Errorf("%w: %w", errors.ErrConversionFailed, err))
+	}
+	if cfg.ValidateOutput {
+		issues, validationErr := r.conv.Validate(ctx, bytes.NewReader(pending.Bytes()), outputFormat)
+		report := makeValidationReport(issues, validationErr)
+		if err := writeTextIssues(os.Stderr, report.Issues); err != nil {
+			return fmt.Errorf("write output validation diagnostics: %w", err)
+		}
+		if validationErr != nil {
+			return fmt.Errorf("output validation: %w", validationErr)
+		}
+		if !report.Valid {
+			return fmt.Errorf("output validation: %w", errors.ErrValidationFailed)
+		}
+		if destination != nil {
+			output = destination.file
+		} else {
+			output = os.Stdout
+		}
+		if _, err := pending.WriteTo(output); err != nil {
+			return fmt.Errorf("write validated output: %w", err)
+		}
 	}
 
 	if destination != nil {
@@ -192,18 +218,16 @@ func (r *Runner) Validate(ctx context.Context, cfg *Config) error {
 
 	input = strings.NewReader(string(data))
 
-	errs, err := r.conv.Validate(ctx, input, inputFormat)
-	if err != nil {
-		return err
+	issues, validationErr := r.conv.Validate(ctx, input, inputFormat)
+	report := makeValidationReport(issues, validationErr)
+	if err := writeValidationReport(report, cfg.Report, os.Stdout, os.Stderr); err != nil {
+		return fmt.Errorf("write validation report: %w", err)
 	}
-
-	if len(errs) > 0 {
-		for _, e := range errs {
-			fmt.Fprintf(os.Stderr, "%s: %s\n", e.Level, e.Message)
-		}
+	if validationErr != nil {
+		return validationErr
+	}
+	if !report.Valid {
 		return errors.ErrValidationFailed
 	}
-
-	fmt.Println("Validation successful")
 	return nil
 }
