@@ -11,10 +11,11 @@ import (
 )
 
 func TestValidationReportSeverityAndPaths(t *testing.T) {
-	issues := []format.ValidationError{
-		{Level: format.LevelWarning, Path: "/info", Message: "review this"},
-		{Level: format.LevelInfo, Path: "/paths", Message: "information"},
-	}
+	issues := make([]format.ValidationError, 0, 3)
+	issues = append(issues,
+		format.ValidationError{Level: format.LevelWarning, Path: "/info", Message: "review this"},
+		format.ValidationError{Level: format.LevelInfo, Path: "/paths", Message: "information"},
+	)
 	report := makeValidationReport(issues, nil)
 	if !report.Valid {
 		t.Fatal("warnings and informational findings must not fail validation")

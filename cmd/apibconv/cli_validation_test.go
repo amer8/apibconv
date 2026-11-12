@@ -25,7 +25,7 @@ func TestCLIValidationHelper(t *testing.T) {
 	os.Exit(99)
 }
 
-func invokeCLI(t *testing.T, args ...string) (string, string, int) {
+func invokeCLI(t *testing.T, args ...string) (stdoutText, stderrText string, exitCode int) {
 	t.Helper()
 	cmd := exec.Command(os.Args[0], append([]string{"-test.run=^TestCLIValidationHelper$", "--"}, args...)...)
 	cmd.Env = append(os.Environ(), "APIBCONV_TEST_HELPER=1", "APIBCONV_DEFAULT_ENCODING=", "APIBCONV_OPENAPI_VERSION=")
