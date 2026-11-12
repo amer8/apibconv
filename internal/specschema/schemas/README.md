@@ -2,7 +2,7 @@
 
 These schemas are embedded into `apibconv` and used by `apibconv --validate` for OpenAPI documents.
 They are pinned local copies so validation does not depend on network access at runtime.
-License and attribution details are in `THIRD_PARTY_NOTICES.md`.
+See [third-party notices](../../../THIRD_PARTY_NOTICES.md) for license and attribution details.
 
 Sources:
 

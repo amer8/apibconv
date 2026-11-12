@@ -30,10 +30,28 @@ func referenceName(ref, prefix string) (string, error) {
 	return strings.ReplaceAll(strings.ReplaceAll(decoded, "~1", "/"), "~0", "~"), nil
 }
 
+// Extensions on the referring object take precedence over the referenced object.
+func mergeReferenceExtensions(base map[string]interface{}, overlays []map[string]interface{}) map[string]interface{} {
+	result := clonedExtensions(base)
+	for i := len(overlays) - 1; i >= 0; i-- {
+		for key, value := range overlays[i] {
+			if strings.HasPrefix(key, "x-") {
+				if result == nil {
+					result = make(map[string]interface{})
+				}
+				result[key] = value
+			}
+		}
+	}
+	return result
+}
+
 func resolveParameter(input *Parameter, values map[string]Parameter, prefix string) (Parameter, error) {
 	v := *input
 	seen := map[string]bool{}
+	var overlays []map[string]interface{}
 	for v.Ref != "" {
+		overlays = append(overlays, v.Extensions)
 		if seen[v.Ref] {
 			return Parameter{}, fmt.Errorf("cyclic parameter reference %q", v.Ref)
 		}
@@ -48,11 +66,15 @@ func resolveParameter(input *Parameter, values map[string]Parameter, prefix stri
 		}
 		v = target
 	}
+	v.Extensions = mergeReferenceExtensions(v.Extensions, overlays)
 	return v, nil
 }
+
 func resolveResponse(v Response, values map[string]Response, prefix string) (Response, error) {
 	seen := map[string]bool{}
+	var overlays []map[string]interface{}
 	for v.Ref != "" {
+		overlays = append(overlays, v.Extensions)
 		if seen[v.Ref] {
 			return Response{}, fmt.Errorf("cyclic response reference %q", v.Ref)
 		}
@@ -67,11 +89,15 @@ func resolveResponse(v Response, values map[string]Response, prefix string) (Res
 		}
 		v = target
 	}
+	v.Extensions = mergeReferenceExtensions(v.Extensions, overlays)
 	return v, nil
 }
+
 func resolveRequestBody(v RequestBody, values map[string]RequestBody) (RequestBody, error) {
 	seen := map[string]bool{}
+	var overlays []map[string]interface{}
 	for v.Ref != "" {
+		overlays = append(overlays, v.Extensions)
 		if seen[v.Ref] {
 			return RequestBody{}, fmt.Errorf("cyclic request body reference %q", v.Ref)
 		}
@@ -86,8 +112,10 @@ func resolveRequestBody(v RequestBody, values map[string]RequestBody) (RequestBo
 		}
 		v = target
 	}
+	v.Extensions = mergeReferenceExtensions(v.Extensions, overlays)
 	return v, nil
 }
+
 func resolveOperation(op *Operation, params map[string]Parameter, responses map[string]Response, bodies map[string]RequestBody, v2 bool) error {
 	if op == nil {
 		return nil
@@ -119,6 +147,7 @@ func resolveOperation(op *Operation, params map[string]Parameter, responses map[
 	}
 	return nil
 }
+
 func resolvePathV3(input *PathItem, doc *OpenAPI) (PathItem, error) {
 	return resolvePathV3Depth(input, doc, 0)
 }
@@ -129,14 +158,18 @@ func resolvePathV3Depth(input *PathItem, doc *OpenAPI, depth int) (PathItem, err
 	}
 	item := *input
 	seen := map[string]bool{}
+	var overlays []map[string]interface{}
 	for item.Ref != "" {
+		overlays = append(overlays, item.Extensions)
 		ref := item.Ref
 		if seen[ref] {
 			return item, fmt.Errorf("cyclic path reference %q", ref)
 		}
 		seen[ref] = true
-		// Siblings of a Path Item reference have undefined behavior; reject instead of silently discarding them.
-		if item.Get != nil || item.Put != nil || item.Post != nil || item.Delete != nil || item.Options != nil || item.Head != nil || item.Patch != nil || item.Trace != nil || len(item.Parameters) > 0 || len(item.Servers) > 0 || item.Summary != "" || item.Description != "" {
+		// A Path Item reference with siblings has undefined behavior.
+		if item.Get != nil || item.Put != nil || item.Post != nil || item.Delete != nil ||
+			item.Options != nil || item.Head != nil || item.Patch != nil || item.Trace != nil ||
+			len(item.Parameters) > 0 || len(item.Servers) > 0 || item.Summary != "" || item.Description != "" {
 			return item, fmt.Errorf("path reference %q has unsupported sibling fields", ref)
 		}
 		var target PathItem
@@ -162,6 +195,7 @@ func resolvePathV3Depth(input *PathItem, doc *OpenAPI, depth int) (PathItem, err
 		}
 		item = target
 	}
+	item.Extensions = mergeReferenceExtensions(item.Extensions, overlays)
 	for i := range item.Parameters {
 		p, err := resolveParameter(&item.Parameters[i], doc.Components.Parameters, "#/components/parameters/")
 		if err != nil {
@@ -191,7 +225,9 @@ func resolveCallback(callback Callback, doc *OpenAPI, depth int) (Callback, erro
 		return Callback{}, fmt.Errorf("callback nesting or reference cycle exceeds limit")
 	}
 	seen := map[string]bool{}
+	var overlays []map[string]interface{}
 	for callback.Ref != "" {
+		overlays = append(overlays, callback.Extensions)
 		ref := callback.Ref
 		if seen[ref] {
 			return Callback{}, fmt.Errorf("cyclic callback reference %q", ref)
@@ -216,18 +252,22 @@ func resolveCallback(callback Callback, doc *OpenAPI, depth int) (Callback, erro
 		}
 		paths[expression] = resolved
 	}
-	return Callback{Paths: paths}, nil
+	return Callback{Paths: paths, Extensions: mergeReferenceExtensions(callback.Extensions, overlays)}, nil
 }
+
 func resolvePathV2(input *PathItemV2, doc *Swagger20) (PathItemV2, error) {
 	item := *input
 	seen := map[string]bool{}
+	var overlays []map[string]interface{}
 	for item.Ref != "" {
+		overlays = append(overlays, item.Extensions)
 		ref := item.Ref
 		if seen[ref] {
 			return item, fmt.Errorf("cyclic path reference %q", ref)
 		}
 		seen[ref] = true
-		if item.Get != nil || item.Put != nil || item.Post != nil || item.Delete != nil || item.Options != nil || item.Head != nil || item.Patch != nil || len(item.Parameters) > 0 {
+		if item.Get != nil || item.Put != nil || item.Post != nil || item.Delete != nil ||
+			item.Options != nil || item.Head != nil || item.Patch != nil || len(item.Parameters) > 0 {
 			return item, fmt.Errorf("path reference %q has unsupported sibling fields", ref)
 		}
 		name, err := referenceName(ref, "#/paths/")
@@ -240,6 +280,7 @@ func resolvePathV2(input *PathItemV2, doc *Swagger20) (PathItemV2, error) {
 		}
 		item = target
 	}
+	item.Extensions = mergeReferenceExtensions(item.Extensions, overlays)
 	for i := range item.Parameters {
 		p, err := resolveParameter(&item.Parameters[i], doc.Parameters, "#/parameters/")
 		if err != nil {

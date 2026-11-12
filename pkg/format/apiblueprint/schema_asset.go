@@ -54,6 +54,18 @@ func parseSchemaAsset(data []byte, components map[string]*model.Schema, generate
 }
 
 func decodeAssetSchema(data []byte) (*model.Schema, error) {
+	var original, clean map[string]interface{}
+	if err := json.Unmarshal(data, &original); err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal(data, &clean); err != nil {
+		return nil, err
+	}
+	stripAssetExtensions(clean)
+	data, err := json.Marshal(clean)
+	if err != nil {
+		return nil, err
+	}
 	var schema model.Schema
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
@@ -93,7 +105,122 @@ func decodeAssetSchema(data []byte) (*model.Schema, error) {
 	if err := visit(&schema); err != nil {
 		return nil, err
 	}
+	visitAssetSchema(original, &schema, func(object map[string]interface{}, schema *model.Schema) {
+		for key, value := range object {
+			if strings.HasPrefix(key, "x-") {
+				if schema.Extensions == nil {
+					schema.Extensions = make(map[string]interface{})
+				}
+				schema.Extensions[key] = value
+			}
+		}
+		if discriminator, ok := object["discriminator"].(map[string]interface{}); ok && schema.Discriminator != nil {
+			for key, value := range discriminator {
+				if strings.HasPrefix(key, "x-") {
+					if schema.Discriminator.Extensions == nil {
+						schema.Discriminator.Extensions = make(map[string]interface{})
+					}
+					schema.Discriminator.Extensions[key] = value
+				}
+			}
+		}
+	})
 	return &schema, nil
+}
+
+// stripAssetExtensions removes extensions only from schema objects, leaving
+// examples, defaults and extension values untouched.
+func stripAssetExtensions(object map[string]interface{}) {
+	for key := range object {
+		if strings.HasPrefix(key, "x-") {
+			delete(object, key)
+		}
+	}
+	if discriminator, ok := object["discriminator"].(map[string]interface{}); ok {
+		for key := range discriminator {
+			if strings.HasPrefix(key, "x-") {
+				delete(discriminator, key)
+			}
+		}
+	}
+	for _, key := range []string{"items", "not", "additionalProperties"} {
+		if child, ok := object[key].(map[string]interface{}); ok {
+			stripAssetExtensions(child)
+		}
+	}
+	if properties, ok := object["properties"].(map[string]interface{}); ok {
+		for _, value := range properties {
+			if child, ok := value.(map[string]interface{}); ok {
+				stripAssetExtensions(child)
+			}
+		}
+	}
+	for _, key := range []string{"allOf", "anyOf", "oneOf"} {
+		if children, ok := object[key].([]interface{}); ok {
+			for _, value := range children {
+				if child, ok := value.(map[string]interface{}); ok {
+					stripAssetExtensions(child)
+				}
+			}
+		}
+	}
+}
+
+func visitAssetSchema(object map[string]interface{}, schema *model.Schema, visit func(map[string]interface{}, *model.Schema)) {
+	if object == nil || schema == nil {
+		return
+	}
+	visit(object, schema)
+	if properties, ok := object["properties"].(map[string]interface{}); ok {
+		for name, value := range properties {
+			child, _ := value.(map[string]interface{})
+			visitAssetSchema(child, schema.Properties[name], visit)
+		}
+	}
+	for key, childSchema := range map[string]*model.Schema{"items": schema.Items, "not": schema.Not} {
+		child, _ := object[key].(map[string]interface{})
+		visitAssetSchema(child, childSchema, visit)
+	}
+	if childSchema, ok := schema.AdditionalProperties.(*model.Schema); ok {
+		child, _ := object["additionalProperties"].(map[string]interface{})
+		visitAssetSchema(child, childSchema, visit)
+	}
+	for key, children := range map[string][]*model.Schema{"allOf": schema.AllOf, "anyOf": schema.AnyOf, "oneOf": schema.OneOf} {
+		values, _ := object[key].([]interface{})
+		for i, childSchema := range children {
+			if i < len(values) {
+				child, _ := values[i].(map[string]interface{})
+				visitAssetSchema(child, childSchema, visit)
+			}
+		}
+	}
+}
+
+func encodeAssetSchema(schema *model.Schema) (interface{}, error) {
+	data, err := json.Marshal(schema)
+	if err != nil {
+		return nil, err
+	}
+	var value interface{}
+	if err := json.Unmarshal(data, &value); err != nil {
+		return nil, err
+	}
+	object, _ := value.(map[string]interface{})
+	visitAssetSchema(object, schema, func(object map[string]interface{}, schema *model.Schema) {
+		for key, value := range schema.Extensions {
+			if strings.HasPrefix(key, "x-") {
+				object[key] = value
+			}
+		}
+		if discriminator, ok := object["discriminator"].(map[string]interface{}); ok && schema.Discriminator != nil {
+			for key, value := range schema.Discriminator.Extensions {
+				if strings.HasPrefix(key, "x-") {
+					discriminator[key] = value
+				}
+			}
+		}
+	})
+	return value, nil
 }
 
 // localizeAssetReferences gives each asset-local JSON Pointer its own reusable
@@ -113,38 +240,12 @@ func localizeAssetReferences(data []byte, components map[string]*model.Schema, g
 			return name, nil
 		}
 		visited[name] = true
-		var target interface{} = original
-		if ref != "#" {
-			if !strings.HasPrefix(ref, "#/") {
-				return "", fmt.Errorf("external schema reference %q cannot be represented", ref)
-			}
-			fragment, err := url.PathUnescape(ref[2:])
-			if err != nil {
-				return "", fmt.Errorf("invalid schema reference %q", ref)
-			}
-			for _, token := range strings.Split(fragment, "/") {
-				var err error
-				token, err = unescapeAssetPointerToken(token)
-				if err != nil {
-					return "", fmt.Errorf("invalid schema reference %q: %w", ref, err)
-				}
-				switch v := target.(type) {
-				case map[string]interface{}:
-					var ok bool
-					target, ok = v[token]
-					if !ok {
-						return "", fmt.Errorf("unresolved schema reference %q", ref)
-					}
-				case []interface{}:
-					i, err := strconv.Atoi(token)
-					if err != nil || i < 0 || i >= len(v) {
-						return "", fmt.Errorf("unresolved schema reference %q", ref)
-					}
-					target = v[i]
-				default:
-					return "", fmt.Errorf("unresolved schema reference %q", ref)
-				}
-			}
+		if ref != "#" && !strings.HasPrefix(ref, "#/") {
+			return "", fmt.Errorf("external schema reference %q cannot be represented", ref)
+		}
+		target, err := assetPointerTarget(original, ref)
+		if err != nil {
+			return "", err
 		}
 		raw, err := json.Marshal(target)
 		if err != nil {
@@ -234,18 +335,25 @@ func localizeAssetReferences(data []byte, components map[string]*model.Schema, g
 // schemaAsset makes the JSON Schema self-contained while retaining the
 // component pointers used by the model, including recursive references.
 func schemaAsset(schema *model.Schema, api *model.API) ([]byte, error) {
-	data, err := json.Marshal(schema)
+	value, err := encodeAssetSchema(schema)
 	if err != nil {
 		return nil, err
 	}
-	var root map[string]interface{}
-	if err := json.Unmarshal(data, &root); err != nil {
-		return nil, err
+	root, ok := value.(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("schema asset must be an object")
 	}
 	if len(api.Components.Schemas) > 0 {
-		root["components"] = map[string]interface{}{"schemas": api.Components.Schemas}
+		schemas := make(map[string]interface{}, len(api.Components.Schemas))
+		for name, component := range api.Components.Schemas {
+			schemas[name], err = encodeAssetSchema(component)
+			if err != nil {
+				return nil, fmt.Errorf("component %q: %w", name, err)
+			}
+		}
+		root["components"] = map[string]interface{}{"schemas": schemas}
 	}
-	data, err = json.Marshal(root)
+	data, err := json.Marshal(root)
 	if err != nil {
 		return nil, err
 	}
@@ -260,38 +368,14 @@ func schemaAsset(schema *model.Schema, api *model.API) ([]byte, error) {
 				if ref != "#" && !strings.HasPrefix(ref, "#/") {
 					return fmt.Errorf("external schema reference %q cannot be embedded", ref)
 				}
-				current := interface{}(root)
-				if ref != "#" {
-					fragment, err := url.PathUnescape(ref[2:])
-					if err != nil {
-						return fmt.Errorf("invalid schema reference %q", ref)
-					}
-					for _, token := range strings.Split(fragment, "/") {
-						var err error
-						token, err = unescapeAssetPointerToken(token)
-						if err != nil {
-							return fmt.Errorf("invalid schema reference %q: %w", ref, err)
-						}
-						switch c := current.(type) {
-						case map[string]interface{}:
-							var exists bool
-							current, exists = c[token]
-							if !exists {
-								return fmt.Errorf("unresolved schema reference %q", ref)
-							}
-						case []interface{}:
-							i, err := strconv.Atoi(token)
-							if err != nil || i < 0 || i >= len(c) {
-								return fmt.Errorf("unresolved schema reference %q", ref)
-							}
-							current = c[i]
-						default:
-							return fmt.Errorf("unresolved schema reference %q", ref)
-						}
-					}
+				if _, err := assetPointerTarget(root, ref); err != nil {
+					return err
 				}
 			}
-			for _, child := range v {
+			for key, child := range v {
+				if strings.HasPrefix(key, "x-") {
+					continue
+				}
 				if err := walk(child); err != nil {
 					return err
 				}
@@ -309,6 +393,41 @@ func schemaAsset(schema *model.Schema, api *model.API) ([]byte, error) {
 		return nil, err
 	}
 	return data, nil
+}
+
+// assetPointerTarget resolves a local JSON Pointer against a decoded schema asset.
+func assetPointerTarget(root interface{}, ref string) (interface{}, error) {
+	if ref == "#" {
+		return root, nil
+	}
+	fragment, err := url.PathUnescape(ref[2:])
+	if err != nil {
+		return nil, fmt.Errorf("invalid schema reference %q", ref)
+	}
+	current := root
+	for _, token := range strings.Split(fragment, "/") {
+		token, err = unescapeAssetPointerToken(token)
+		if err != nil {
+			return nil, fmt.Errorf("invalid schema reference %q: %w", ref, err)
+		}
+		switch value := current.(type) {
+		case map[string]interface{}:
+			var ok bool
+			current, ok = value[token]
+			if !ok {
+				return nil, fmt.Errorf("unresolved schema reference %q", ref)
+			}
+		case []interface{}:
+			index, err := strconv.Atoi(token)
+			if err != nil || index < 0 || index >= len(value) {
+				return nil, fmt.Errorf("unresolved schema reference %q", ref)
+			}
+			current = value[index]
+		default:
+			return nil, fmt.Errorf("unresolved schema reference %q", ref)
+		}
+	}
+	return current, nil
 }
 
 func unescapeAssetPointerToken(token string) (string, error) {

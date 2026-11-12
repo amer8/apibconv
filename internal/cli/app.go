@@ -11,42 +11,36 @@ import (
 
 // App is the main application struct.
 type App struct {
-	converter *converter.Converter
-	runner    *Runner
-	version   string
+	runner  *Runner
+	version string
 }
 
 // NewApp creates a new CLI application instance.
 func NewApp(conv *converter.Converter, version string) *App {
 	return &App{
-		converter: conv,
-		runner:    NewRunner(conv),
-		version:   version,
+		runner:  NewRunner(conv),
+		version: version,
 	}
 }
 
 // Run executes the CLI application.
 func (a *App) Run(ctx context.Context, args []string) error {
-	// 1. Parse Flags
 	flags, posArgs, err := ParseFlags(args)
 	if err != nil {
-		return err // Flag package already prints errors to stderr usually, but we bubble up
+		return err
 	}
 
-	// 2. Create Config
 	cfg, err := ConfigFromFlags(flags, posArgs)
 	if err != nil {
 		return err
 	}
 
-	// Check if we are waiting for stdin in a terminal environment
 	if cfg.InputPath == "" && (cfg.Mode == ModeConvert || cfg.Mode == ModeValidate) {
 		if isStdinTerminal() {
 			return a.printUsage()
 		}
 	}
 
-	// 3. Execute based on Mode
 	switch cfg.Mode {
 	case ModeHelp:
 		return a.printUsage()
@@ -90,9 +84,9 @@ Options:
     -v, --version              Print version
     -h, --help                 Show help
 
-JSON/YAML output defaults to the input format, or OpenAPI for API Blueprint.
-Use --to when writing to stdout. Output versions other than the default are
-accepted only for same-version OpenAPI conversion.
+Output files default to OpenAPI. Use --to openapi when writing to stdout.
+Output versions other than the default are accepted only for same-version
+OpenAPI conversion.
 
 Environment variables: APIBCONV_DEFAULT_ENCODING, APIBCONV_OPENAPI_VERSION.
 Precedence: explicit option, then environment variable, then default.
@@ -116,8 +110,7 @@ func (a *App) printVersion() error {
 	return nil
 }
 
-// isStdinTerminal checks if stdin is a terminal
 func isStdinTerminal() bool {
-	stat, _ := os.Stdin.Stat()
-	return (stat.Mode() & os.ModeCharDevice) != 0
+	stat, err := os.Stdin.Stat()
+	return err == nil && (stat.Mode()&os.ModeCharDevice) != 0
 }

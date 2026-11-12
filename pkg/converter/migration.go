@@ -25,9 +25,6 @@ func checkMigration(ctx context.Context, from, to format.Format, sourceVersion, 
 			targetVersion = v
 		}
 	}
-	unsupported := func() error {
-		return fmt.Errorf("%w: %s %s to %s %s; supported conversions are API Blueprint to OpenAPI 3.1, OpenAPI 2.0/3.0 to 3.1, and same-version OpenAPI", apierrors.ErrUnsupportedConversion, from, sourceVersion, to, targetVersion)
-	}
 	target := majorMinor(targetVersion)
 	source := majorMinor(sourceVersion)
 	switch {
@@ -40,7 +37,8 @@ func checkMigration(ctx context.Context, from, to format.Format, sourceVersion, 
 			return nil
 		}
 	}
-	return unsupported()
+	return fmt.Errorf("%w: %s %s to %s %s; supported conversions are API Blueprint to OpenAPI 3.1, OpenAPI 2.0/3.0 to 3.1, and same-version OpenAPI",
+		apierrors.ErrUnsupportedConversion, from, sourceVersion, to, targetVersion)
 }
 
 func majorMinor(version string) string {

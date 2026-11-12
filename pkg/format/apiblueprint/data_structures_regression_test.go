@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestP1ResourceBeforeDataStructures(t *testing.T) {
+func TestResourceBeforeDataStructures(t *testing.T) {
 	input := `FORMAT: 1A
 # Example
 ## Resource [/resource]

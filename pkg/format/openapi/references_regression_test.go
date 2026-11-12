@@ -13,7 +13,7 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-func TestP1ReferencesConstraintsAndServersRoundTrip(t *testing.T) {
+func TestReferencesConstraintsAndServersRoundTrip(t *testing.T) {
 	input := `openapi: 3.0.3
 info: {title: Test, version: '1'}
 servers: [{url: 'https://root.example'}]
@@ -72,7 +72,7 @@ components:
 	}
 }
 
-func TestP1ReferencesRejectUnresolvable(t *testing.T) {
+func TestReferencesRejectUnresolvable(t *testing.T) {
 	for _, ref := range []string{"#/paths/~1missing", "https://example.test/spec.yaml#/paths/~1x", "#/paths/~2bad"} {
 		input := "openapi: 3.0.3\ninfo: {title: Test, version: '1'}\npaths:\n  /x: {$ref: '" + ref + "'}\n"
 		if _, err := NewParser().Parse(context.Background(), strings.NewReader(input)); err == nil {
@@ -81,7 +81,7 @@ func TestP1ReferencesRejectUnresolvable(t *testing.T) {
 	}
 }
 
-func TestP1SwaggerFormParameters(t *testing.T) {
+func TestSwaggerFormParameters(t *testing.T) {
 	input := `swagger: '2.0'
 info: {title: Test, version: '1'}
 consumes: [multipart/form-data]
@@ -115,7 +115,7 @@ paths:
 	}
 }
 
-func TestP1SwaggerPathAndResponseReferences(t *testing.T) {
+func TestSwaggerPathAndResponseReferences(t *testing.T) {
 	input := `swagger: '2.0'
 info: {title: Test, version: '1'}
 parameters:
@@ -139,7 +139,7 @@ paths:
 	}
 }
 
-func TestP1UnsupportedOutputVersionAndEncoding(t *testing.T) {
+func TestUnsupportedOutputVersionAndEncoding(t *testing.T) {
 	for _, tc := range []struct{ version, encoding string }{{"5.0", "json"}, {"3.0", "potato"}} {
 		var out bytes.Buffer
 		err := NewWriter(WithWriterVersion(tc.version)).Write(converter.WithEncoding(context.Background(), tc.encoding), model.NewAPI(), &out)
@@ -149,7 +149,7 @@ func TestP1UnsupportedOutputVersionAndEncoding(t *testing.T) {
 	}
 }
 
-func TestP1SchemaExclusiveBounds(t *testing.T) {
+func TestSchemaExclusiveBounds(t *testing.T) {
 	for _, tc := range []struct{ version, fragment string }{{"3.0.3", "minimum: 5\n      exclusiveMinimum: true"}, {"3.1.0", "exclusiveMinimum: 5"}} {
 		input := "openapi: " + tc.version + "\ninfo: {title: Test, version: '1'}\npaths: {}\ncomponents:\n  schemas:\n    N:\n      type: number\n      " + tc.fragment + "\n"
 		api, err := NewParser().Parse(context.Background(), strings.NewReader(input))
@@ -172,5 +172,51 @@ func TestP1SchemaExclusiveBounds(t *testing.T) {
 		if s.Minimum == nil || *s.Minimum != 5 || !s.ExclusiveMinimum {
 			t.Fatalf("%s bound = %#v", tc.version, s)
 		}
+	}
+}
+
+func TestReferenceExtensionsArePreserved(t *testing.T) {
+	input := `openapi: 3.1.0
+info: {title: Example, version: '1'}
+paths:
+  /original:
+    x-source: source
+    get:
+      parameters: [{$ref: '#/components/parameters/Limit', x-local: local, x-shared: local}]
+      responses: {'200': {$ref: '#/components/responses/Success', x-local: response}}
+  /alias: {$ref: '#/paths/~1original', x-alias: alias}
+components:
+  parameters:
+    Limit: {name: limit, in: query, schema: {type: integer}, x-shared: source}
+  responses:
+    Success: {description: OK, x-source: response}
+`
+	api, err := NewParser().Parse(context.Background(), strings.NewReader(input))
+	if err != nil {
+		t.Fatal(err)
+	}
+	item := api.Paths["/alias"]
+	if item.Extensions["x-alias"] != "alias" || item.Extensions["x-source"] != "source" {
+		t.Fatalf("path extensions = %#v", item.Extensions)
+	}
+	param := item.Get.Parameters[0]
+	if param.Extensions["x-local"] != "local" || param.Extensions["x-shared"] != "local" {
+		t.Fatalf("parameter extensions = %#v", param.Extensions)
+	}
+	response := item.Get.Responses["200"]
+	if response.Extensions["x-local"] != "response" || response.Extensions["x-source"] != "response" {
+		t.Fatalf("response extensions = %#v", response.Extensions)
+	}
+	var output bytes.Buffer
+	if err := NewWriter().Write(context.Background(), api, &output); err != nil {
+		t.Fatal(err)
+	}
+	reparsed, err := NewParser().Parse(context.Background(), &output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	alias := reparsed.Paths["/alias"]
+	if alias.Extensions["x-alias"] != "alias" || alias.Get.Parameters[0].Extensions["x-shared"] != "local" {
+		t.Fatal("reference extensions were lost after writing")
 	}
 }

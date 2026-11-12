@@ -21,13 +21,6 @@ type specEnvelope struct {
 	Swagger string `yaml:"swagger"`
 }
 
-// FormatReader interface for types that can inspect data to determine format.
-type FormatReader interface {
-	CanRead(data []byte) bool
-	GetFormat() format.Format
-	GetVersion() string
-}
-
 // NewDetector creates a new Detector instance.
 func NewDetector() *Detector {
 	return &Detector{}
@@ -108,34 +101,23 @@ func APIBlueprint(data []byte) bool {
 		return true
 	}
 
-	lines := strings.Split(trimmed, "\n")
-	hasTitle := false
-	hasBlueprintStructure := false
-
-	for _, rawLine := range lines {
+	for _, rawLine := range strings.Split(trimmed, "\n") {
 		line := strings.TrimSpace(rawLine)
-		if line == "" {
+		// Treat a top-level heading as the API title, not a structure marker.
+		if reBlueprintTitle.MatchString(line) {
 			continue
 		}
-
 		switch {
-		case reBlueprintTitle.MatchString(line):
-			hasTitle = true
 		case reBlueprintGroup.MatchString(line),
 			reBlueprintResource.MatchString(line),
 			reBlueprintAction.MatchString(line),
 			reBlueprintAttributes.MatchString(line),
 			reBlueprintResponse.MatchString(line),
 			reBlueprintDataStructures.MatchString(line):
-			hasBlueprintStructure = true
-		}
-
-		if hasTitle && hasBlueprintStructure {
 			return true
 		}
 	}
-
-	return hasBlueprintStructure
+	return false
 }
 
 var (

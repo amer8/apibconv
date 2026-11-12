@@ -31,14 +31,15 @@ type Options struct {
 // Option is a functional option for configuring the Validator.
 type Option func(*Options)
 
-// WithStopOnError configures the validator to stop on the first error encountered.
+// WithStopOnError stops after the first rule that reports an error. All issues
+// from that rule, including warnings, are returned.
 func WithStopOnError(stop bool) Option {
 	return func(o *Options) {
 		o.StopOnFirstError = stop
 	}
 }
 
-// WithWarnings configures the validator to include warnings in the results.
+// WithWarnings controls whether warning-level issues are included in results.
 func WithWarnings(include bool) Option {
 	return func(o *Options) {
 		o.IncludeWarnings = include
@@ -70,10 +71,13 @@ func (v *Validator) Validate(ctx context.Context, api *model.API) ([]format.Vali
 
 	for _, rule := range v.rules {
 		errs := rule.Validate(ctx, api)
-		allErrors = append(allErrors, errs...)
+		for _, issue := range errs {
+			if issue.Level != format.LevelWarning || v.opts.IncludeWarnings {
+				allErrors = append(allErrors, issue)
+			}
+		}
 
 		if v.opts.StopOnFirstError && len(errs) > 0 {
-			// Check if any are errors
 			for _, e := range errs {
 				if e.Level == format.LevelError {
 					return allErrors, nil
@@ -96,15 +100,13 @@ func (v *Validator) ValidateOperation(op *model.Operation) []format.ValidationEr
 		return errors
 	}
 
-	// Validate Parameters
-	for i, p := range op.Parameters {
-		if p.Schema != nil {
-			errs := ValidateSchemaNode(p.Schema, fmt.Sprintf("parameters[%d]", i))
+	for i := range op.Parameters {
+		if op.Parameters[i].Schema != nil {
+			errs := ValidateSchemaNode(op.Parameters[i].Schema, fmt.Sprintf("parameters[%d]", i))
 			errors = append(errors, errs...)
 		}
 	}
 
-	// Validate RequestBody
 	if op.RequestBody != nil {
 		for ct, mt := range op.RequestBody.Content {
 			if mt.Schema != nil {
@@ -114,7 +116,6 @@ func (v *Validator) ValidateOperation(op *model.Operation) []format.ValidationEr
 		}
 	}
 
-	// Validate Responses
 	for status, resp := range op.Responses {
 		for ct, mt := range resp.Content {
 			if mt.Schema != nil {

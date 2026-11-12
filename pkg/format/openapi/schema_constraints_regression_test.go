@@ -9,7 +9,7 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-func TestP1NestedAdditionalPropertiesReference(t *testing.T) {
+func TestNestedAdditionalPropertiesReference(t *testing.T) {
 	for _, tc := range []struct{ input, version, expected string }{
 		{"swagger: '2.0'\ninfo: {title: T, version: '1'}\npaths: {}\ndefinitions:\n  Pet: {type: string}\n  Map: {type: object, additionalProperties: {$ref: '#/definitions/Pet'}}\n", "3.0", "#/components/schemas/Pet"},
 		{"openapi: 3.0.0\ninfo: {title: T, version: '1'}\npaths: {}\ncomponents:\n  schemas:\n    Pet: {type: string}\n    Map: {type: object, additionalProperties: {$ref: '#/components/schemas/Pet'}}\n", "2.0", "#/definitions/Pet"},
@@ -39,7 +39,7 @@ func TestP1NestedAdditionalPropertiesReference(t *testing.T) {
 	}
 }
 
-func TestP1IndependentNumericBounds(t *testing.T) {
+func TestIndependentNumericBounds(t *testing.T) {
 	input := `openapi: 3.1.0
 info: {title: T, version: '1'}
 paths: {}

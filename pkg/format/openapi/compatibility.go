@@ -16,18 +16,30 @@ func validateSchemaCompatibility(api *model.API, version string) error {
 	swagger := strings.HasPrefix(version, "2")
 	oas30 := strings.HasPrefix(version, "3.0")
 	seen := map[*model.Schema]bool{}
+	activeSchemas := map[*model.Schema]bool{}
 	var schema func(*model.Schema) error
 	schema = func(s *model.Schema) error {
-		if s == nil || seen[s] {
+		if s == nil {
+			return nil
+		}
+		if activeSchemas[s] {
+			return fmt.Errorf("cyclic schema cannot be written directly; use a reference")
+		}
+		if seen[s] {
 			return nil
 		}
 		seen[s] = true
+		activeSchemas[s] = true
+		defer delete(activeSchemas, s)
 		if (swagger || oas30) && s.Ref != "" {
 			withoutRef := *s
 			withoutRef.Ref = ""
 			if !reflect.DeepEqual(withoutRef, model.Schema{}) {
 				return fmt.Errorf("schema reference siblings cannot be represented in OpenAPI %s", version)
 			}
+		}
+		if swagger && s.Discriminator != nil {
+			return fmt.Errorf("schema discriminator cannot be represented in OpenAPI 2.0")
 		}
 		if swagger && (s.Nullable || len(s.AnyOf) != 0 || len(s.OneOf) != 0 || s.Not != nil || s.WriteOnly || s.Deprecated) {
 			return fmt.Errorf("schema contains constraints not representable in OpenAPI 2.0")
@@ -66,6 +78,13 @@ func validateSchemaCompatibility(api *model.API, version string) error {
 			if err := schema(media.Schema); err != nil {
 				return err
 			}
+			for _, encoding := range media.Encoding {
+				for _, header := range encoding.Headers {
+					if err := schema(header.Schema); err != nil {
+						return err
+					}
+				}
+			}
 			if swagger && firstSet && !reflect.DeepEqual(first, media.Schema) {
 				return fmt.Errorf("different content type schemas cannot be represented in OpenAPI 2.0")
 			}
@@ -73,22 +92,48 @@ func validateSchemaCompatibility(api *model.API, version string) error {
 		}
 		return nil
 	}
+	checkParameters := func(parameters []model.Parameter) error {
+		for i := range parameters {
+			parameter := &parameters[i]
+			if swagger {
+				if _, err := swaggerParameterSchema(parameter.Schema, api); err != nil {
+					return err
+				}
+			}
+			if err := schema(parameter.Schema); err != nil {
+				return err
+			}
+			if err := checkContent(parameter.Content); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	checkHeaders := func(headers map[string]model.Header) error {
+		for _, header := range headers {
+			if swagger {
+				if _, err := swaggerHeaderSchema(header.Schema, api); err != nil {
+					return err
+				}
+			}
+			if err := schema(header.Schema); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	checkResponse := func(response model.Response) error {
+		if err := checkContent(response.Content); err != nil {
+			return err
+		}
+		return checkHeaders(response.Headers)
+	}
 	var path func(model.PathItem) error
 	seenOps := map[*model.Operation]bool{}
 	activeOps := map[*model.Operation]bool{}
 	path = func(item model.PathItem) error {
-		for _, p := range item.Parameters {
-			if swagger {
-				if _, err := swaggerParameterSchema(p.Schema, api); err != nil {
-					return err
-				}
-			}
-			if err := schema(p.Schema); err != nil {
-				return err
-			}
-			if err := checkContent(p.Content); err != nil {
-				return err
-			}
+		if err := checkParameters(item.Parameters); err != nil {
+			return err
 		}
 		for _, op := range []*model.Operation{item.Get, item.Put, item.Post, item.Delete, item.Options, item.Head, item.Patch, item.Trace} {
 			if op == nil {
@@ -102,37 +147,17 @@ func validateSchemaCompatibility(api *model.API, version string) error {
 			}
 			seenOps[op] = true
 			activeOps[op] = true
-			for _, p := range op.Parameters {
-				if swagger {
-					if _, err := swaggerParameterSchema(p.Schema, api); err != nil {
-						return err
-					}
-				}
-				if err := schema(p.Schema); err != nil {
-					return err
-				}
-				if err := checkContent(p.Content); err != nil {
-					return err
-				}
+			if err := checkParameters(op.Parameters); err != nil {
+				return err
 			}
 			if op.RequestBody != nil {
 				if err := checkContent(op.RequestBody.Content); err != nil {
 					return err
 				}
 			}
-			for _, resp := range op.Responses {
-				if err := checkContent(resp.Content); err != nil {
+			for _, response := range op.Responses {
+				if err := checkResponse(response); err != nil {
 					return err
-				}
-				for _, h := range resp.Headers {
-					if swagger {
-						if _, err := swaggerHeaderSchema(h.Schema, api); err != nil {
-							return err
-						}
-					}
-					if err := schema(h.Schema); err != nil {
-						return err
-					}
 				}
 			}
 			for _, callback := range op.Callbacks {
@@ -151,6 +176,25 @@ func validateSchemaCompatibility(api *model.API, version string) error {
 		if err := schema(s); err != nil {
 			return err
 		}
+	}
+	for name := range api.Components.Parameters {
+		parameter := api.Components.Parameters[name]
+		if err := checkParameters([]model.Parameter{parameter}); err != nil {
+			return fmt.Errorf("parameter component %q: %w", name, err)
+		}
+	}
+	for name, body := range api.Components.RequestBodies {
+		if err := checkContent(body.Content); err != nil {
+			return fmt.Errorf("request body component %q: %w", name, err)
+		}
+	}
+	for name, response := range api.Components.Responses {
+		if err := checkResponse(response); err != nil {
+			return fmt.Errorf("response component %q: %w", name, err)
+		}
+	}
+	if err := checkHeaders(api.Components.Headers); err != nil {
+		return fmt.Errorf("header component: %w", err)
 	}
 	for _, paths := range []map[string]model.PathItem{api.Paths, api.Webhooks} {
 		for name := range paths {

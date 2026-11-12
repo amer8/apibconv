@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestReviewAllHTTPMethodsRoundTrip(t *testing.T) {
+func TestAllHTTPMethodsRoundTrip(t *testing.T) {
 	api := model.NewAPI()
 	api.Paths["/things"] = model.PathItem{Head: &model.Operation{}, Options: &model.Operation{}, Trace: &model.Operation{}}
 	var out bytes.Buffer

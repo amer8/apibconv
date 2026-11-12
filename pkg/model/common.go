@@ -15,8 +15,7 @@ type Metadata struct {
 	Version    string
 }
 
-// IsEmpty checks if the reference is empty
+// IsEmpty reports whether the reference is empty.
 func (r *Reference) IsEmpty() bool {
 	return r.Ref == ""
 }
-

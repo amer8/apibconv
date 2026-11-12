@@ -8,13 +8,9 @@
 
 ## Reporting a Vulnerability
 
-We take security vulnerabilities seriously. If you discover a security issue, please report it responsibly.
-
-### How to Report
-
-1. **Do not** open a public GitHub issue for security vulnerabilities
-2. Email your findings to the repository maintainers via GitHub's private vulnerability reporting feature
-3. Alternatively, use [GitHub's Security Advisory feature](https://github.com/amer8/apibconv/security/advisories/new) to report privately
+Please report security vulnerabilities privately through
+[GitHub Security Advisories](https://github.com/amer8/apibconv/security/advisories/new).
+Do not open a public issue.
 
 ### What to Include
 
@@ -29,9 +25,12 @@ Please include the following information in your report:
 
 This repository is currently maintained by a single active maintainer.
 
-Because there is not yet a second active reviewer with write access, independent human approval cannot be required for every change. This is a known project limitation and should not be interpreted as equivalent to multi-maintainer review.
+There is no second active reviewer with write access, so independent approval is
+not required for every change. This is a limitation of the project’s review process.
 
-Where practical, changes should still be proposed through pull requests and merged through protected-branch or repository-rule workflows rather than by direct pushes. If additional maintainers are added in the future, the project intends to require independent approval for protected branch changes.
+Where practical, changes should be proposed through pull requests and merged
+through protected-branch or repository-rule workflows. If more maintainers join,
+the project intends to require independent approval for protected branches.
 
 ## Security Practices
 
@@ -50,5 +49,3 @@ Published immutable releases additionally have GitHub-generated release attestat
 These controls apply to releases produced by that workflow; older releases may have
 only checksums or checksum signatures. See the README for verification and release
 recovery instructions.
-
-Thank you for helping keep this project secure.

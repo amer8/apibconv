@@ -31,7 +31,7 @@ func defaultOptions() Options {
 	}
 }
 
-// WithStrict enables strict mode, where warnings are treated as errors.
+// WithStrict validates the model before and after transformation and treats warnings as errors.
 func WithStrict(strict bool) Option {
 	return func(o *Options) {
 		o.Strict = strict
@@ -39,6 +39,7 @@ func WithStrict(strict bool) Option {
 }
 
 // WithValidation enables model validation after parsing and/or before writing.
+// It does not validate the serialized output against its specification schema.
 // Error-level issues fail conversion; warnings do not.
 func WithValidation(input, output bool) Option {
 	return func(o *Options) {
@@ -47,7 +48,7 @@ func WithValidation(input, output bool) Option {
 	}
 }
 
-// WithExtensions enables or disables preservation of vendor extensions.
+// WithExtensions controls preservation of vendor extensions in the model.
 func WithExtensions(preserve bool) Option {
 	return func(o *Options) {
 		o.PreserveExtensions = preserve
@@ -61,14 +62,15 @@ func WithTransform(fn TransformFunc) Option {
 	}
 }
 
-// WithWarningHandler sets a custom handler for warning messages.
+// WithWarningHandler reports model validation warnings during conversion and validation.
+// Setting a handler enables model validation on input and output.
 func WithWarningHandler(fn WarningFunc) Option {
 	return func(o *Options) {
 		o.OnWarning = fn
 	}
 }
 
-// WithProgress sets a callback function to track conversion progress (bytes read).
+// WithProgress reports the cumulative bytes read while parsing the input.
 func WithProgress(fn func(int64)) Option {
 	return func(o *Options) {
 		o.OnProgress = fn

@@ -1,3 +1,5 @@
+# apibconv
+
 ![API Blueprint to OpenAPI migration demo](docs/demo/apibconv.gif)
 
 [![CI](https://github.com/amer8/apibconv/actions/workflows/ci.yml/badge.svg)](https://github.com/amer8/apibconv/actions/workflows/ci.yml)
@@ -34,8 +36,9 @@ Conversion is not lossless, including same-version encoding conversion: it goes
 through a shared model and can omit or change fields. In particular, the API
 Blueprint parser handles a subset of the format; Swagger operation-level
 `schemes` and OpenAPI referenced response headers are not preserved. Keep the
-original files, validate the output, and review it against the source before using it as an API contract. Unsupported schema
-keywords and some unsupported security combinations are rejected.
+original files, validate the output, and review it against the source before using
+it as an API contract. Unsupported schema keywords and some security combinations
+are rejected.
 The OpenAPI writer also adds a default `404` response when an operation has no
 4xx response.
 
@@ -66,88 +69,30 @@ go install github.com/amer8/apibconv/cmd/apibconv@latest
 ### Using Docker
 
 **Pull the image**
-```sh 
+```sh
 docker pull ghcr.io/amer8/apibconv:latest
 ```
 
 **Run directly**
 ```sh
-docker run --rm -v $(pwd):/data -w /data ghcr.io/amer8/apibconv -o openapi.json api.apib
+docker run --rm -v "$(pwd):/data" -w /data ghcr.io/amer8/apibconv -o openapi.json api.apib
 ```
 
-### Download Binary
+### Download a binary
 
 Download pre-built binaries from [GitHub Releases](https://github.com/amer8/apibconv/releases).
 
-Prebuilt macOS binaries require **macOS 13 Ventura or newer**.
-
-- published release assets cover Linux, macOS, and Windows on `x64` and `arm64`
-- each platform archive ships with a matching `*_checksums.txt` file for targeted verification
-- signed releases also ship a matching `*.sigstore.json` bundle for the checksum file
-- each release also includes a CycloneDX `bom.json` SBOM
-
-Older releases may only have the checksum file. In that case, verify the checksum directly.
-
-Example verification:
-
-```sh
-cosign verify-blob \
-  --bundle apibconv_X.Y.Z_Linux_x86_64.tar.gz_checksums.txt.sigstore.json \
-  --certificate-identity "https://github.com/amer8/apibconv/.github/workflows/release.yml@refs/tags/vX.Y.Z" \
-  --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-  apibconv_X.Y.Z_Linux_x86_64.tar.gz_checksums.txt
-
-sha256sum -c apibconv_X.Y.Z_Linux_x86_64.tar.gz_checksums.txt
-```
-
-Releases produced by the provenance-enabled release workflow additionally include
-`apibconv_X.Y.Z_provenance.sigstore.json` and `apibconv_X.Y.Z_provenance.intoto.jsonl`.
-The native Sigstore bundle contains signed SLSA build provenance covering every platform
-archive, checksum file, checksum signature bundle, and the SBOM. The JSONL file exports
-the same signed in-toto envelope for tools such as OpenSSF Scorecard.
-
-For an immutable release, verify GitHub's release attestation and a downloaded archive:
-
-```sh
-gh release verify vX.Y.Z --repo amer8/apibconv
-gh release verify-asset vX.Y.Z apibconv_X.Y.Z_Linux_x86_64.tar.gz --repo amer8/apibconv
-```
-
-Verify the archive's build provenance using its downloaded native bundle:
-
-```sh
-gh attestation verify apibconv_X.Y.Z_Linux_x86_64.tar.gz \
-  --repo amer8/apibconv \
-  --bundle apibconv_X.Y.Z_provenance.sigstore.json \
-  --cert-identity "https://github.com/amer8/apibconv/.github/workflows/release.yml@refs/tags/vX.Y.Z" \
-  --source-ref refs/tags/vX.Y.Z \
-  --deny-self-hosted-runners
-```
-
-Add `--source-digest <expected-commit-sha>` to require a particular source commit.
-Build provenance identifies the source and build workflow. GitHub's release attestation
-binds the published tag, commit, and release assets. Older releases may lack either
-attestation; use the checksum and signature checks available for those releases.
-
-Container provenance is published with the image in GHCR. After authenticating to GHCR,
-verify an image by its exact digest, replacing `IMAGE_DIGEST` with the SHA-256 digest:
-
-```sh
-gh attestation verify oci://ghcr.io/amer8/apibconv@sha256:IMAGE_DIGEST \
-  --repo amer8/apibconv --bundle-from-oci \
-  --cert-identity "https://github.com/amer8/apibconv/.github/workflows/release.yml@refs/tags/vX.Y.Z" \
-  --source-ref refs/tags/vX.Y.Z \
-  --deny-self-hosted-runners
-```
-
+Prebuilt macOS binaries require **macOS 13 Ventura or newer**. See
+[Release verification](#release-verification) for checksums and attestations.
 
 ## Usage
 
 ### CLI Usage
 
-The input format is detected from content, or can be set with `--from`. For
-JSON/YAML output files, the output defaults to the input format, or OpenAPI for
-API Blueprint. Specify `--to` for stdout. See `apibconv --help` for all options.
+The input format is detected from the content, or can be set with `--from`.
+Output files default to OpenAPI; when writing to stdout, specify `--to openapi`.
+The output file extension selects JSON or YAML unless `--encoding` or an
+environment variable overrides it. See `apibconv --help` for all options.
 
 ```sh
 apibconv -o openapi.yaml spec.apib
@@ -219,11 +164,103 @@ Published action assets target `x64` and `arm64` runners.
 
 ### Go projects
 
-This tool is designed for seamless integration with servers and CLI tools built in Go.
+Use the Go packages to integrate conversion into your own application. The examples
+show how to register parsers and writers and configure a converter. Run them from
+the repository root with `go run ./examples/basic`, `go run ./examples/advanced`,
+or `go run ./examples/plugin`. The first two create or replace `petstore.json` and
+`transformed.yaml` in that directory.
+
+The Go options support model validation, warning handling, and preservation of
+OpenAPI `x-` extensions on the document and supported model objects, including
+metadata, servers, paths, operations, parameters, request and response bodies,
+media types, headers, schemas, components, and security schemes and flows.
+Fields and extension locations that the shared model does not represent can still
+be lost during conversion.
+
+`converter.WithStrict(true)` validates the model before and after transformation
+and treats warnings as errors. `converter.WithWarningHandler` enables the same
+model checks and reports warnings at each stage; for example, an empty OpenAPI
+`info.version` produces a warning. These model checks are not a substitute for
+validating the serialized document against its specification schema.
+
+`openapi.WithVersion` requires a matching input version: a major/minor version
+accepts any patch, while a full version must match exactly. `openapi.WithStrict`
+validates the input against the bundled schema before parsing. For API Blueprint,
+`WithMarkdownParsing(true)` captures API, resource, and action descriptions;
+the writer's `WithFormat` accepts the supported version, `1A`.
+
+`model.API.Validate` checks model structure, local schema references, security,
+and nested schemas across components, paths, webhooks, and callbacks.
+`model.SecurityScheme.Validate` checks required fields for the scheme type.
+These checks do not resolve external references or replace version-specific
+specification validation.
+See the [Go reference](https://pkg.go.dev/github.com/amer8/apibconv/pkg/converter)
+for the package APIs.
 
 - Basic [example](./examples/basic/main.go)
 - Advanced [example](./examples/advanced/main.go)
-- Plugin [example](./examples/plugin/main.go)
+- Custom transformation [example](./examples/plugin/main.go)
+
+## Release verification
+
+- published release assets cover Linux, macOS, and Windows on `x64` and `arm64`
+- each platform archive ships with a matching `*_checksums.txt` file for targeted verification
+- signed releases also ship a matching `*.sigstore.json` bundle for the checksum file
+- each release also includes a CycloneDX `bom.json` SBOM
+
+Older releases may only have the checksum file. In that case, verify the checksum directly.
+
+Example verification:
+
+```sh
+cosign verify-blob \
+  --bundle apibconv_X.Y.Z_Linux_x86_64.tar.gz_checksums.txt.sigstore.json \
+  --certificate-identity "https://github.com/amer8/apibconv/.github/workflows/release.yml@refs/tags/vX.Y.Z" \
+  --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+  apibconv_X.Y.Z_Linux_x86_64.tar.gz_checksums.txt
+
+sha256sum -c apibconv_X.Y.Z_Linux_x86_64.tar.gz_checksums.txt
+```
+
+Releases produced by the provenance-enabled release workflow additionally include
+`apibconv_X.Y.Z_provenance.sigstore.json` and `apibconv_X.Y.Z_provenance.intoto.jsonl`.
+The native Sigstore bundle contains signed SLSA build provenance covering every platform
+archive, checksum file, checksum signature bundle, and the SBOM. The JSONL file exports
+the same signed in-toto envelope for tools such as OpenSSF Scorecard.
+
+For an immutable release, verify GitHub's release attestation and a downloaded archive:
+
+```sh
+gh release verify vX.Y.Z --repo amer8/apibconv
+gh release verify-asset vX.Y.Z apibconv_X.Y.Z_Linux_x86_64.tar.gz --repo amer8/apibconv
+```
+
+Verify the archive's build provenance using its downloaded native bundle:
+
+```sh
+gh attestation verify apibconv_X.Y.Z_Linux_x86_64.tar.gz \
+  --repo amer8/apibconv \
+  --bundle apibconv_X.Y.Z_provenance.sigstore.json \
+  --cert-identity "https://github.com/amer8/apibconv/.github/workflows/release.yml@refs/tags/vX.Y.Z" \
+  --source-ref refs/tags/vX.Y.Z \
+  --deny-self-hosted-runners
+```
+
+Add `--source-digest <expected-commit-sha>` to require a particular source commit.
+Build provenance identifies the source and build workflow. GitHub's release attestation
+binds the published tag, commit, and release assets. Older releases may lack either
+attestation; use the checksum and signature checks available for those releases.
+
+Container provenance is published with the image in GHCR. After authenticating to GHCR,
+verify an image by its exact digest, replacing `IMAGE_DIGEST` with the SHA-256 digest:
+
+```sh
+gh attestation verify oci://ghcr.io/amer8/apibconv@sha256:IMAGE_DIGEST \
+  --repo amer8/apibconv --bundle-from-oci \
+  --cert-identity "https://github.com/amer8/apibconv/.github/workflows/release.yml@refs/tags/vX.Y.Z" \
+  --source-ref refs/tags/vX.Y.Z \
+  --deny-self-hosted-runners
+```
 
 ## Contributing
 
@@ -232,6 +269,9 @@ Contributions are welcome! Please ensure:
 1. All tests pass: `go test ./...`
 2. Linter passes: `golangci-lint run`
 3. Code coverage remains high
+
+Format Go code with `gofmt` and follow the conventions in
+[Go Code Review Comments](https://go.dev/wiki/CodeReviewComments).
 
 The release helper's policy tests are included in `go test ./...`. To run them
 separately, use `go test ./internal/releasetool`.
@@ -276,4 +316,4 @@ score improves as releases with provenance enter that window.
 
 ## License
 
-See [LICENSE](LICENSE) file for details.
+See [LICENSE](LICENSE).

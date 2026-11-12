@@ -1,18 +1,22 @@
 // Package model defines the unified internal representation of API specifications.
 package model
 
-// API represents the unified API specification model
+import "maps"
+
+// API is the shared representation used by parsers and writers.
 type API struct {
-	Version      string                 // Spec version
-	Info         Info                   // API metadata
-	Servers      []Server               // Server configurations
-	Paths        map[string]PathItem    // API paths/endpoints
-	Webhooks     map[string]PathItem    // OpenAPI 3.1 Webhooks
-	Components   Components             // Reusable components
-	Security     []SecurityRequirement  // Global security
-	Tags         []Tag                  // API tags
-	ExternalDocs *ExternalDocs          // External documentation
-	Extensions   map[string]interface{} // Vendor extensions (x-*)
+	Version string   // Spec version
+	Info    Info     // API metadata
+	Servers []Server // Server configurations
+	// PathsExtensions contains extensions on the paths object itself.
+	PathsExtensions map[string]interface{}
+	Paths           map[string]PathItem    // API paths/endpoints
+	Webhooks        map[string]PathItem    // OpenAPI 3.1 Webhooks
+	Components      Components             // Reusable components
+	Security        []SecurityRequirement  // Global security
+	Tags            []Tag                  // API tags
+	ExternalDocs    *ExternalDocs          // External documentation
+	Extensions      map[string]interface{} // Vendor extensions (x-*)
 }
 
 // Info provides metadata about the API.
@@ -23,19 +27,22 @@ type Info struct {
 	TermsOfService string
 	Contact        *Contact
 	License        *License
+	Extensions     map[string]interface{}
 }
 
 // Contact information for the exposed API.
 type Contact struct {
-	Name  string
-	URL   string
-	Email string
+	Name       string
+	URL        string
+	Email      string
+	Extensions map[string]interface{}
 }
 
 // License information for the exposed API.
 type License struct {
-	Name string
-	URL  string
+	Name       string
+	URL        string
+	Extensions map[string]interface{}
 }
 
 // Server object represents a server for the API.
@@ -47,6 +54,7 @@ type Server struct {
 	Security    []SecurityRequirement // Security required by this server, independent of operations
 	Variables   map[string]ServerVariable
 	Bindings    map[string]interface{} // Protocol-specific server bindings
+	Extensions  map[string]interface{}
 }
 
 // ServerVariable object represents a variable for server URL template substitution.
@@ -54,6 +62,7 @@ type ServerVariable struct {
 	Default     string
 	Description string
 	Enum        []string
+	Extensions  map[string]interface{}
 }
 
 // Tag object for organizing operations.
@@ -61,15 +70,17 @@ type Tag struct {
 	Name         string
 	Description  string
 	ExternalDocs *ExternalDocs
+	Extensions   map[string]interface{} `json:"-" yaml:"-"`
 }
 
 // ExternalDocs object for external documentation.
 type ExternalDocs struct {
-	Description string `json:"description,omitempty" yaml:"description,omitempty"`
-	URL         string `json:"url,omitempty" yaml:"url,omitempty"`
+	Description string                 `json:"description,omitempty" yaml:"description,omitempty"`
+	URL         string                 `json:"url,omitempty" yaml:"url,omitempty"`
+	Extensions  map[string]interface{} `json:"-" yaml:"-"`
 }
 
-// NewAPI creates a new API instance
+// NewAPI creates an API with initialized path and component maps.
 func NewAPI() *API {
 	return &API{
 		Paths:      make(map[string]PathItem),
@@ -79,63 +90,34 @@ func NewAPI() *API {
 	}
 }
 
-// AddPath adds a path item to the API
+// AddPath adds or replaces a path item.
 func (a *API) AddPath(path string, item *PathItem) {
 	if a.Paths == nil {
 		a.Paths = make(map[string]PathItem)
 	}
-	a.Paths[path] = *item // Dereference here
+	a.Paths[path] = *item
 }
 
-// GetPath retrieves a path item from the API
+// GetPath returns the path item and whether it exists.
 func (a *API) GetPath(path string) (PathItem, bool) {
 	item, ok := a.Paths[path]
 	return item, ok
 }
 
-// Validate validates the API structure
+// Validate checks model structure, local schema references, security, and schemas
+// across components, paths, webhooks, and callbacks. It does not resolve external
+// references or replace version-specific specification schema validation.
 func (a *API) Validate() error {
-	// Validation is primarily handled by the `validator` package.
-	// This method can be expanded for basic structural validation if needed.
-	return nil
+	return validateAPI(a)
 }
 
-// Clone creates a deep copy of the API structure
+// Clone copies the API and its Paths, Webhooks, Schemas and Extensions maps.
+// Nested pointers, slices and maps remain shared with the original.
 func (a *API) Clone() *API {
-	newAPI := *a
-
-	// Copy Paths
-	if a.Paths != nil {
-		newAPI.Paths = make(map[string]PathItem)
-		for k := range a.Paths {
-			newAPI.Paths[k] = a.Paths[k]
-		}
-	}
-
-	// Copy Webhooks
-	if a.Webhooks != nil {
-		newAPI.Webhooks = make(map[string]PathItem)
-		for k := range a.Webhooks {
-			newAPI.Webhooks[k] = a.Webhooks[k]
-		}
-	}
-
-	// Copy Components (Simplified shallow copy of maps, deep copy would require more traversal)
-	newAPI.Components = a.Components
-	if newAPI.Components.Schemas != nil {
-		newAPI.Components.Schemas = make(map[string]*Schema)
-		for k, v := range a.Components.Schemas {
-			newAPI.Components.Schemas[k] = v // Pointer copy, schema itself isn't cloned yet
-		}
-	}
-
-	// Copy Extensions
-	if a.Extensions != nil {
-		newAPI.Extensions = make(map[string]interface{})
-		for k, v := range a.Extensions {
-			newAPI.Extensions[k] = v
-		}
-	}
-
-	return &newAPI
+	clone := *a
+	clone.Paths = maps.Clone(a.Paths)
+	clone.Webhooks = maps.Clone(a.Webhooks)
+	clone.Components.Schemas = maps.Clone(a.Components.Schemas)
+	clone.Extensions = maps.Clone(a.Extensions)
+	return &clone
 }

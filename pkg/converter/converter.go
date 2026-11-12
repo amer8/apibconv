@@ -36,6 +36,9 @@ func New(opts ...Option) (*Converter, error) {
 	v.AddRule(&validator.PathValidationRule{})
 	v.AddRule(&validator.SchemaValidationRule{})
 	v.AddRule(&validator.ReferenceValidationRule{})
+	if options.Strict || options.OnWarning != nil {
+		v.AddRule(&validator.APIVersionWarningRule{})
+	}
 
 	return &Converter{
 		parsers:   make(map[format.Format]format.Parser),
@@ -102,7 +105,11 @@ func (c *Converter) parseToModel(ctx context.Context, input io.Reader, from form
 		return nil, err
 	}
 
-	if validate {
+	if !c.opts.PreserveExtensions {
+		api = api.WithoutExtensions()
+	}
+
+	if validate || c.opts.Strict || c.opts.OnWarning != nil {
 		if err := c.validateModel(validationCtx, api, "input"); err != nil {
 			return nil, err
 		}
@@ -120,7 +127,11 @@ func (c *Converter) WriteFromModel(ctx context.Context, api *model.API, output i
 
 	validationCtx := validator.WithFormat(ctx, to)
 
-	if c.opts.ValidateOutput {
+	if !c.opts.PreserveExtensions {
+		api = api.WithoutExtensions()
+	}
+
+	if c.opts.ValidateOutput || c.opts.Strict || c.opts.OnWarning != nil {
 		if err := c.validateModel(validationCtx, api, "output"); err != nil {
 			return err
 		}
@@ -134,9 +145,13 @@ func (c *Converter) validateModel(ctx context.Context, api *model.API, stage str
 	if err != nil {
 		return fmt.Errorf("%s validation: %w", stage, err)
 	}
+	issues = addStructureIssue(api, issues)
 	var failures []error
 	for _, issue := range issues {
-		if issue.Level == format.LevelError {
+		if issue.Level == format.LevelWarning && c.opts.OnWarning != nil {
+			c.opts.OnWarning(issue.Error())
+		}
+		if issue.Level == format.LevelError || (c.opts.Strict && issue.Level == format.LevelWarning) {
 			failures = append(failures, issue)
 		}
 	}
@@ -166,11 +181,19 @@ func (c *Converter) Validate(ctx context.Context, input io.Reader, formatType fo
 	if err != nil {
 		return allErrors, err
 	}
+	modelErrors = addStructureIssue(api, modelErrors)
 	allErrors = append(allErrors, modelErrors...)
+	if c.opts.OnWarning != nil {
+		for _, issue := range allErrors {
+			if issue.Level == format.LevelWarning {
+				c.opts.OnWarning(issue.Error())
+			}
+		}
+	}
 	return allErrors, nil
 }
 
-// SupportedFormats returns the list of supported input and output formats.
+// SupportedFormats returns registered input and output formats in unspecified order.
 func (c *Converter) SupportedFormats() (inputs, outputs []format.Format) {
 	for k := range c.parsers {
 		inputs = append(inputs, k)
@@ -181,7 +204,8 @@ func (c *Converter) SupportedFormats() (inputs, outputs []format.Format) {
 	return
 }
 
-// DetectFormat attempts to detect the format of the input.
+// DetectFormat attempts to detect the format of the input. It reads the entire
+// input and does not currently use ctx to interrupt the read.
 func (c *Converter) DetectFormat(ctx context.Context, input io.Reader) (format.Format, string, error) {
 	data, err := io.ReadAll(input)
 	if err != nil {
@@ -195,4 +219,18 @@ func (c *Converter) DetectFormat(ctx context.Context, input io.Reader) (format.F
 // SetProgress sets the progress callback function.
 func (c *Converter) SetProgress(fn func(int64)) {
 	c.opts.OnProgress = fn
+}
+
+// addStructureIssue supplements the detailed rules when they found no errors.
+// API.Validate reports one structural issue; the other rules can report several.
+func addStructureIssue(api *model.API, issues []format.ValidationError) []format.ValidationError {
+	for _, issue := range issues {
+		if issue.Level == format.LevelError {
+			return issues
+		}
+	}
+	if err := api.Validate(); err != nil {
+		return append(issues, format.ValidationError{Path: "$", Message: err.Error(), Level: format.LevelError})
+	}
+	return issues
 }

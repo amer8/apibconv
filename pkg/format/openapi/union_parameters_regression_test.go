@@ -11,7 +11,7 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-func TestReviewTypeUnionAndParameterExplode(t *testing.T) {
+func TestTypeUnionAndParameterExplode(t *testing.T) {
 	input := `openapi: 3.1.0
 info: {title: Test, version: '1'}
 paths:

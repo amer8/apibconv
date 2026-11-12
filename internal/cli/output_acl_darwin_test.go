@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-func TestP1RefusesToReplaceACLProtectedOutput(t *testing.T) {
+func TestRefusesToReplaceACLProtectedOutput(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "protected")
 	if err := os.WriteFile(path, []byte("secret"), 0o644); err != nil {
 		t.Fatal(err)

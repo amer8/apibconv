@@ -383,8 +383,11 @@ func TestSupportsVersion(t *testing.T) {
 		{"2.0", true},
 		{"3.0", true},
 		{"3.1", true},
-		{"1.0", true}, // Parser should return true for any version since it attempts to parse all supported versions internally.
-		{"unknown", true},
+		{"1.0", false},
+		{"3.2.0", false},
+		{"3.1.12", true},
+		{"3.1.x", false},
+		{"unknown", false},
 	}
 	for _, tt := range tests {
 		name := fmt.Sprintf("Version_%s", tt.version)

@@ -14,57 +14,38 @@ import (
 )
 
 func main() {
-	// Create a new converter instance
-	conv, err := converter.New(
-		converter.WithStrict(true),
-		converter.WithValidation(true, true),
-	)
-	if err != nil {
-		log.Fatalf("failed to create converter: %v", err)
+	if err := run(); err != nil {
+		log.Fatal(err)
 	}
+}
 
-	// Register format parsers and writers
-	conv.RegisterParser(openapi.NewParser())
-	conv.RegisterWriter(openapi.NewWriter())
+func run() error {
+	conv, err := converter.New(converter.WithValidation(true, true))
+	if err != nil {
+		return fmt.Errorf("create converter: %w", err)
+	}
 	conv.RegisterParser(apiblueprint.NewParser())
+	conv.RegisterWriter(openapi.NewWriter())
 
-	// Open input file from testdata
-	inputPath := "test/integration/testdata/apiblueprint.apib"
-	fmt.Printf("Opening input from %s...\n", inputPath)
-	inputFile, err := os.Open(inputPath)
+	input, err := os.Open("docs/demo/api.apib")
 	if err != nil {
-		log.Fatalf("failed to open input file: %v", err)
+		return fmt.Errorf("open input: %w", err)
 	}
-	defer func() {
-		if err := inputFile.Close(); err != nil {
-			log.Printf("failed to close input file: %v", err)
-		}
-	}()
+	defer func() { _ = input.Close() }()
 
-	// Create output file
-	outputFile, err := os.Create("petstore.json")
+	output, err := os.Create("petstore.json")
 	if err != nil {
-		log.Printf("failed to create output file: %v", err)
-		return
+		return fmt.Errorf("create output: %w", err)
 	}
-	defer func() {
-		if cerr := outputFile.Close(); cerr != nil {
-			log.Printf("Error closing output file: %v", cerr)
-		}
-	}()
-
-	ctx := context.Background()
-
-	// Migrate API Blueprint to OpenAPI 3.1
-	fmt.Println("Migrating API Blueprint to OpenAPI 3.1...")
-	err = conv.Convert(ctx, inputFile, outputFile,
-		format.FormatAPIBlueprint,
-		format.FormatOpenAPI,
-	)
-	if err != nil {
-		log.Printf("conversion failed: %v", err)
-		return
+	convertErr := conv.Convert(context.Background(), input, output, format.FormatAPIBlueprint, format.FormatOpenAPI)
+	closeErr := output.Close()
+	if convertErr != nil {
+		return fmt.Errorf("convert: %w", convertErr)
+	}
+	if closeErr != nil {
+		return fmt.Errorf("close output: %w", closeErr)
 	}
 
-	fmt.Println("Conversion successful: petstore.json created")
+	fmt.Println("Created petstore.json")
+	return nil
 }

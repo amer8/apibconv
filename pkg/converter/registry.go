@@ -50,7 +50,7 @@ func (r *Registry) GetWriter(f format.Format) (format.Writer, bool) {
 	return w, ok
 }
 
-// ListFormats returns a list of all registered formats.
+// ListFormats returns the formats with registered parsers, in unspecified order.
 func (r *Registry) ListFormats() []format.Format {
 	formats := make([]format.Format, 0, len(r.parsers))
 	for f := range r.parsers {

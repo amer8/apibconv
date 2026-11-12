@@ -96,6 +96,18 @@ func TestDetectFromBytes(t *testing.T) {
 			wantErr:    true,
 		},
 		{
+			name:       "Top-level Group Heading Alone",
+			input:      `# Group Users`,
+			wantFormat: format.FormatUnknown,
+			wantErr:    true,
+		},
+		{
+			name:        "Nested Group Heading",
+			input:       `## Group Users`,
+			wantFormat:  format.FormatAPIBlueprint,
+			wantVersion: "1A",
+		},
+		{
 			name:       "Plain Markdown Heading",
 			input:      `# Release Notes`,
 			wantFormat: format.FormatUnknown,
@@ -135,7 +147,6 @@ func TestDetectFromBytes(t *testing.T) {
 }
 
 func TestDetect_Reader(t *testing.T) {
-	// Simple test to ensure the Reader wrapper works, leveraging one of the simple cases
 	input := `openapi: 3.0.0`
 	detector := NewDetector()
 

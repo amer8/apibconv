@@ -76,7 +76,9 @@ func TestValidationOutputRejectsInvalidTransformation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	c.RegisterParser(&mockParser{fmt: format.FormatOpenAPI, api: model.NewAPI()})
+	api := model.NewAPI()
+	api.Info.Title = "Example"
+	c.RegisterParser(&mockParser{fmt: format.FormatOpenAPI, api: api})
 	c.RegisterWriter(&mockWriter{fmt: format.FormatOpenAPI})
 	var output bytes.Buffer
 	err = c.Convert(context.Background(), bytes.NewReader(nil), &output, format.FormatOpenAPI, format.FormatOpenAPI)
@@ -187,7 +189,9 @@ func TestValidationWarningsDoNotFailConversion(t *testing.T) {
 		t.Fatal(err)
 	}
 	c.validator.AddRule(warningRule{})
-	c.RegisterParser(&mockParser{fmt: format.FormatOpenAPI, api: model.NewAPI()})
+	api := model.NewAPI()
+	api.Info.Title = "Example"
+	c.RegisterParser(&mockParser{fmt: format.FormatOpenAPI, api: api})
 	c.RegisterWriter(&mockWriter{fmt: format.FormatOpenAPI})
 	var output bytes.Buffer
 	if err := c.Convert(context.Background(), bytes.NewReader(nil), &output, format.FormatOpenAPI, format.FormatOpenAPI); err != nil {
@@ -423,6 +427,7 @@ func TestParseToModelValidateInputUsesFormatAwareRules(t *testing.T) {
 	c.RegisterParser(&mockParser{
 		fmt: format.Format("custom"),
 		api: &model.API{
+			Info: model.Info{Title: "Example"},
 			Paths: map[string]model.PathItem{
 				"/user/signedup": {},
 			},
@@ -443,6 +448,7 @@ func TestWriteFromModelValidateOutputUsesFormatAwareRules(t *testing.T) {
 	c.RegisterWriter(&mockWriter{fmt: format.Format("custom")})
 
 	api := &model.API{
+		Info: model.Info{Title: "Example"},
 		Paths: map[string]model.PathItem{
 			"/user/signedup": {},
 		},
