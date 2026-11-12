@@ -9,7 +9,7 @@ import (
 	"github.com/amer8/apibconv/pkg/format"
 )
 
-// Config holds the runtime configuration for the application
+// Config holds the CLI configuration.
 type Config struct {
 	InputPath      string
 	OutputPath     string
@@ -39,7 +39,7 @@ const (
 	ModeHelp
 )
 
-// ConfigFromFlags creates a Config object from parsed flags and positional arguments
+// ConfigFromFlags builds a configuration from flags and positional arguments.
 func ConfigFromFlags(f *Flags, args []string) (*Config, error) {
 	cfg := &Config{
 		OutputPath:     f.Output,
@@ -48,10 +48,9 @@ func ConfigFromFlags(f *Flags, args []string) (*Config, error) {
 		ValidateOutput: f.ValidateOutput,
 		Report:         f.Report,
 		OpenAPIVersion: f.OpenAPIVersion,
-		Mode:           ModeConvert, // Default
+		Mode:           ModeConvert,
 	}
 
-	// Determine Mode
 	if f.Help {
 		cfg.Mode = ModeHelp
 		return cfg, nil
@@ -90,7 +89,6 @@ func ConfigFromFlags(f *Flags, args []string) (*Config, error) {
 		return nil, fmt.Errorf("invalid report format %q: expected text or json", cfg.Report)
 	}
 
-	// Parse formats
 	if f.InputFormat != "" {
 		cfg.InputFormat = format.Format(f.InputFormat)
 	}
@@ -98,7 +96,6 @@ func ConfigFromFlags(f *Flags, args []string) (*Config, error) {
 		cfg.OutputFormat = format.Format(f.OutputFormat)
 	}
 
-	// Handle positional arguments (Input file)
 	if len(args) > 0 {
 		cfg.InputPath = args[0]
 	}
@@ -116,7 +113,6 @@ func ConfigFromFlags(f *Flags, args []string) (*Config, error) {
 		}
 	}
 
-	// Apply Environment Variable Defaults if flags are not set
 	if cfg.Encoding == "" {
 		if envVal := os.Getenv("APIBCONV_DEFAULT_ENCODING"); envVal != "" {
 			cfg.Encoding = envVal

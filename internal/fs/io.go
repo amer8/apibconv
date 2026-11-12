@@ -4,12 +4,10 @@ package fs
 import (
 	"context"
 	"io"
-	"os"
-	"path/filepath"
 )
 
 // ReadAll reads from r until an error or EOF and returns the data it read.
-// It checks ctx.Done() before each read operation to allow cancellation.
+// It checks the context before each read; it cannot interrupt a blocked read.
 func ReadAll(ctx context.Context, r io.Reader) ([]byte, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -38,30 +36,7 @@ func ReadAll(ctx context.Context, r io.Reader) ([]byte, error) {
 	}
 }
 
-// ReadFile reads the entire file content into a byte slice.
-func ReadFile(path string) ([]byte, error) {
-	return os.ReadFile(filepath.Clean(path)) // #nosec G304
-}
-
-// WriteFile writes data to a file, creating any necessary parent directories.
-func WriteFile(path string, data []byte) error {
-	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o750); err != nil {
-		return err
-	}
-	return os.WriteFile(path, data, 0o600)
-}
-
-// CopyWithProgress copies from src to dst, invoking onProgress with total bytes written.
-func CopyWithProgress(dst io.Writer, src io.Reader, onProgress func(int64)) (int64, error) {
-	if onProgress == nil {
-		return io.Copy(dst, src)
-	}
-	pr := NewProgressReader(src, onProgress)
-	return io.Copy(dst, pr)
-}
-
-// NewProgressReader creates a new reader that reports progress.
+// NewProgressReader creates a reader that reports progress. onProgress must not be nil.
 func NewProgressReader(r io.Reader, onProgress func(int64)) io.Reader {
 	return &ProgressReader{r: r, onProgress: onProgress}
 }

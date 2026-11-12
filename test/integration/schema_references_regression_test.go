@@ -63,8 +63,6 @@ paths: {/x: {get: {parameters: [{name: x, in: query, schema: {type: string, allO
 	}
 }
 
-// Repository JSON Schemas are pinned for 2.6 and 3.0 only.
-
 func TestBlueprintAssetReferencesKeepTheirScope(t *testing.T) {
 	input := `FORMAT: 1A
 # T
@@ -147,5 +145,53 @@ func TestBlueprintAssetReferencesKeepTheirScope(t *testing.T) {
 	}
 	if err := schema.Validate(map[string]interface{}{"b": "wrong"}); err == nil {
 		t.Fatal("constraint lost on Blueprint roundtrip")
+	}
+}
+
+func TestBlueprintEscapedSchemaReferencesKeepConstraints(t *testing.T) {
+	for _, tc := range []struct {
+		name, property, reference string
+	}{
+		{"slash", "a/b", "#/properties/a~1b"},
+		{"space", "a b", "#/properties/a%20b"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			input := fmt.Sprintf(`FORMAT: 1A
+# Example
+## Resource [/items]
+### Create [POST]
++ Request (application/json)
+    + Schema
+
+        {"type":"object","properties":{%q:{"type":"integer"},"copy":{"$ref":%q}}}
++ Response 200 (application/json)
+`, tc.property, tc.reference)
+			api, err := apiblueprint.NewParser().Parse(context.Background(), strings.NewReader(input))
+			if err != nil {
+				t.Fatal(err)
+			}
+			var out bytes.Buffer
+			if err := openapi.NewWriter().Write(context.Background(), api, &out); err != nil {
+				t.Fatal(err)
+			}
+			var doc any
+			if err := json.Unmarshal(out.Bytes(), &doc); err != nil {
+				t.Fatal(err)
+			}
+			compiler := jsonschema.NewCompiler()
+			if err := compiler.AddResource("doc.json", doc); err != nil {
+				t.Fatal(err)
+			}
+			schema, err := compiler.Compile("doc.json#/paths/~1items/post/requestBody/content/application~1json/schema")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := schema.Validate(map[string]any{"copy": 42}); err != nil {
+				t.Fatal(err)
+			}
+			if err := schema.Validate(map[string]any{"copy": "wrong"}); err == nil {
+				t.Fatal("referenced integer constraint was lost")
+			}
+		})
 	}
 }

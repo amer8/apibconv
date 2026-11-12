@@ -24,7 +24,7 @@ func checkSpec(t *testing.T, kind format.Format, data []byte) {
 	}
 }
 
-func TestP1CallbacksRoundTripAndUnsupportedTargets(t *testing.T) {
+func TestCallbacksRoundTripAndUnsupportedTargets(t *testing.T) {
 	input := `openapi: 3.0.3
 info: {title: T, version: '1'}
 paths:
@@ -94,7 +94,7 @@ func compileSchema(t *testing.T, raw any) *jsonschema.Schema {
 	return s
 }
 
-func TestP1ConstAndUnsupportedSchemaKeywords(t *testing.T) {
+func TestConstAndUnsupportedSchemaKeywords(t *testing.T) {
 	input := `openapi: 3.1.0
 info: {title: T, version: '1'}
 paths:
@@ -181,7 +181,7 @@ paths:
 	}
 }
 
-func TestP1ConstNullAndReferenceSiblings(t *testing.T) {
+func TestConstNullAndReferenceSiblings(t *testing.T) {
 	input := `openapi: 3.1.0
 info: {title: T, version: '1'}
 paths: {}
@@ -221,7 +221,7 @@ components:
 	}
 }
 
-func TestP1SwaggerRejectsUnsupportedSchemasAndContent(t *testing.T) {
+func TestSwaggerRejectsUnsupportedSchemasAndContent(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
 		schema *model.Schema
@@ -266,7 +266,7 @@ func TestP1SwaggerRejectsUnsupportedSchemasAndContent(t *testing.T) {
 	}
 }
 
-func TestP1BlueprintResponseAssetResolvesReferences(t *testing.T) {
+func TestBlueprintResponseAssetResolvesReferences(t *testing.T) {
 	n := 4
 	api := model.NewAPI()
 	api.Info = model.Info{Title: "T", Version: "1"}

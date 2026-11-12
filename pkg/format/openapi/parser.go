@@ -4,13 +4,17 @@ package openapi
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 
 	"go.yaml.in/yaml/v3"
 
 	"github.com/amer8/apibconv/internal/fs"
+	"github.com/amer8/apibconv/internal/specschema"
+	apierrors "github.com/amer8/apibconv/pkg/errors"
 	"github.com/amer8/apibconv/pkg/format"
 	"github.com/amer8/apibconv/pkg/model"
 )
@@ -24,14 +28,15 @@ type Parser struct {
 // ParserOption configures the Parser.
 type ParserOption func(*Parser)
 
-// WithVersion sets the expected OpenAPI version for parsing (though parser auto-detects).
+// WithVersion requires the document to declare the given version. A major.minor
+// value accepts any patch version; a full version must match exactly.
 func WithVersion(version string) ParserOption {
 	return func(p *Parser) {
 		p.version = version
 	}
 }
 
-// WithStrict enables strict validation during parsing.
+// WithStrict validates the input against the bundled OpenAPI schema before parsing.
 func WithStrict(strict bool) ParserOption {
 	return func(p *Parser) {
 		p.strict = strict
@@ -63,7 +68,6 @@ func (p *Parser) Parse(ctx context.Context, r io.Reader) (*model.API, error) {
 		return nil, fmt.Errorf("empty input")
 	}
 
-	// 1. Detect Version
 	var base struct {
 		Swagger string `yaml:"swagger"`
 		OpenAPI string `yaml:"openapi"`
@@ -72,12 +76,36 @@ func (p *Parser) Parse(ctx context.Context, r io.Reader) (*model.API, error) {
 		return nil, fmt.Errorf("failed to detect openapi version: %w", err)
 	}
 
-	// 2. Parse based on version
+	actualVersion := base.OpenAPI
+	if base.Swagger != "" {
+		actualVersion = base.Swagger
+	}
+	if p.version != "" {
+		if !p.SupportsVersion(p.version) {
+			return nil, fmt.Errorf("%w: unsupported expected OpenAPI version %q", apierrors.ErrIncompatibleVersion, p.version)
+		}
+		if !p.SupportsVersion(actualVersion) || !matchesVersion(actualVersion, p.version) {
+			return nil, fmt.Errorf("%w: expected OpenAPI version %q, got %q", apierrors.ErrIncompatibleVersion, p.version, actualVersion)
+		}
+	}
+	if p.strict {
+		issues := specschema.Validate(format.FormatOpenAPI, data)
+		if len(issues) > 0 {
+			failures := make([]error, 0, len(issues))
+			for _, issue := range issues {
+				if issue.Level == format.LevelError {
+					failures = append(failures, issue)
+				}
+			}
+			if len(failures) > 0 {
+				return nil, fmt.Errorf("%w: OpenAPI schema validation: %w", apierrors.ErrValidationFailed, errors.Join(failures...))
+			}
+		}
+	}
 	if base.Swagger == "2.0" {
 		return p.parseV2(ctx, bytes.NewReader(data))
 	}
 
-	// Default to V3
 	var doc OpenAPI
 	if err := yaml.Unmarshal(data, &doc); err != nil {
 		return nil, fmt.Errorf("openapi v3 parse failed: %w", err)
@@ -91,26 +119,40 @@ func (p *Parser) Format() format.Format {
 	return format.FormatOpenAPI
 }
 
-// SupportsVersion returns true if the parser supports the given version string.
+var supportedVersion = regexp.MustCompile(`^(2\.0|3\.[01](?:\.\d+)?)$`)
+
+// SupportsVersion reports whether the parser handles the given OpenAPI version.
 func (p *Parser) SupportsVersion(version string) bool {
-	// Support 2.0, 3.0, 3.1
-	return true
+	return supportedVersion.MatchString(version)
+}
+
+func matchesVersion(actual, expected string) bool {
+	if strings.Count(expected, ".") == 1 && strings.HasPrefix(expected, "3.") {
+		return actual == expected || strings.HasPrefix(actual, expected+".")
+	}
+	return actual == expected
 }
 
 func (p *Parser) convertToModel(doc *OpenAPI) (*model.API, error) {
 	api := model.NewAPI()
+	copyExtensions(api.Extensions, doc.Extensions)
 	for name, callback := range doc.Components.Callbacks {
 		resolved, err := resolveCallback(callback, doc, 0)
 		if err != nil {
 			return nil, fmt.Errorf("callback component %q: %w", name, err)
 		}
-		converted := make(model.Callback, len(resolved.Paths))
-		for expression := range resolved.Paths {
-			path := resolved.Paths[expression]
-			converted[expression] = p.convertPathItem(&path)
+		api.Components.Callbacks[name] = p.convertCallback(resolved)
+		if len(resolved.Extensions) > 0 {
+			if api.Components.CallbackExtensions == nil {
+				api.Components.CallbackExtensions = make(map[string]map[string]interface{})
+			}
+			api.Components.CallbackExtensions[name] = clonedExtensions(resolved.Extensions)
 		}
-		api.Components.Callbacks[name] = converted
 	}
+	api.Components.Extensions = clonedExtensions(doc.Components.Extensions)
+	api.PathsExtensions = clonedExtensions(doc.PathsExtensions)
+	api.Tags = tagsToModel(doc.Tags)
+	api.ExternalDocs = externalDocsToModel(doc.ExternalDocs)
 	api.Version = doc.OpenAPI
 	api.Security = securityRequirementsToModel(doc.Security)
 	for name := range doc.Components.SecuritySchemes {
@@ -118,140 +160,179 @@ func (p *Parser) convertToModel(doc *OpenAPI) (*model.API, error) {
 		api.Components.SecuritySchemes[name] = securitySchemeToModel(&scheme)
 	}
 
-	// Info
 	api.Info = model.Info{
 		Title:          doc.Info.Title,
 		Description:    doc.Info.Description,
 		Version:        doc.Info.Version,
 		TermsOfService: doc.Info.TermsOfService,
+		Extensions:     clonedExtensions(doc.Info.Extensions),
 	}
 	if doc.Info.Contact != nil {
 		api.Info.Contact = &model.Contact{
-			Name:  doc.Info.Contact.Name,
-			URL:   doc.Info.Contact.URL,
-			Email: doc.Info.Contact.Email,
+			Name:       doc.Info.Contact.Name,
+			URL:        doc.Info.Contact.URL,
+			Email:      doc.Info.Contact.Email,
+			Extensions: clonedExtensions(doc.Info.Contact.Extensions),
 		}
 	}
 	if doc.Info.License != nil {
 		api.Info.License = &model.License{
-			Name: doc.Info.License.Name,
-			URL:  doc.Info.License.URL,
+			Name:       doc.Info.License.Name,
+			URL:        doc.Info.License.URL,
+			Extensions: clonedExtensions(doc.Info.License.Extensions),
 		}
 	}
 
-	// Servers
 	for _, s := range doc.Servers {
 		ms := model.Server{
 			URL:         s.URL,
 			Description: s.Description,
 			Variables:   make(map[string]model.ServerVariable),
+			Extensions:  clonedExtensions(s.Extensions),
 		}
 		for k, v := range s.Variables {
 			ms.Variables[k] = model.ServerVariable{
 				Default:     v.Default,
 				Description: v.Description,
 				Enum:        v.Enum,
+				Extensions:  clonedExtensions(v.Extensions),
 			}
 		}
 		api.Servers = append(api.Servers, ms)
 	}
 
-	// Components (Schemas only for now)
 	if doc.Components.Schemas != nil {
 		for name, schema := range doc.Components.Schemas {
 			api.Components.AddSchema(name, p.convertSchema(schema))
 		}
 	}
 
-	// Webhooks (OpenAPI 3.1)
-	if doc.Webhooks != nil {
-		api.Webhooks = make(map[string]model.PathItem)
-		for name := range doc.Webhooks {
-			item := doc.Webhooks[name] // Access by key to avoid copy in range
-			var err error
-			item, err = resolvePathV3(&item, doc)
-			if err != nil {
-				return nil, fmt.Errorf("webhook %q: %w", name, err)
-			}
-			pi := model.PathItem{
-				Summary:     item.Summary,
-				Description: item.Description,
-				Parameters:  p.convertParameters(item.Parameters),
-				Servers:     serversToModel(item.Servers),
-			}
-			if item.Get != nil {
-				pi.Get = p.convertOperation(item.Get)
-			}
-			if item.Post != nil {
-				pi.Post = p.convertOperation(item.Post)
-			}
-			if item.Put != nil {
-				pi.Put = p.convertOperation(item.Put)
-			}
-			if item.Delete != nil {
-				pi.Delete = p.convertOperation(item.Delete)
-			}
-			if item.Patch != nil {
-				pi.Patch = p.convertOperation(item.Patch)
-			}
-			if item.Head != nil {
-				pi.Head = p.convertOperation(item.Head)
-			}
-			if item.Options != nil {
-				pi.Options = p.convertOperation(item.Options)
-			}
-			if item.Trace != nil {
-				pi.Trace = p.convertOperation(item.Trace)
-			}
-
-			api.Webhooks[name] = pi
+	for name := range doc.Components.Parameters {
+		parameter := doc.Components.Parameters[name]
+		resolved, err := resolveParameter(&parameter, doc.Components.Parameters, "#/components/parameters/")
+		if err != nil {
+			return nil, fmt.Errorf("parameter component %q: %w", name, err)
 		}
+		api.Components.Parameters[name] = p.convertParameters([]Parameter{resolved})[0]
+	}
+	for name, response := range doc.Components.Responses {
+		resolved, err := resolveResponse(response, doc.Components.Responses, "#/components/responses/")
+		if err != nil {
+			return nil, fmt.Errorf("response component %q: %w", name, err)
+		}
+		api.Components.Responses[name] = p.convertResponse(resolved)
+	}
+	for name, body := range doc.Components.RequestBodies {
+		resolved, err := resolveRequestBody(body, doc.Components.RequestBodies)
+		if err != nil {
+			return nil, fmt.Errorf("request body component %q: %w", name, err)
+		}
+		api.Components.RequestBodies[name] = p.convertRequestBody(&resolved)
+	}
+	for name, header := range doc.Components.Headers {
+		api.Components.Headers[name] = p.convertHeader(&header)
 	}
 
-	// Paths
+	for name, example := range examplesToModel(doc.Components.Examples) {
+		api.Components.Examples[name] = example
+	}
+
+	for name, link := range doc.Components.Links {
+		api.Components.Links[name] = linkToModel(&link)
+	}
+
+	for name := range doc.Webhooks {
+		item := doc.Webhooks[name]
+		resolved, err := resolvePathV3(&item, doc)
+		if err != nil {
+			return nil, fmt.Errorf("webhook %q: %w", name, err)
+		}
+		api.Webhooks[name] = p.convertPathItem(&resolved)
+	}
+
 	for path := range doc.Paths {
-		item := doc.Paths[path] // Access by key to avoid copy in range
-		var err error
-		item, err = resolvePathV3(&item, doc)
+		item := doc.Paths[path]
+		resolved, err := resolvePathV3(&item, doc)
 		if err != nil {
 			return nil, fmt.Errorf("path %q: %w", path, err)
 		}
-		pi := model.PathItem{
-			Summary:     item.Summary,
-			Description: item.Description,
-			Parameters:  p.convertParameters(item.Parameters),
-			Servers:     serversToModel(item.Servers),
-		}
-		// Operations
-		if item.Get != nil {
-			pi.Get = p.convertOperation(item.Get)
-		}
-		if item.Post != nil {
-			pi.Post = p.convertOperation(item.Post)
-		}
-		if item.Put != nil {
-			pi.Put = p.convertOperation(item.Put)
-		}
-		if item.Delete != nil {
-			pi.Delete = p.convertOperation(item.Delete)
-		}
-		if item.Patch != nil {
-			pi.Patch = p.convertOperation(item.Patch)
-		}
-		if item.Head != nil {
-			pi.Head = p.convertOperation(item.Head)
-		}
-		if item.Options != nil {
-			pi.Options = p.convertOperation(item.Options)
-		}
-		if item.Trace != nil {
-			pi.Trace = p.convertOperation(item.Trace)
-		}
-
-		api.AddPath(path, &pi)
+		converted := p.convertPathItem(&resolved)
+		api.AddPath(path, &converted)
 	}
 
 	return api, nil
+}
+
+func copyExtensions(dst, src map[string]interface{}) {
+	for key, value := range src {
+		if strings.HasPrefix(key, "x-") {
+			dst[key] = value
+		}
+	}
+}
+
+func clonedExtensions(src map[string]interface{}) map[string]interface{} {
+	var dst map[string]interface{}
+	for key, value := range src {
+		if strings.HasPrefix(key, "x-") {
+			if dst == nil {
+				dst = make(map[string]interface{})
+			}
+			dst[key] = value
+		}
+	}
+	return dst
+}
+
+func linkToModel(link *Link) model.Link {
+	result := model.Link{
+		Ref: link.Ref, OperationRef: link.OperationRef, OperationID: link.OperationID,
+		Parameters: link.Parameters, RequestBody: link.RequestBody,
+		Description: link.Description, Extensions: clonedExtensions(link.Extensions),
+	}
+	if link.Server != nil {
+		server := serversToModel([]Server{*link.Server})[0]
+		result.Server = &server
+	}
+	return result
+}
+
+func examplesToModel(examples map[string]interface{}) map[string]model.Example {
+	if examples == nil {
+		return nil
+	}
+	result := make(map[string]model.Example, len(examples))
+	for name, value := range examples {
+		fields, ok := value.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		item := model.Example{Value: fields["value"], Extensions: clonedExtensions(fields)}
+		item.Ref, _ = fields["$ref"].(string)
+		item.Summary, _ = fields["summary"].(string)
+		item.Description, _ = fields["description"].(string)
+		item.ExternalValue, _ = fields["externalValue"].(string)
+		result[name] = item
+	}
+	return result
+}
+
+func externalDocsToModel(docs *ExternalDocs) *model.ExternalDocs {
+	if docs == nil {
+		return nil
+	}
+	return &model.ExternalDocs{Description: docs.Description, URL: docs.URL, Extensions: clonedExtensions(docs.Extensions)}
+}
+
+func tagsToModel(tags []Tag) []model.Tag {
+	if tags == nil {
+		return nil
+	}
+	result := make([]model.Tag, 0, len(tags))
+	for _, tag := range tags {
+		result = append(result, model.Tag{Name: tag.Name, Description: tag.Description, ExternalDocs: externalDocsToModel(tag.ExternalDocs), Extensions: clonedExtensions(tag.Extensions)})
+	}
+	return result
 }
 
 func (p *Parser) convertOperation(op *Operation) *model.Operation {
@@ -259,36 +340,34 @@ func (p *Parser) convertOperation(op *Operation) *model.Operation {
 		return nil
 	}
 	res := &model.Operation{
-		Tags:        op.Tags,
-		Summary:     op.Summary,
-		Description: op.Description,
-		OperationID: op.OperationID,
-		Deprecated:  op.Deprecated,
-		Parameters:  p.convertParameters(op.Parameters),
-		Security:    securityRequirementsToModel(op.Security),
-		Servers:     serversToModel(op.Servers),
+		Tags:                op.Tags,
+		Summary:             op.Summary,
+		Description:         op.Description,
+		OperationID:         op.OperationID,
+		Deprecated:          op.Deprecated,
+		Parameters:          p.convertParameters(op.Parameters),
+		Security:            securityRequirementsToModel(op.Security),
+		Servers:             serversToModel(op.Servers),
+		ExternalDocs:        externalDocsToModel(op.ExternalDocs),
+		Extensions:          clonedExtensions(op.Extensions),
+		ResponsesExtensions: clonedExtensions(op.ResponsesExtensions),
 	}
 	if len(op.Callbacks) != 0 {
 		res.Callbacks = make(map[string]model.Callback, len(op.Callbacks))
 		for name, callback := range op.Callbacks {
-			converted := make(model.Callback, len(callback.Paths))
-			for expression := range callback.Paths {
-				path := callback.Paths[expression]
-				converted[expression] = p.convertPathItem(&path)
+			res.Callbacks[name] = p.convertCallback(callback)
+			if len(callback.Extensions) > 0 {
+				if res.CallbackExtensions == nil {
+					res.CallbackExtensions = make(map[string]map[string]interface{})
+				}
+				res.CallbackExtensions[name] = clonedExtensions(callback.Extensions)
 			}
-			res.Callbacks[name] = converted
 		}
 	}
 
 	if op.RequestBody != nil {
-		res.RequestBody = &model.RequestBody{
-			Description: op.RequestBody.Description,
-			Required:    op.RequestBody.Required,
-			Content:     make(map[string]model.MediaType),
-		}
-		for k, v := range op.RequestBody.Content {
-			res.RequestBody.Content[k] = p.convertMediaType(v)
-		}
+		body := p.convertRequestBody(op.RequestBody)
+		res.RequestBody = &body
 	}
 
 	if op.Responses != nil {
@@ -301,13 +380,30 @@ func (p *Parser) convertOperation(op *Operation) *model.Operation {
 	return res
 }
 
+func (p *Parser) convertCallback(callback Callback) model.Callback {
+	paths := make(model.Callback, len(callback.Paths))
+	for expression := range callback.Paths {
+		item := callback.Paths[expression]
+		paths[expression] = p.convertPathItem(&item)
+	}
+	return paths
+}
+
 func (p *Parser) convertPathItem(item *PathItem) model.PathItem {
 	return model.PathItem{
-		Summary: item.Summary, Description: item.Description,
-		Parameters: p.convertParameters(item.Parameters), Servers: serversToModel(item.Servers),
-		Get: p.convertOperation(item.Get), Put: p.convertOperation(item.Put), Post: p.convertOperation(item.Post),
-		Delete: p.convertOperation(item.Delete), Options: p.convertOperation(item.Options), Head: p.convertOperation(item.Head),
-		Patch: p.convertOperation(item.Patch), Trace: p.convertOperation(item.Trace),
+		Summary:     item.Summary,
+		Description: item.Description,
+		Parameters:  p.convertParameters(item.Parameters),
+		Servers:     serversToModel(item.Servers),
+		Get:         p.convertOperation(item.Get),
+		Put:         p.convertOperation(item.Put),
+		Post:        p.convertOperation(item.Post),
+		Delete:      p.convertOperation(item.Delete),
+		Options:     p.convertOperation(item.Options),
+		Head:        p.convertOperation(item.Head),
+		Patch:       p.convertOperation(item.Patch),
+		Trace:       p.convertOperation(item.Trace),
+		Extensions:  clonedExtensions(item.Extensions),
 	}
 }
 
@@ -317,12 +413,12 @@ func serversToModel(servers []Server) []model.Server {
 	}
 	result := make([]model.Server, 0, len(servers))
 	for _, s := range servers {
-		m := model.Server{URL: s.URL, Description: s.Description}
+		m := model.Server{URL: s.URL, Description: s.Description, Extensions: clonedExtensions(s.Extensions)}
 		if s.Variables != nil {
 			m.Variables = make(map[string]model.ServerVariable, len(s.Variables))
 		}
 		for k, v := range s.Variables {
-			m.Variables[k] = model.ServerVariable{Default: v.Default, Description: v.Description, Enum: v.Enum}
+			m.Variables[k] = model.ServerVariable{Default: v.Default, Description: v.Description, Enum: v.Enum, Extensions: clonedExtensions(v.Extensions)}
 		}
 		result = append(result, m)
 	}
@@ -330,7 +426,7 @@ func serversToModel(servers []Server) []model.Server {
 }
 
 func (p *Parser) convertParameters(params []Parameter) []model.Parameter {
-	result := make([]model.Parameter, 0, len(params)) // Pre-allocate
+	result := make([]model.Parameter, 0, len(params))
 	for i := range params {
 		param := &params[i]
 		mp := model.Parameter{
@@ -342,6 +438,8 @@ func (p *Parser) convertParameters(params []Parameter) []model.Parameter {
 			AllowEmptyValue: param.AllowEmptyValue,
 			Style:           param.Style,
 			Example:         param.Example,
+			Examples:        examplesToModel(param.Examples),
+			Extensions:      clonedExtensions(param.Extensions),
 		}
 		if param.Explode != nil {
 			mp.Explode, mp.ExplodeSet = *param.Explode, true
@@ -360,38 +458,84 @@ func (p *Parser) convertParameters(params []Parameter) []model.Parameter {
 	return result
 }
 
+func (p *Parser) convertRequestBody(body *RequestBody) model.RequestBody {
+	result := model.RequestBody{
+		Description: body.Description,
+		Required:    body.Required,
+		Content:     make(map[string]model.MediaType),
+		Extensions:  clonedExtensions(body.Extensions),
+	}
+	for mediaType, content := range body.Content {
+		result.Content[mediaType] = p.convertMediaType(content)
+	}
+	return result
+}
+
+func (p *Parser) convertHeader(header *Header) model.Header {
+	result := model.Header{
+		Description: header.Description,
+		Required:    header.Required,
+		Deprecated:  header.Deprecated,
+		Example:     header.Example,
+		Examples:    examplesToModel(header.Examples),
+		Extensions:  clonedExtensions(header.Extensions),
+	}
+	if header.Schema != nil {
+		result.Schema = p.convertSchema(header.Schema)
+	}
+	return result
+}
+
 func (p *Parser) convertResponse(resp Response) model.Response {
 	res := model.Response{
 		Description: resp.Description,
 		Content:     make(map[string]model.MediaType),
 		Headers:     make(map[string]model.Header),
+		Extensions:  clonedExtensions(resp.Extensions),
 	}
 
 	for ct, mt := range resp.Content {
 		res.Content[ct] = p.convertMediaType(mt)
 	}
 
-	for name, h := range resp.Headers {
-		header := model.Header{
-			Description: h.Description,
-			Required:    h.Required,
-			Deprecated:  h.Deprecated,
-		}
-		if h.Schema != nil {
-			header.Schema = p.convertSchema(h.Schema)
-		}
-		res.Headers[name] = header
+	for name, header := range resp.Headers {
+		res.Headers[name] = p.convertHeader(&header)
 	}
 
+	if len(resp.Links) > 0 {
+		res.Links = make(map[string]model.Link, len(resp.Links))
+		for name, link := range resp.Links {
+			res.Links[name] = linkToModel(&link)
+		}
+	}
 	return res
 }
 
 func (p *Parser) convertMediaType(mt MediaType) model.MediaType {
 	res := model.MediaType{
-		Example: mt.Example,
+		Example:    mt.Example,
+		Examples:   examplesToModel(mt.Examples),
+		Extensions: clonedExtensions(mt.Extensions),
 	}
 	if mt.Schema != nil {
 		res.Schema = p.convertSchema(mt.Schema)
+	}
+	if len(mt.Encoding) > 0 {
+		res.Encoding = make(map[string]model.Encoding, len(mt.Encoding))
+		for name, encoding := range mt.Encoding {
+			item := model.Encoding{
+				ContentType: encoding.ContentType, Style: encoding.Style,
+				Explode: encoding.Explode, AllowReserved: encoding.AllowReserved,
+				Extensions: clonedExtensions(encoding.Extensions),
+			}
+			if len(encoding.Headers) > 0 {
+				item.Headers = make(map[string]model.Header, len(encoding.Headers))
+				for headerName, header := range encoding.Headers {
+					item.Headers[headerName] = p.convertHeader(&header)
+				}
+			}
+			res.Encoding[name] = item
+		}
 	}
 	return res
 }
@@ -401,19 +545,39 @@ func (p *Parser) convertSchema(s *Schema) *model.Schema {
 		return nil
 	}
 	ms := &model.Schema{
-		Ref:         s.Ref,
-		Format:      s.Format,
-		Title:       s.Title,
-		Description: s.Description,
-		Default:     s.Default,
-		Enum:        s.Enum,
-		Required:    s.Required,
-		MinLength:   s.MinLength, MaxLength: s.MaxLength, Pattern: s.Pattern,
-		Minimum: s.Minimum, Maximum: s.Maximum, MultipleOf: s.MultipleOf,
-		MinItems: s.MinItems, MaxItems: s.MaxItems, UniqueItems: s.UniqueItems,
-		MinProperties: s.MinProperties, MaxProperties: s.MaxProperties,
+		Ref:                  s.Ref,
+		ExternalDocs:         externalDocsToModel(s.ExternalDocs),
+		Extensions:           clonedExtensions(s.Extensions),
+		Format:               s.Format,
+		Title:                s.Title,
+		Description:          s.Description,
+		Default:              s.Default,
+		Enum:                 s.Enum,
+		Required:             s.Required,
+		MinLength:            s.MinLength,
+		MaxLength:            s.MaxLength,
+		Pattern:              s.Pattern,
+		Minimum:              s.Minimum,
+		Maximum:              s.Maximum,
+		MultipleOf:           s.MultipleOf,
+		MinItems:             s.MinItems,
+		MaxItems:             s.MaxItems,
+		UniqueItems:          s.UniqueItems,
+		MinProperties:        s.MinProperties,
+		MaxProperties:        s.MaxProperties,
 		AdditionalProperties: s.AdditionalProperties,
-		Example:              s.Example, ReadOnly: s.ReadOnly, WriteOnly: s.WriteOnly, Deprecated: s.Deprecated, Nullable: s.Nullable,
+		Example:              s.Example,
+		ReadOnly:             s.ReadOnly,
+		WriteOnly:            s.WriteOnly,
+		Deprecated:           s.Deprecated,
+		Nullable:             s.Nullable,
+	}
+	if s.Discriminator != nil {
+		ms.Discriminator = &model.Discriminator{
+			PropertyName: s.Discriminator.PropertyName,
+			Mapping:      s.Discriminator.Mapping,
+			Extensions:   clonedExtensions(s.Discriminator.Extensions),
+		}
 	}
 	ms.ExclusiveMinimum, ms.Minimum = schemaExclusive(s.ExclusiveMinimum, ms.Minimum, false)
 	ms.ExclusiveMaximum, ms.Maximum = schemaExclusive(s.ExclusiveMaximum, ms.Maximum, true)
@@ -431,7 +595,7 @@ func (p *Parser) convertSchema(s *Schema) *model.Schema {
 	// Rewrite Swagger 2.0 definitions to OpenAPI 3.0 components/schemas
 	if ms.Ref != "" && strings.HasPrefix(ms.Ref, "#/definitions/") {
 		ms.Ref = strings.Replace(ms.Ref, "#/definitions/", "#/components/schemas/", 1)
-	} // Type handling (simple string vs array in 3.1)
+	}
 	if s.Type != nil {
 		switch t := s.Type.(type) {
 		case string:

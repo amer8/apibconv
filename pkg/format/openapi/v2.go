@@ -27,19 +27,22 @@ type Swagger20 struct {
 	Security            []map[string][]string     `yaml:"security,omitempty" json:"security,omitempty"`
 	Tags                []Tag                     `yaml:"tags,omitempty" json:"tags,omitempty"`
 	ExternalDocs        *ExternalDocs             `yaml:"externalDocs,omitempty" json:"externalDocs,omitempty"`
+	Extensions          map[string]interface{}    `yaml:",inline" json:"-"`
+	PathsExtensions     map[string]interface{}    `yaml:"-" json:"-"`
 }
 
 // PathItemV2 describes the operations available on a single path in Swagger 2.0.
 type PathItemV2 struct {
-	Ref        string      `yaml:"$ref,omitempty" json:"$ref,omitempty"`
-	Get        *Operation  `yaml:"get,omitempty" json:"get,omitempty"`
-	Put        *Operation  `yaml:"put,omitempty" json:"put,omitempty"`
-	Post       *Operation  `yaml:"post,omitempty" json:"post,omitempty"`
-	Delete     *Operation  `yaml:"delete,omitempty" json:"delete,omitempty"`
-	Options    *Operation  `yaml:"options,omitempty" json:"options,omitempty"`
-	Head       *Operation  `yaml:"head,omitempty" json:"head,omitempty"`
-	Patch      *Operation  `yaml:"patch,omitempty" json:"patch,omitempty"`
-	Parameters []Parameter `yaml:"parameters,omitempty" json:"parameters,omitempty"`
+	Ref        string                 `yaml:"$ref,omitempty" json:"$ref,omitempty"`
+	Get        *Operation             `yaml:"get,omitempty" json:"get,omitempty"`
+	Put        *Operation             `yaml:"put,omitempty" json:"put,omitempty"`
+	Post       *Operation             `yaml:"post,omitempty" json:"post,omitempty"`
+	Delete     *Operation             `yaml:"delete,omitempty" json:"delete,omitempty"`
+	Options    *Operation             `yaml:"options,omitempty" json:"options,omitempty"`
+	Head       *Operation             `yaml:"head,omitempty" json:"head,omitempty"`
+	Patch      *Operation             `yaml:"patch,omitempty" json:"patch,omitempty"`
+	Parameters []Parameter            `yaml:"parameters,omitempty" json:"parameters,omitempty"`
+	Extensions map[string]interface{} `yaml:",inline" json:"-"`
 }
 
 func (p *Parser) parseV2(ctx context.Context, r io.Reader) (*model.API, error) {
@@ -53,6 +56,10 @@ func (p *Parser) parseV2(ctx context.Context, r io.Reader) (*model.API, error) {
 	}
 
 	api := model.NewAPI()
+	copyExtensions(api.Extensions, doc.Extensions)
+	api.PathsExtensions = clonedExtensions(doc.PathsExtensions)
+	api.Tags = tagsToModel(doc.Tags)
+	api.ExternalDocs = externalDocsToModel(doc.ExternalDocs)
 	api.Version = doc.Swagger
 	api.Security = securityRequirementsToModel(doc.Security)
 	for name := range doc.SecurityDefinitions {
@@ -70,18 +77,21 @@ func (p *Parser) parseV2(ctx context.Context, r io.Reader) (*model.API, error) {
 		Description:    doc.Info.Description,
 		Version:        doc.Info.Version,
 		TermsOfService: doc.Info.TermsOfService,
+		Extensions:     clonedExtensions(doc.Info.Extensions),
 	}
 	if doc.Info.Contact != nil {
 		api.Info.Contact = &model.Contact{
-			Name:  doc.Info.Contact.Name,
-			URL:   doc.Info.Contact.URL,
-			Email: doc.Info.Contact.Email,
+			Name:       doc.Info.Contact.Name,
+			URL:        doc.Info.Contact.URL,
+			Email:      doc.Info.Contact.Email,
+			Extensions: clonedExtensions(doc.Info.Contact.Extensions),
 		}
 	}
 	if doc.Info.License != nil {
 		api.Info.License = &model.License{
-			Name: doc.Info.License.Name,
-			URL:  doc.Info.License.URL,
+			Name:       doc.Info.License.Name,
+			URL:        doc.Info.License.URL,
+			Extensions: clonedExtensions(doc.Info.License.Extensions),
 		}
 	}
 
@@ -131,7 +141,7 @@ func (p *Parser) parseV2(ctx context.Context, r io.Reader) (*model.API, error) {
 				pathParams = append(pathParams, *param)
 			}
 		}
-		pi := model.PathItem{Parameters: p.convertV2Parameters(pathParams)}
+		pi := model.PathItem{Parameters: p.convertV2Parameters(pathParams), Extensions: clonedExtensions(item.Extensions)}
 
 		convertOp := func(op *Operation) *model.Operation {
 			if op == nil {
@@ -193,24 +203,25 @@ func (p *Parser) convertV2Operation(op *Operation, globalConsumes, globalProduce
 	}
 
 	res := &model.Operation{
-		Tags:        op.Tags,
-		Summary:     op.Summary,
-		Description: op.Description,
-		OperationID: op.OperationID,
-		Deprecated:  op.Deprecated,
-		Parameters:  p.convertV2Parameters(op.Parameters),
-		Security:    securityRequirementsToModel(op.Security),
+		Tags:                op.Tags,
+		Summary:             op.Summary,
+		Description:         op.Description,
+		OperationID:         op.OperationID,
+		ExternalDocs:        externalDocsToModel(op.ExternalDocs),
+		Deprecated:          op.Deprecated,
+		Parameters:          p.convertV2Parameters(op.Parameters),
+		Security:            securityRequirementsToModel(op.Security),
+		Extensions:          clonedExtensions(op.Extensions),
+		ResponsesExtensions: clonedExtensions(op.ResponsesExtensions),
 	}
 
-	// In V2, body parameters are in the parameters list, handled by convertV2Parameters.
-	// But in Model/V3, RequestBody is separate.
-	// We need to extract the 'body' parameter if it exists and move it to RequestBody.
+	// Swagger body parameters become request bodies in the shared model.
 	var parameters []model.Parameter
 	formSchema := &model.Schema{Type: model.TypeObject, Properties: make(map[string]*model.Schema)}
-	for _, param := range res.Parameters {
+	for i := range res.Parameters {
+		param := &res.Parameters[i]
 		switch param.In {
 		case "body":
-			// Found body parameter, move to RequestBody
 			content := make(map[string]model.MediaType)
 			for _, ct := range consumes {
 				content[ct] = model.MediaType{
@@ -222,12 +233,17 @@ func (p *Parser) convertV2Operation(op *Operation, globalConsumes, globalProduce
 				Description: param.Description,
 				Required:    param.Required,
 				Content:     content,
+				Extensions:  clonedExtensions(param.Extensions),
 			}
 		case "formData":
 			schema := param.Schema
 			if schema == nil {
 				schema = &model.Schema{Type: model.TypeString}
+			} else {
+				copySchema := *schema
+				schema = &copySchema
 			}
+			schema.Extensions = mergeReferenceExtensions(schema.Extensions, []map[string]interface{}{param.Extensions})
 			if schema.Type == "file" {
 				schema.Type = model.TypeString
 				schema.Format = "binary"
@@ -237,7 +253,7 @@ func (p *Parser) convertV2Operation(op *Operation, globalConsumes, globalProduce
 				formSchema.Required = append(formSchema.Required, param.Name)
 			}
 		default:
-			parameters = append(parameters, param)
+			parameters = append(parameters, *param)
 		}
 	}
 	if len(formSchema.Properties) > 0 {
@@ -272,6 +288,7 @@ func (p *Parser) convertV2Parameters(params []Parameter) []model.Parameter {
 			AllowEmptyValue: param.AllowEmptyValue,
 			Style:           param.Style,
 			Example:         param.Example,
+			Extensions:      clonedExtensions(param.Extensions),
 		}
 		if param.Explode != nil {
 			mp.Explode, mp.ExplodeSet = *param.Explode, true
@@ -283,8 +300,7 @@ func (p *Parser) convertV2Parameters(params []Parameter) []model.Parameter {
 				mp.Schema = p.convertSchema(param.Schema)
 			}
 		} else {
-			// For non-body parameters in V2, type/format/items are direct fields.
-			// In V3/Model, they must be wrapped in a Schema.
+			// Non-body Swagger parameters store type information directly; the model uses a schema.
 			if param.Type != "" {
 				mp.Schema = p.convertSchema(&Schema{
 					Type: param.Type, Format: param.Format, Items: param.Items,
@@ -313,10 +329,10 @@ func (p *Parser) convertV2Response(resp Response, produces []string) model.Respo
 		Description: resp.Description,
 		Content:     make(map[string]model.MediaType),
 		Headers:     make(map[string]model.Header),
+		Extensions:  clonedExtensions(resp.Extensions),
 	}
 
-	// V2 Response has a direct Schema field.
-	// In V3/Model this maps to Content -> application/json (or others) -> Schema
+	// Swagger response schemas apply to each produced media type.
 	if resp.Schema != nil {
 		for _, ct := range produces {
 			res.Content[ct] = model.MediaType{
@@ -330,6 +346,7 @@ func (p *Parser) convertV2Response(resp Response, produces []string) model.Respo
 			Description: h.Description,
 			Required:    h.Required,
 			Deprecated:  h.Deprecated,
+			Extensions:  clonedExtensions(h.Extensions),
 		}
 		if h.Schema != nil {
 			header.Schema = p.convertSchema(h.Schema)

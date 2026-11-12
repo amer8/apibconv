@@ -9,7 +9,7 @@ import (
 	"github.com/amer8/apibconv/pkg/format"
 )
 
-// Flags represents the parsed command-line flags
+// Flags holds the parsed command-line flags.
 type Flags struct {
 	Output         string
 	InputFormat    string
@@ -25,7 +25,7 @@ type Flags struct {
 	provided       map[string]bool
 }
 
-// ParseFlags parses the command line arguments
+// ParseFlags parses the command-line arguments.
 func ParseFlags(args []string) (*Flags, []string, error) {
 	f := &Flags{}
 	fs := flag.NewFlagSet("apibconv", flag.ContinueOnError)
@@ -49,7 +49,6 @@ func ParseFlags(args []string) (*Flags, []string, error) {
 	fs.BoolVar(&f.Help, "h", false, "Show help message (shorthand)")
 	fs.BoolVar(&f.Help, "help", false, "Show help message")
 
-	// OpenAPI specific
 	fs.StringVar(&f.OpenAPIVersion, "openapi-version", "", "OpenAPI version to generate")
 
 	// The standard flag parser stops at the first positional argument. Separate
@@ -85,22 +84,12 @@ func ParseFlags(args []string) (*Flags, []string, error) {
 	f.provided = make(map[string]bool)
 	fs.Visit(func(opt *flag.Flag) { f.provided[opt.Name] = true })
 
-	// Validate formats if provided
-	if f.InputFormat != "" && !isValidFormat(f.InputFormat) {
+	if f.InputFormat != "" && !format.Format(f.InputFormat).IsValid() {
 		return nil, nil, fmt.Errorf("invalid input format: %s", f.InputFormat)
 	}
-	if f.OutputFormat != "" && !isValidFormat(f.OutputFormat) {
+	if f.OutputFormat != "" && !format.Format(f.OutputFormat).IsValid() {
 		return nil, nil, fmt.Errorf("invalid output format: %s", f.OutputFormat)
 	}
 
 	return f, positional, nil
-}
-
-func isValidFormat(f string) bool {
-	switch format.Format(f) {
-	case format.FormatOpenAPI, format.FormatAPIBlueprint:
-		return true
-	default:
-		return false
-	}
 }

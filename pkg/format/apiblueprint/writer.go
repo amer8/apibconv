@@ -20,7 +20,7 @@ type Writer struct {
 // WriterOption configures the Writer.
 type WriterOption func(*Writer)
 
-// WithFormat sets the output format for the writer (currently unused for API Blueprint).
+// WithFormat selects the API Blueprint version. Only "1A" is supported.
 func WithFormat(f string) WriterOption {
 	return func(w *Writer) {
 		w.format = f
@@ -40,6 +40,9 @@ func NewWriter(opts ...WriterOption) *Writer {
 func (w *Writer) Write(ctx context.Context, api *model.API, wr io.Writer) error {
 	if err := ctx.Err(); err != nil {
 		return err
+	}
+	if w.format != "" && w.format != "1A" {
+		return fmt.Errorf("unsupported API Blueprint version %q", w.format)
 	}
 	if err := security.CheckUnsupported(api, "API Blueprint"); err != nil {
 		return err
@@ -165,7 +168,8 @@ func (w *Writer) Write(ctx context.Context, api *model.API, wr io.Writer) error 
 
 // Blueprint parameters describe URI-template values, not HTTP header or cookie fields.
 func validateBlueprintParameters(params []model.Parameter, path string) error {
-	for _, param := range params {
+	for i := range params {
+		param := &params[i]
 		if param.In != "" && param.In != model.ParameterInPath && param.In != model.ParameterInQuery {
 			return fmt.Errorf("path %q parameter %q has location %q that API Blueprint cannot represent", path, param.Name, param.In)
 		}
@@ -180,12 +184,15 @@ func (w *Writer) Format() format.Format {
 
 // Version returns the API Blueprint version being written.
 func (w *Writer) Version() string {
-	return "1A"
+	if w.format == "" {
+		return "1A"
+	}
+	return w.format
 }
 
 func (w *Writer) writeHeader(api *model.API) string {
 	var sb strings.Builder
-	sb.WriteString("FORMAT: 1A\n")
+	fmt.Fprintf(&sb, "FORMAT: %s\n", w.Version())
 	if len(api.Servers) > 0 {
 		fmt.Fprintf(&sb, "HOST: %s\n", api.Servers[0].URL)
 	}
@@ -239,7 +246,8 @@ func writeParameters(params []model.Parameter) string {
 	}
 	var sb strings.Builder
 	sb.WriteString("\n+ Parameters\n")
-	for _, param := range params {
+	for i := range params {
+		param := &params[i]
 		fmt.Fprintf(&sb, "    + %s", param.Name)
 		if param.Schema != nil {
 			var typeInfo []string
@@ -307,8 +315,6 @@ func (w *Writer) writeAction(method string, op *model.Operation, api *model.API)
 		}
 	}
 
-	// Responses
-	// Sort responses
 	codes := make([]string, 0, len(op.Responses))
 	for k := range op.Responses {
 		codes = append(codes, k)
@@ -334,7 +340,6 @@ func (w *Writer) writeAction(method string, op *model.Operation, api *model.API)
 			fmt.Fprintf(&sb, "\n    %s\n", resp.Description)
 		}
 
-		// Write response body example if available
 		if mt, ok := resp.Content[ct]; ok && mt.Example != nil {
 			if mt.Schema != nil {
 				sb.WriteString("\n    + Body\n")
@@ -411,22 +416,18 @@ func (w *Writer) writeMSONSchema(schema *model.Schema, indentLevel int) string {
 	var sb strings.Builder
 	indent := strings.Repeat("    ", indentLevel)
 
-	// Handle $ref
 	if schema.Ref != "" {
-		// If it's a local reference, just use the name
 		refName := strings.TrimPrefix(schema.Ref, "#/components/schemas/")
 		fmt.Fprintf(&sb, "%s+ Attributes (array[%s])\n", indent, refName)
 		return sb.String()
 	}
 
-	// Handle AllOf
 	for _, allOfSchema := range schema.AllOf {
 		if allOfSchema.Ref != "" {
 			refName := strings.TrimPrefix(allOfSchema.Ref, "#/components/schemas/")
-			fmt.Fprintf(&sb, "%s+ Attributes (array[%s])\n", indent, refName) // Assuming allOf with ref is like extending
+			fmt.Fprintf(&sb, "%s+ Attributes (array[%s])\n", indent, refName)
 		} else {
-			// Inline allOf schema properties
-			sb.WriteString(w.writeMSONSchema(allOfSchema, indentLevel)) // Recursive call for inline schemas
+			sb.WriteString(w.writeMSONSchema(allOfSchema, indentLevel))
 		}
 	}
 
@@ -453,9 +454,8 @@ func (w *Writer) writeMSONSchema(schema *model.Schema, indentLevel int) string {
 			}
 			if propType == "" {
 				propType = "string"
-			} // Default to string if type is unknown
+			}
 
-			// Check if property is required
 			isRequired := false
 			for _, reqProp := range schema.Required {
 				if reqProp == propName {
@@ -474,7 +474,6 @@ func (w *Writer) writeMSONSchema(schema *model.Schema, indentLevel int) string {
 				fmt.Fprintf(&sb, "%s    %s\n", indent, propSchema.Description)
 			}
 
-			// Recursively write nested properties for objects or items for arrays
 			if propSchema.Type == model.TypeObject {
 				sb.WriteString(w.writeMSONSchema(propSchema, indentLevel+1))
 			} else if propSchema.Type == model.TypeArray && propSchema.Items != nil && propSchema.Items.Ref == "" {

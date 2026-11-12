@@ -18,10 +18,14 @@ func (op Operation) MarshalJSON() ([]byte, error) {
 	if op.Security != nil {
 		security = &op.Security
 	}
-	return json.Marshal(struct {
+	data, err := marshalExtensionsJSON(struct {
 		operation
 		Security *[]map[string][]string `json:"security,omitempty"`
-	}{operation: operation(op), Security: security})
+	}{operation: operation(op), Security: security}, op.Extensions)
+	if err != nil {
+		return nil, err
+	}
+	return addMapExtensionsJSON(data, "responses", op.ResponsesExtensions)
 }
 
 // MarshalYAML preserves the distinction between inherited and explicitly empty security.
@@ -29,7 +33,11 @@ func (op Operation) MarshalJSON() ([]byte, error) {
 //nolint:gocritic // A value receiver preserves YAML marshaling for both values and pointers.
 func (op Operation) MarshalYAML() (interface{}, error) {
 	type operation Operation
-	return marshalSecurityYAML(operation(op), op.Security)
+	node, err := marshalSecurityYAML(operation(op), op.Security)
+	if err != nil {
+		return nil, err
+	}
+	return addMapExtensionsYAML(node, "responses", op.ResponsesExtensions)
 }
 
 // MarshalJSON preserves an explicitly empty global security array.
@@ -41,10 +49,14 @@ func (doc OpenAPI) MarshalJSON() ([]byte, error) {
 	if doc.Security != nil {
 		security = &doc.Security
 	}
-	return json.Marshal(struct {
+	data, err := marshalExtensionsJSON(struct {
 		openAPI
 		Security *[]map[string][]string `json:"security,omitempty"`
-	}{openAPI: openAPI(doc), Security: security})
+	}{openAPI: openAPI(doc), Security: security}, doc.Extensions)
+	if err != nil {
+		return nil, err
+	}
+	return addMapExtensionsJSON(data, "paths", doc.PathsExtensions)
 }
 
 // MarshalYAML preserves an explicitly empty global security array.
@@ -52,7 +64,11 @@ func (doc OpenAPI) MarshalJSON() ([]byte, error) {
 //nolint:gocritic // A value receiver preserves YAML marshaling for both values and pointers.
 func (doc OpenAPI) MarshalYAML() (interface{}, error) {
 	type openAPI OpenAPI
-	return marshalSecurityYAML(openAPI(doc), doc.Security)
+	node, err := marshalSecurityYAML(openAPI(doc), doc.Security)
+	if err != nil {
+		return nil, err
+	}
+	return addMapExtensionsYAML(node, "paths", doc.PathsExtensions)
 }
 
 // MarshalJSON preserves an explicitly empty global security array.
@@ -64,10 +80,14 @@ func (doc Swagger20) MarshalJSON() ([]byte, error) {
 	if doc.Security != nil {
 		security = &doc.Security
 	}
-	return json.Marshal(struct {
+	data, err := marshalExtensionsJSON(struct {
 		swagger
 		Security *[]map[string][]string `json:"security,omitempty"`
-	}{swagger: swagger(doc), Security: security})
+	}{swagger: swagger(doc), Security: security}, doc.Extensions)
+	if err != nil {
+		return nil, err
+	}
+	return addMapExtensionsJSON(data, "paths", doc.PathsExtensions)
 }
 
 // MarshalYAML preserves an explicitly empty global security array.
@@ -75,7 +95,36 @@ func (doc Swagger20) MarshalJSON() ([]byte, error) {
 //nolint:gocritic // A value receiver preserves YAML marshaling for both values and pointers.
 func (doc Swagger20) MarshalYAML() (interface{}, error) {
 	type swagger Swagger20
-	return marshalSecurityYAML(swagger(doc), doc.Security)
+	node, err := marshalSecurityYAML(swagger(doc), doc.Security)
+	if err != nil {
+		return nil, err
+	}
+	return addMapExtensionsYAML(node, "paths", doc.PathsExtensions)
+}
+
+func marshalExtensionsJSON(value interface{}, extensions map[string]interface{}) ([]byte, error) {
+	data, err := json.Marshal(value)
+	if err != nil || len(extensions) == 0 {
+		return data, err
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(data, &fields); err != nil {
+		return nil, err
+	}
+	if fields == nil {
+		fields = make(map[string]json.RawMessage)
+	}
+	for key, value := range extensions {
+		if !strings.HasPrefix(key, "x-") {
+			continue
+		}
+		encoded, err := json.Marshal(value)
+		if err != nil {
+			return nil, fmt.Errorf("extension %q: %w", key, err)
+		}
+		fields[key] = encoded
+	}
+	return json.Marshal(fields)
 }
 
 func marshalSecurityYAML(value interface{}, security []map[string][]string) (interface{}, error) {
@@ -124,12 +173,13 @@ func securitySchemeToModel(s *SecurityScheme) model.SecurityScheme {
 	result := model.SecurityScheme{
 		Ref: s.Ref, Type: model.SecuritySchemeType(s.Type), Description: s.Description,
 		Name: s.Name, In: s.In, Scheme: s.Scheme, BearerFormat: s.BearerFormat,
-		OpenIDConnectURL: s.OpenIDConnectURL,
+		OpenIDConnectURL: s.OpenIDConnectURL, Extensions: clonedExtensions(s.Extensions),
 	}
 	if s.Flows != nil {
 		result.Flows = &model.OAuthFlows{
 			Implicit: flowToModel(s.Flows.Implicit), Password: flowToModel(s.Flows.Password),
 			ClientCredentials: flowToModel(s.Flows.ClientCredentials), AuthorizationCode: flowToModel(s.Flows.AuthorizationCode),
+			Extensions: clonedExtensions(s.Flows.Extensions),
 		}
 	}
 	return result
@@ -139,19 +189,20 @@ func flowToModel(f *OAuthFlow) *model.OAuthFlow {
 	if f == nil {
 		return nil
 	}
-	return &model.OAuthFlow{AuthorizationURL: f.AuthorizationURL, TokenURL: f.TokenURL, RefreshURL: f.RefreshURL, Scopes: f.Scopes}
+	return &model.OAuthFlow{AuthorizationURL: f.AuthorizationURL, TokenURL: f.TokenURL, RefreshURL: f.RefreshURL, Scopes: f.Scopes, Extensions: clonedExtensions(f.Extensions)}
 }
 
 func securitySchemeFromModel(s *model.SecurityScheme) SecurityScheme {
 	result := SecurityScheme{
 		Ref: s.Ref, Type: string(s.Type), Description: s.Description,
 		Name: s.Name, In: s.In, Scheme: s.Scheme, BearerFormat: s.BearerFormat,
-		OpenIDConnectURL: s.OpenIDConnectURL,
+		OpenIDConnectURL: s.OpenIDConnectURL, Extensions: clonedExtensions(s.Extensions),
 	}
 	if s.Flows != nil {
 		result.Flows = &OAuthFlows{
 			Implicit: flowFromModel(s.Flows.Implicit), Password: flowFromModel(s.Flows.Password),
 			ClientCredentials: flowFromModel(s.Flows.ClientCredentials), AuthorizationCode: flowFromModel(s.Flows.AuthorizationCode),
+			Extensions: clonedExtensions(s.Flows.Extensions),
 		}
 	}
 	return result
@@ -161,7 +212,7 @@ func flowFromModel(f *model.OAuthFlow) *OAuthFlow {
 	if f == nil {
 		return nil
 	}
-	return &OAuthFlow{AuthorizationURL: f.AuthorizationURL, TokenURL: f.TokenURL, RefreshURL: f.RefreshURL, Scopes: f.Scopes}
+	return &OAuthFlow{AuthorizationURL: f.AuthorizationURL, TokenURL: f.TokenURL, RefreshURL: f.RefreshURL, Scopes: f.Scopes, Extensions: clonedExtensions(f.Extensions)}
 }
 
 func securitySchemeV2ToModel(s *SecurityScheme) (model.SecurityScheme, error) {
@@ -193,7 +244,7 @@ func securitySchemeV2ToModel(s *SecurityScheme) (model.SecurityScheme, error) {
 }
 
 func securitySchemeToV2(s *model.SecurityScheme) (SecurityScheme, error) {
-	result := SecurityScheme{Description: s.Description}
+	result := SecurityScheme{Description: s.Description, Extensions: clonedExtensions(s.Extensions)}
 	if s.Ref != "" {
 		return result, fmt.Errorf("security scheme reference %q cannot be represented in Swagger 2.0", s.Ref)
 	}

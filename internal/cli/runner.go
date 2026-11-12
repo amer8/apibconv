@@ -27,31 +27,15 @@ func NewRunner(conv *converter.Converter) *Runner {
 
 // Convert executes the conversion process based on the configuration.
 func (r *Runner) Convert(ctx context.Context, cfg *Config) error {
-	// 1. Prepare Input
-	var input io.Reader
-
-	if cfg.InputPath == "" || cfg.InputPath == "-" {
-		input = os.Stdin
-	} else {
-		f, err := os.Open(cfg.InputPath)
-		if err != nil {
-			return fmt.Errorf("failed to open input file: %w", err)
-		}
-		defer func() {
-			if cerr := f.Close(); cerr != nil {
-				fmt.Fprintf(os.Stderr, "Error closing input file %s: %v\n", cfg.InputPath, cerr)
-			}
-		}()
-		input = f
+	input, closeInput, err := openInput(cfg.InputPath)
+	if err != nil {
+		return err
 	}
+	defer closeInput()
 
-	// 3. Determine Formats
 	inputFormat := cfg.InputFormat
 	if inputFormat == "" {
-		// Auto-detect input format
-		// We need to read the stream to detect.
-		// If input is stdin, we might need to buffer it.
-		// For simplicity, let's assume detect.Detector handles buffering or we read into memory.
+		// Detection consumes the input, so keep a copy for the parser.
 		data, err := io.ReadAll(input)
 		if err != nil {
 			return fmt.Errorf("failed to read input: %w", err)
@@ -63,8 +47,7 @@ func (r *Runner) Convert(ctx context.Context, cfg *Config) error {
 			return fmt.Errorf("format detection failed: %w", err)
 		}
 		inputFormat = fmtDetected
-		// Re-create reader from bytes since we consumed the stream
-		input = strings.NewReader(string(data))
+		input = bytes.NewReader(data)
 
 		if cfg.InputPath != "" {
 			fmt.Fprintf(os.Stderr, "Detected input format: %s (%s)\n", fmtDetected, ver)
@@ -72,7 +55,7 @@ func (r *Runner) Convert(ctx context.Context, cfg *Config) error {
 	}
 
 	outputFormat := cfg.OutputFormat
-	outputEncoding := cfg.Encoding // Already holds value from flag or env var
+	outputEncoding := cfg.Encoding
 
 	if cfg.OutputPath != "" && cfg.OutputPath != "-" {
 		ext := strings.ToLower(filepath.Ext(cfg.OutputPath))
@@ -100,15 +83,10 @@ func (r *Runner) Convert(ctx context.Context, cfg *Config) error {
 		return fmt.Errorf("output format must be specified via --to when writing to stdout")
 	}
 
-	// If outputFormat is still empty, default to OpenAPI
-	// (This would happen if no --to flag, and no discernible extension)
-	// This is already covered above with the JSON/YAML default if no apib/md
 	if outputFormat == "" {
 		outputFormat = format.FormatOpenAPI
 	}
 
-	// 4. Run Conversion
-	// Inject configuration into context
 	if outputEncoding != "" {
 		ctx = converter.WithEncoding(ctx, outputEncoding)
 	}
@@ -118,7 +96,6 @@ func (r *Runner) Convert(ctx context.Context, cfg *Config) error {
 
 	if cfg.Verbose {
 		r.conv.SetProgress(func(n int64) {
-			// Print to stderr, using carriage return to update line
 			fmt.Fprintf(os.Stderr, "\rProcessed %d bytes...", n)
 		})
 	}
@@ -139,7 +116,7 @@ func (r *Runner) Convert(ctx context.Context, cfg *Config) error {
 		output = &pending
 	}
 
-	err := r.conv.Convert(ctx, input, output, inputFormat, outputFormat)
+	err = r.conv.Convert(ctx, input, output, inputFormat, outputFormat)
 	if err != nil {
 		return errors.Wrap("convert", string(outputFormat), fmt.Errorf("%w: %w", errors.ErrConversionFailed, err))
 	}
@@ -180,26 +157,12 @@ func (r *Runner) Convert(ctx context.Context, cfg *Config) error {
 
 // Validate executes the validation process based on the configuration.
 func (r *Runner) Validate(ctx context.Context, cfg *Config) error {
-	// similar logic to Convert but calls r.conv.Validate
-	var input io.Reader
-	var err error
-
-	if cfg.InputPath == "" || cfg.InputPath == "-" {
-		input = os.Stdin
-	} else {
-		f, err := os.Open(cfg.InputPath)
-		if err != nil {
-			return fmt.Errorf("failed to open input file: %w", err)
-		}
-		defer func() {
-			if cerr := f.Close(); cerr != nil {
-				fmt.Fprintf(os.Stderr, "Error closing input file %s: %v\n", cfg.InputPath, cerr)
-			}
-		}()
-		input = f
+	input, closeInput, err := openInput(cfg.InputPath)
+	if err != nil {
+		return err
 	}
+	defer closeInput()
 
-	// Read content for detection
 	data, err := io.ReadAll(input)
 	if err != nil {
 		return err
@@ -216,7 +179,7 @@ func (r *Runner) Validate(ctx context.Context, cfg *Config) error {
 		fmt.Fprintf(os.Stderr, "Detected format: %s (%s)\n", fmtDetected, ver)
 	}
 
-	input = strings.NewReader(string(data))
+	input = bytes.NewReader(data)
 
 	issues, validationErr := r.conv.Validate(ctx, input, inputFormat)
 	report := makeValidationReport(issues, validationErr)
@@ -230,4 +193,22 @@ func (r *Runner) Validate(ctx context.Context, cfg *Config) error {
 		return errors.ErrValidationFailed
 	}
 	return nil
+}
+
+// openInput returns stdin for an empty path or "-". The caller closes files
+// through the returned function; stdin is left open.
+func openInput(path string) (io.Reader, func(), error) {
+	if path == "" || path == "-" {
+		return os.Stdin, func() {}, nil
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to open input file: %w", err)
+	}
+	closeInput := func() {
+		if err := file.Close(); err != nil {
+			fmt.Fprintf(os.Stderr, "Error closing input file %s: %v\n", path, err)
+		}
+	}
+	return file, closeInput, nil
 }

@@ -18,23 +18,28 @@ type PathItem struct {
 	// An empty list means all servers.
 	ChannelServers []string
 	Parameters     []Parameter
+	Extensions     map[string]interface{}
 }
 
 // Operation represents an OpenAPI Operation object.
 type Operation struct {
-	Tags         []string
-	Summary      string
-	Description  string
-	OperationID  string
-	Parameters   []Parameter
-	RequestBody  *RequestBody
-	Responses    Responses
-	Callbacks    map[string]Callback
-	Deprecated   bool
-	Security     []SecurityRequirement
-	Servers      []Server
-	ExternalDocs *ExternalDocs
-	Bindings     map[string]interface{} // Protocol-specific operation bindings
+	Tags        []string
+	Summary     string
+	Description string
+	OperationID string
+	Parameters  []Parameter
+	RequestBody *RequestBody
+	// ResponsesExtensions contains extensions on the responses object itself.
+	ResponsesExtensions map[string]interface{}
+	Responses           Responses
+	CallbackExtensions  map[string]map[string]interface{}
+	Callbacks           map[string]Callback
+	Deprecated          bool
+	Security            []SecurityRequirement
+	Servers             []Server
+	ExternalDocs        *ExternalDocs
+	Bindings            map[string]interface{} // Protocol-specific operation bindings
+	Extensions          map[string]interface{}
 }
 
 // Parameter represents an OpenAPI Parameter object.
@@ -52,6 +57,7 @@ type Parameter struct {
 	Example         interface{}
 	Examples        map[string]Example
 	Content         map[string]MediaType
+	Extensions      map[string]interface{}
 }
 
 // ParameterLocation defines the location of a parameter.
@@ -73,6 +79,7 @@ type RequestBody struct {
 	Description string
 	Content     map[string]MediaType
 	Required    bool
+	Extensions  map[string]interface{}
 }
 
 // Responses is a map of status codes to Response objects.
@@ -84,14 +91,16 @@ type Response struct {
 	Headers     map[string]Header
 	Content     map[string]MediaType
 	Links       map[string]Link
+	Extensions  map[string]interface{}
 }
 
 // MediaType represents an OpenAPI Media Type object.
 type MediaType struct {
-	Schema   *Schema
-	Example  interface{}
-	Examples map[string]Example
-	Encoding map[string]Encoding
+	Schema     *Schema
+	Example    interface{}
+	Examples   map[string]Example
+	Encoding   map[string]Encoding
+	Extensions map[string]interface{}
 }
 
 // Encoding represents an OpenAPI Encoding object.
@@ -101,6 +110,7 @@ type Encoding struct {
 	Style         string
 	Explode       bool
 	AllowReserved bool
+	Extensions    map[string]interface{}
 }
 
 // Header represents an OpenAPI Header object.
@@ -111,6 +121,8 @@ type Header struct {
 	AllowEmptyValue bool
 	Schema          *Schema
 	Example         interface{}
+	Extensions      map[string]interface{}
+	Examples        map[string]Example
 }
 
 // Example represents an OpenAPI Example object.
@@ -119,6 +131,8 @@ type Example struct {
 	Description   string
 	Value         interface{}
 	ExternalValue string
+	Ref           string
+	Extensions    map[string]interface{}
 }
 
 // Link represents an OpenAPI Link object.
@@ -129,12 +143,14 @@ type Link struct {
 	RequestBody  interface{}
 	Description  string
 	Server       *Server
+	Ref          string
+	Extensions   map[string]interface{}
 }
 
 // Callback represents an OpenAPI Callback object.
 type Callback map[string]PathItem
 
-// GetOperation retrieves an operation by method
+// GetOperation returns the operation for an uppercase HTTP method, or nil.
 func (p *PathItem) GetOperation(method string) *Operation {
 	switch method {
 	case "GET":
@@ -158,7 +174,7 @@ func (p *PathItem) GetOperation(method string) *Operation {
 	}
 }
 
-// SetOperation sets an operation by method
+// SetOperation sets the operation for an uppercase HTTP method. Unknown methods are ignored.
 func (p *PathItem) SetOperation(method string, op *Operation) {
 	switch method {
 	case "GET":
@@ -180,12 +196,12 @@ func (p *PathItem) SetOperation(method string, op *Operation) {
 	}
 }
 
-// AddParameter adds a parameter to the operation
+// AddParameter adds a parameter to the operation.
 func (o *Operation) AddParameter(param *Parameter) {
 	o.Parameters = append(o.Parameters, *param)
 }
 
-// AddResponse adds a response to the operation
+// AddResponse adds or replaces a response for the given status code.
 func (o *Operation) AddResponse(code string, resp Response) {
 	if o.Responses == nil {
 		o.Responses = make(Responses)
@@ -193,7 +209,7 @@ func (o *Operation) AddResponse(code string, resp Response) {
 	o.Responses[code] = resp
 }
 
-// GetDefault retrieves the default response
+// GetDefault returns a shallow copy of the default response, or nil if absent.
 func (r *Responses) GetDefault() *Response {
 	if resp, ok := (*r)["default"]; ok {
 		return &resp
@@ -201,7 +217,7 @@ func (r *Responses) GetDefault() *Response {
 	return nil
 }
 
-// GetByCode retrieves a response by status code
+// GetByCode returns a shallow copy of the response, or nil if absent.
 func (r *Responses) GetByCode(code string) *Response {
 	if resp, ok := (*r)[code]; ok {
 		return &resp

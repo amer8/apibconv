@@ -2,6 +2,8 @@ package model
 
 import (
 	"fmt"
+	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -64,7 +66,8 @@ type Schema struct {
 	Discriminator *Discriminator `json:"discriminator,omitempty" yaml:"discriminator,omitempty"`
 
 	// External documentation
-	ExternalDocs *ExternalDocs `json:"externalDocs,omitempty" yaml:"externalDocs,omitempty"`
+	ExternalDocs *ExternalDocs          `json:"externalDocs,omitempty" yaml:"externalDocs,omitempty"`
+	Extensions   map[string]interface{} `json:"-" yaml:"-"`
 }
 
 // SchemaType defines the type of a schema.
@@ -72,23 +75,24 @@ type SchemaType string
 
 const (
 	// TypeString indicates a string schema type.
-	TypeString  SchemaType = "string"
+	TypeString SchemaType = "string"
 	// TypeNumber indicates a number schema type.
-	TypeNumber  SchemaType = "number"
+	TypeNumber SchemaType = "number"
 	// TypeInteger indicates an integer schema type.
 	TypeInteger SchemaType = "integer"
 	// TypeBoolean indicates a boolean schema type.
 	TypeBoolean SchemaType = "boolean"
 	// TypeArray indicates an array schema type.
-	TypeArray   SchemaType = "array"
+	TypeArray SchemaType = "array"
 	// TypeObject indicates an object schema type.
-	TypeObject  SchemaType = "object"
+	TypeObject SchemaType = "object"
 )
 
 // Discriminator object for polymorphism.
 type Discriminator struct {
-	PropertyName string            `json:"propertyName,omitempty" yaml:"propertyName,omitempty"`
-	Mapping      map[string]string `json:"mapping,omitempty" yaml:"mapping,omitempty"`
+	PropertyName string                 `json:"propertyName,omitempty" yaml:"propertyName,omitempty"`
+	Mapping      map[string]string      `json:"mapping,omitempty" yaml:"mapping,omitempty"`
+	Extensions   map[string]interface{} `json:"-" yaml:"-"`
 }
 
 // Components holds a set of reusable objects for different aspects of the API.
@@ -101,10 +105,13 @@ type Components struct {
 	Headers         map[string]Header
 	SecuritySchemes map[string]SecurityScheme
 	Links           map[string]Link
-	Callbacks       map[string]Callback
+	// CallbackExtensions contains extensions on each named callback object.
+	CallbackExtensions map[string]map[string]interface{}
+	Callbacks          map[string]Callback
+	Extensions         map[string]interface{}
 }
 
-// NewComponents creates a new Components instance
+// NewComponents creates a set of initialized component maps.
 func NewComponents() Components {
 	return Components{
 		Schemas:         make(map[string]*Schema),
@@ -119,7 +126,7 @@ func NewComponents() Components {
 	}
 }
 
-// NewSchema creates a new Schema of the given type
+// NewSchema creates a schema of the given type.
 func NewSchema(typ SchemaType) *Schema {
 	return &Schema{
 		Type:       typ,
@@ -127,7 +134,7 @@ func NewSchema(typ SchemaType) *Schema {
 	}
 }
 
-// AddProperty adds a property to the schema (assuming it's an object)
+// AddProperty adds or replaces a schema property.
 func (s *Schema) AddProperty(name string, schema *Schema) {
 	if s.Properties == nil {
 		s.Properties = make(map[string]*Schema)
@@ -135,29 +142,96 @@ func (s *Schema) AddProperty(name string, schema *Schema) {
 	s.Properties[name] = schema
 }
 
-// SetRequired sets the required fields
+// SetRequired replaces the list of required fields.
 func (s *Schema) SetRequired(fields ...string) {
 	s.Required = fields
 }
 
-// ResolveRef resolves a reference within the components.
+// ResolveRef resolves local component schema references, including pointers to
+// nested schemas. External and unsupported reference locations return an error.
 func (s *Schema) ResolveRef(components *Components) (*Schema, error) {
 	if s.Ref == "" {
 		return s, nil
 	}
-	if strings.HasPrefix(s.Ref, "#/components/schemas/") {
-		refName := strings.TrimPrefix(s.Ref, "#/components/schemas/")
-		if resolved, ok := components.GetSchema(refName); ok {
-			return resolved, nil
-		}
+	const prefix = "#/components/schemas/"
+	if !strings.HasPrefix(s.Ref, prefix) {
+		return nil, fmt.Errorf("unsupported reference format: %s", s.Ref)
+	}
+	if components == nil {
 		return nil, fmt.Errorf("reference not found: %s", s.Ref)
 	}
-	// Return nil for unsupported or external refs for now, or error?
-	// The interface implies we should be able to resolve it.
-	return nil, fmt.Errorf("unsupported reference format: %s", s.Ref)
+	parts := strings.Split(strings.TrimPrefix(s.Ref, prefix), "/")
+	for i, part := range parts {
+		decoded, err := decodePointerToken(part)
+		if err != nil {
+			return nil, fmt.Errorf("invalid reference %q: %w", s.Ref, err)
+		}
+		parts[i] = decoded
+	}
+	current, ok := components.Schemas[parts[0]]
+	if !ok || current == nil {
+		return nil, fmt.Errorf("reference not found: %s", s.Ref)
+	}
+	for i := 1; i < len(parts); i++ {
+		switch parts[i] {
+		case "properties":
+			i++
+			if i >= len(parts) {
+				return nil, fmt.Errorf("reference not found: %s", s.Ref)
+			}
+			current = current.Properties[parts[i]]
+		case "items":
+			current = current.Items
+		case "not":
+			current = current.Not
+		case "additionalProperties":
+			current, _ = current.AdditionalProperties.(*Schema)
+		case "allOf", "anyOf", "oneOf":
+			var choices []*Schema
+			switch parts[i] {
+			case "allOf":
+				choices = current.AllOf
+			case "anyOf":
+				choices = current.AnyOf
+			case "oneOf":
+				choices = current.OneOf
+			}
+			i++
+			if i >= len(parts) {
+				return nil, fmt.Errorf("reference not found: %s", s.Ref)
+			}
+			index, err := strconv.Atoi(parts[i])
+			if err != nil || index < 0 || index >= len(choices) {
+				return nil, fmt.Errorf("reference not found: %s", s.Ref)
+			}
+			current = choices[index]
+		default:
+			return nil, fmt.Errorf("unsupported reference format: %s", s.Ref)
+		}
+		if current == nil {
+			return nil, fmt.Errorf("reference not found: %s", s.Ref)
+		}
+	}
+	return current, nil
 }
 
-// AddSchema adds a schema to components
+func decodePointerToken(token string) (string, error) {
+	decoded, err := url.PathUnescape(token)
+	if err != nil {
+		return "", err
+	}
+	for i := 0; i < len(decoded); i++ {
+		if decoded[i] == '~' {
+			if i+1 == len(decoded) || (decoded[i+1] != '0' && decoded[i+1] != '1') {
+				return "", fmt.Errorf("invalid JSON Pointer escape")
+			}
+			i++
+		}
+	}
+	return strings.ReplaceAll(strings.ReplaceAll(decoded, "~1", "/"), "~0", "~"), nil
+}
+
+// AddSchema adds or replaces a named schema.
 func (c *Components) AddSchema(name string, schema *Schema) {
 	if c.Schemas == nil {
 		c.Schemas = make(map[string]*Schema)
@@ -165,7 +239,7 @@ func (c *Components) AddSchema(name string, schema *Schema) {
 	c.Schemas[name] = schema
 }
 
-// GetSchema retrieves a schema from components
+// GetSchema returns a schema and whether it exists.
 func (c *Components) GetSchema(name string) (*Schema, bool) {
 	s, ok := c.Schemas[name]
 	return s, ok

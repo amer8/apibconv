@@ -22,13 +22,13 @@ func main() {
 	if err := run(os.Args[1:]); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 
-		exitCode := 1 // Default error code
+		exitCode := 1
 		if errors.Is(err, errors.ErrValidationFailed) {
 			exitCode = 2
 		} else if errors.Is(err, errors.ErrConversionFailed) {
 			exitCode = 3
 		} else if _, ok := err.(*errors.ConversionError); ok {
-			exitCode = 3 // If it's a wrapped conversion error
+			exitCode = 3
 		}
 
 		os.Exit(exitCode)
@@ -52,12 +52,10 @@ func setupConverter() (*converter.Converter, error) {
 		return nil, err
 	}
 
-	// Register parsers
 	conv.RegisterParser(openapi.NewParser())
 	conv.RegisterParser(apiblueprint.NewParser())
 
-	jsonOutput := false
-	conv.RegisterWriter(openapi.NewWriter(openapi.WithJSONOutput(jsonOutput)))
+	conv.RegisterWriter(openapi.NewWriter(openapi.WithYAML(true)))
 	conv.RegisterWriter(apiblueprint.NewWriter())
 
 	return conv, nil

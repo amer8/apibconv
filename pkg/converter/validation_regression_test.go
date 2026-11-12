@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func TestReviewValidationReportsNullSchema(t *testing.T) {
+func TestValidationReportsNullSchema(t *testing.T) {
 	c, err := converter.New()
 	if err != nil {
 		t.Fatal(err)

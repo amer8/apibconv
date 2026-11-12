@@ -9,7 +9,7 @@ import (
 	"github.com/amer8/apibconv/pkg/model"
 )
 
-func TestP1ParseRequestExample(t *testing.T) {
+func TestParseRequestExample(t *testing.T) {
 	input := `FORMAT: 1A
 # API
 ## Things [/things]
@@ -33,11 +33,31 @@ func TestP1ParseRequestExample(t *testing.T) {
 	}
 }
 
-func TestP1BlueprintSchemasRoundTrip(t *testing.T) {
+func TestBlueprintSchemasRoundTrip(t *testing.T) {
 	api := model.NewAPI()
 	api.Info.Title = "T"
-	api.Components.AddSchema("Thing", &model.Schema{Type: model.TypeObject, Properties: map[string]*model.Schema{"id": {Type: model.TypeString}}, Required: []string{"id"}})
-	api.Paths["/things"] = model.PathItem{Post: &model.Operation{RequestBody: &model.RequestBody{Content: map[string]model.MediaType{"application/json": {Schema: &model.Schema{Ref: "#/components/schemas/Thing"}}}}, Responses: model.Responses{"200": {Content: map[string]model.MediaType{"application/json": {Schema: &model.Schema{Type: model.TypeObject, Properties: map[string]*model.Schema{"id": {Type: model.TypeString}}, Required: []string{"id"}}}}}, "201": {Content: map[string]model.MediaType{"application/json": {Schema: &model.Schema{Ref: "#/components/schemas/Thing"}}}}}}}
+	thing := &model.Schema{
+		Type:       model.TypeObject,
+		Properties: map[string]*model.Schema{"id": {Type: model.TypeString}},
+		Required:   []string{"id"},
+	}
+	api.Components.AddSchema("Thing", thing)
+	responseThing := &model.Schema{
+		Type:       model.TypeObject,
+		Properties: map[string]*model.Schema{"id": {Type: model.TypeString}},
+		Required:   []string{"id"},
+	}
+	api.Paths["/things"] = model.PathItem{
+		Post: &model.Operation{
+			RequestBody: &model.RequestBody{Content: map[string]model.MediaType{
+				"application/json": {Schema: &model.Schema{Ref: "#/components/schemas/Thing"}},
+			}},
+			Responses: model.Responses{
+				"200": {Content: map[string]model.MediaType{"application/json": {Schema: responseThing}}},
+				"201": {Content: map[string]model.MediaType{"application/json": {Schema: &model.Schema{Ref: "#/components/schemas/Thing"}}}},
+			},
+		},
+	}
 	var out bytes.Buffer
 	if err := NewWriter().Write(context.Background(), api, &out); err != nil {
 		t.Fatal(err)
@@ -64,12 +84,24 @@ func TestP1BlueprintSchemasRoundTrip(t *testing.T) {
 	}
 }
 
-func TestP1ResponseJSONSchemaAndExample(t *testing.T) {
+func TestResponseJSONSchemaAndExample(t *testing.T) {
 	minLength := 3
 	api := model.NewAPI()
 	api.Info.Title = "T"
-	original := &model.Schema{Type: model.TypeObject, Properties: map[string]*model.Schema{"name": {Type: model.TypeString, MinLength: &minLength}, "nested": {Type: model.TypeObject, Properties: map[string]*model.Schema{"count": {Type: model.TypeInteger}}}}}
-	api.Paths["/things"] = model.PathItem{Get: &model.Operation{Responses: model.Responses{"200": {Content: map[string]model.MediaType{"application/json": {Schema: original, Example: `{"name":"abc"}`}}}}}}
+	original := &model.Schema{
+		Type: model.TypeObject,
+		Properties: map[string]*model.Schema{
+			"name":   {Type: model.TypeString, MinLength: &minLength},
+			"nested": {Type: model.TypeObject, Properties: map[string]*model.Schema{"count": {Type: model.TypeInteger}}},
+		},
+	}
+	api.Paths["/things"] = model.PathItem{
+		Get: &model.Operation{Responses: model.Responses{
+			"200": {Content: map[string]model.MediaType{
+				"application/json": {Schema: original, Example: `{"name":"abc"}`},
+			}},
+		}},
+	}
 	var out bytes.Buffer
 	if err := NewWriter().Write(context.Background(), api, &out); err != nil {
 		t.Fatal(err)

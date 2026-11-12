@@ -1,11 +1,11 @@
-// Package main demonstrates how to use custom plugins with apibconv.
+// Package main demonstrates a custom transformation with apibconv.
 package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/amer8/apibconv/pkg/converter"
 	"github.com/amer8/apibconv/pkg/format"
@@ -13,75 +13,27 @@ import (
 	"github.com/amer8/apibconv/pkg/model"
 )
 
-// MyCustomTransformer implements a custom transformation logic
-type MyCustomTransformer struct{}
-
-func (t *MyCustomTransformer) Transform(api *model.API) error {
-	fmt.Println("  [Plugin] Running custom transformation...")
-	api.Info.Title = fmt.Sprintf("[Plugin] %s", api.Info.Title)
-	api.Info.Description += "\n\nProcessed by MyCustomTransformer plugin."
-	return nil
-}
-
 func main() {
-	// Define the transformation function wrapper
-	transformFn := func(api *model.API) error {
-		transformer := &MyCustomTransformer{}
-		return transformer.Transform(api)
-	}
-
-	// Create a converter with the custom transform
-	conv, err := converter.New(
-		converter.WithTransform(transformFn),
-	)
+	conv, err := converter.New(converter.WithTransform(addPrefix))
 	if err != nil {
-		log.Fatalf("failed to create converter: %v", err)
+		log.Fatalf("create converter: %v", err)
 	}
-
-	// Register parsers and writers
 	conv.RegisterParser(openapi.NewParser())
-	conv.RegisterWriter(openapi.NewWriter(openapi.WithIndent(2)))
+	conv.RegisterWriter(openapi.NewWriter())
 
-	// Create a dummy input file for demonstration
-	inputFile, err := os.CreateTemp("", "input-*.yaml")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer func() {
-		if cerr := os.Remove(inputFile.Name()); cerr != nil {
-			log.Printf("Error removing temp file: %v", cerr)
-		}
-	}()
-	
-	if _, err := inputFile.WriteString(`openapi: 3.0.0
+	input := strings.NewReader(`openapi: 3.0.0
 info:
   title: Original API
   version: 1.0.0
-paths: {}`); err != nil {
-		log.Printf("failed to write to input file: %v", err)
-		return
+paths: {}`)
+	if err := conv.Convert(context.Background(), input, os.Stdout, format.FormatOpenAPI, format.FormatOpenAPI); err != nil {
+		log.Fatalf("convert: %v", err)
 	}
-	if cerr := inputFile.Close(); cerr != nil {
-		log.Printf("Error closing input file: %v", cerr)
-	}
+}
 
-	// Re-open for reading
-	input, err := os.Open(inputFile.Name())
-	if err != nil {
-		log.Printf("failed to re-open input file: %v", err)
-		return
-	}
-	defer func() {
-		if cerr := input.Close(); cerr != nil {
-			log.Printf("Error closing input reader: %v", cerr)
-		}
-	}()
-
-	// Convert
-	fmt.Println("Running conversion with plugin...")
-	err = conv.Convert(context.Background(), input, os.Stdout, format.FormatOpenAPI, format.FormatOpenAPI)
-	if err != nil {
-		log.Printf("conversion failed: %v", err)
-		return
-	}
+// addPrefix changes the model between parsing and writing.
+func addPrefix(api *model.API) error {
+	api.Info.Title = "[Plugin] " + api.Info.Title
+	api.Info.Description += "\n\nProcessed by a custom transformation."
+	return nil
 }
