@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 )
 
 // atomicOutput keeps failed conversions from modifying an existing destination.
@@ -51,6 +52,9 @@ func sameOutputState(a, b os.FileInfo) bool {
 }
 
 func newAtomicOutput(inputPath, outputPath string) (*atomicOutput, error) {
+	if runtime.GOOS == "windows" {
+		return nil, fmt.Errorf("native Windows is unsupported; run apibconv using Windows Subsystem for Linux (WSL)")
+	}
 	info, err := os.Lstat(outputPath)
 	var digest [sha256.Size]byte
 	if err != nil && !os.IsNotExist(err) {

@@ -82,12 +82,12 @@ func detectStructuredSpec(data []byte) (format.Format, string, bool) {
 func normalizeOpenAPIVersion(version string) string {
 	version = strings.TrimSpace(version)
 	switch {
-	case strings.HasPrefix(version, "3.1"):
+	case strings.HasPrefix(version, "3.1.") || version == "3.1":
 		return "3.1.x"
-	case strings.HasPrefix(version, "3"):
+	case strings.HasPrefix(version, "3.0.") || version == "3.0":
 		return "3.0.x"
 	default:
-		return "3.0.x"
+		return version
 	}
 }
 

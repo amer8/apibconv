@@ -13,38 +13,6 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-// A helper to remove dynamic default 404 response added by writer for testing.
-func removeDefault404(doc map[string]interface{}) {
-	if paths, ok := doc["paths"].(map[string]interface{}); ok {
-		for _, pathItem := range paths {
-			if piMap, ok := pathItem.(map[string]interface{}); ok {
-				for _, operation := range piMap {
-					if opMap, ok := operation.(map[string]interface{}); ok {
-						if responses, ok := opMap["responses"].(map[string]interface{}); ok {
-							delete(responses, "404")
-						}
-					}
-				}
-			}
-		}
-	}
-	if swgPaths, ok := doc["swagger"].(map[string]interface{}); ok {
-		if paths, ok := swgPaths["paths"].(map[string]interface{}); ok {
-			for _, pathItem := range paths {
-				if piMap, ok := pathItem.(map[string]interface{}); ok {
-					for _, operation := range piMap {
-						if opMap, ok := operation.(map[string]interface{}); ok {
-							if responses, ok := opMap["responses"].(map[string]interface{}); ok {
-								delete(responses, "404")
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-}
-
 func TestWrite(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -87,24 +55,6 @@ paths:
       responses:
         "200":
           description: OK
-        "404":
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-components:
-  schemas:
-    Error:
-      type: object
-      required:
-        - code
-        - message
-      properties:
-        code:
-          type: integer
-        message:
-          type: string
 `),
 		},
 		{
@@ -136,21 +86,6 @@ components:
   "paths": {},
   "components": {
     "schemas": {
-      "Error": {
-        "type": "object",
-        "required": [
-          "code",
-          "message"
-        ],
-        "properties": {
-          "code": {
-            "type": "integer"
-          },
-          "message": {
-            "type": "string"
-          }
-        }
-      },
       "NullableProperty": {
         "type": [
           "string",
@@ -214,33 +149,12 @@ components:
         "responses": {
           "201": {
             "description": "User created"
-          },
-          "404": {
-            "description": "Not Found",
-            "schema": {
-              "$ref": "#/definitions/Error"
-            }
           }
         }
       }
     }
   },
   "definitions": {
-    "Error": {
-      "type": "object",
-      "required": [
-        "code",
-        "message"
-      ],
-      "properties": {
-        "code": {
-          "type": "integer"
-        },
-        "message": {
-          "type": "string"
-        }
-      }
-    },
     "User": {
       "type": "object",
       "properties": {
@@ -276,24 +190,6 @@ paths:
       responses:
         "200":
           description: OK
-        "404":
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-components:
-  schemas:
-    Error:
-      type: object
-      required:
-        - code
-        - message
-      properties:
-        code:
-          type: integer
-        message:
-          type: string
 `),
 		},
 	}
@@ -335,9 +231,6 @@ components:
 					t.Fatalf("Failed to unmarshal expected JSON: %v\n%s", err, tt.wantOutput)
 				}
 			}
-
-			removeDefault404(gotDoc)
-			removeDefault404(wantDoc)
 
 			gotBytes, err := json.MarshalIndent(gotDoc, "", "  ")
 			if err != nil {

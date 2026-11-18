@@ -107,9 +107,17 @@ func TestCLIValidateOutputBeforeWriting(t *testing.T) {
 	if code != 0 || !strings.Contains(stdout, `"version": ""`) {
 		t.Fatalf("empty API version behavior: exit=%d stdout=%q stderr=%q", code, stdout, stderr)
 	}
-	stdout, stderr, code = invokeCLI(t, "--from", "apiblueprint", "--to", "openapi", "--validate-output", bad)
+	stdout, stderr, code = invokeCLI(t, "--from", "apiblueprint", "--to", "openapi", bad)
 	if code != 2 || stdout != "" || !strings.Contains(stderr, "Missing") {
 		t.Fatalf("invalid output: exit=%d stdout=%q stderr=%q", code, stdout, stderr)
+	}
+	stdout, stderr, code = invokeCLI(t, "--from", "apiblueprint", "--to", "openapi", "-e", "json", "--api-version", "1.2.3", blueprint)
+	if code != 0 || !strings.Contains(stdout, `"version": "1.2.3"`) || strings.Contains(stderr, "no API version") {
+		t.Fatalf("API version: exit=%d stdout=%q stderr=%q", code, stdout, stderr)
+	}
+	stdout, stderr, code = invokeCLI(t, "--from", "apiblueprint", "--to", "openapi", "--validate-output=false", bad)
+	if code != 0 || !strings.Contains(stdout, "Missing") {
+		t.Fatalf("disabled validation: exit=%d stdout=%q stderr=%q", code, stdout, stderr)
 	}
 	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
 		return // Existing outputs cannot be replaced on these platforms.
@@ -131,5 +139,37 @@ func TestCLIValidateOutputBeforeWriting(t *testing.T) {
 	leftovers, err := filepath.Glob(filepath.Join(dir, ".apibconv-*"))
 	if err != nil || len(leftovers) != 0 {
 		t.Fatalf("temporary output remains: %v, %v", leftovers, err)
+	}
+}
+
+func TestBlueprintExamplesAndReservedHeadersThroughCLI(t *testing.T) {
+	input := writeSpec(t, "FORMAT: 1A\n# API\n## X [/x]\n### Create [POST]\n+ Request (application/json)\n\n        null\n+ Response 200 (application/json)\n\n        {\"id\":9007199254740993}\n")
+	for _, encoding := range []string{"json", "yaml"} {
+		stdout, stderr, code := invokeCLI(t, "--from", "apiblueprint", "--to", "openapi", "-e", encoding, input)
+		if code != 0 || !strings.Contains(stdout, "9007199254740993") || !strings.Contains(stdout, "null") {
+			t.Fatalf("%s output: code=%d stdout=%q stderr=%q", encoding, code, stdout, stderr)
+		}
+	}
+	reserved := writeSpec(t, "FORMAT: 1A\n# API\n## X [/x]\n### X [GET]\n+ Request\n    + Headers\n\n            Authorization: Bearer secret\n+ Response 204\n")
+	stdout, stderr, code := invokeCLI(t, "--from", "apiblueprint", "--to", "openapi", reserved)
+	if code == 0 || stdout != "" || !strings.Contains(stderr, "Authorization") {
+		t.Fatalf("reserved header: code=%d stdout=%q stderr=%q", code, stdout, stderr)
+	}
+}
+
+func TestBlueprintRepeatedHeadersProduceOneParameter(t *testing.T) {
+	input := writeSpec(t, "FORMAT: 1A\n# API\n## X [/x]\n### Create [POST]\n+ Request (application/json)\n    + Headers\n\n            X-Client: first\n+ Request (application/xml)\n    + Headers\n\n            x-client: second\n+ Response 204\n")
+	stdout, stderr, code := invokeCLI(t, "--from", "apiblueprint", "--to", "openapi", "-e", "json", input)
+	if code != 0 {
+		t.Fatalf("code=%d stderr=%s", code, stderr)
+	}
+	var doc map[string]interface{}
+	if err := json.Unmarshal([]byte(stdout), &doc); err != nil {
+		t.Fatal(err)
+	}
+	post := doc["paths"].(map[string]interface{})["/x"].(map[string]interface{})["post"].(map[string]interface{})
+	params := post["parameters"].([]interface{})
+	if len(params) != 1 || len(params[0].(map[string]interface{})["examples"].(map[string]interface{})) != 2 {
+		t.Fatalf("parameters: %s", stdout)
 	}
 }

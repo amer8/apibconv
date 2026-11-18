@@ -21,6 +21,7 @@ type Config struct {
 	Report         string
 	Mode           Mode
 	OpenAPIVersion string
+	APIInfoVersion string
 }
 
 // Mode represents the operation mode of the application.
@@ -48,6 +49,7 @@ func ConfigFromFlags(f *Flags, args []string) (*Config, error) {
 		ValidateOutput: f.ValidateOutput,
 		Report:         f.Report,
 		OpenAPIVersion: f.OpenAPIVersion,
+		APIInfoVersion: f.APIInfoVersion,
 		Mode:           ModeConvert,
 	}
 
@@ -72,7 +74,8 @@ func ConfigFromFlags(f *Flags, args []string) (*Config, error) {
 			{"--to", f.OutputFormat != "" || f.provided["to"]},
 			{"--encoding", f.Encoding != "" || f.provided["e"] || f.provided["encoding"]},
 			{"--openapi-version", f.OpenAPIVersion != "" || f.provided["openapi-version"]},
-			{"--validate-output", f.ValidateOutput || f.provided["validate-output"]},
+			{"--validate-output", f.provided["validate-output"]},
+			{"--api-version", f.provided["api-version"]},
 		} {
 			if opt.set {
 				return nil, fmt.Errorf("%s cannot be used with --validate", opt.name)

@@ -36,12 +36,12 @@ func newReleaseSpec(tag string) (releaseSpec, error) {
 	prefix := "apibconv_" + strings.TrimPrefix(tag, "v")
 	spec := releaseSpec{
 		tag:          tag,
-		archives:     make([]string, 0, 6),
+		archives:     make([]string, 0, 4),
 		bundleName:   prefix + "_provenance.sigstore.json",
 		envelopeName: prefix + "_provenance.intoto.jsonl",
 	}
 	for _, platform := range []struct{ name, extension string }{
-		{"Darwin", "tar.gz"}, {"Linux", "tar.gz"}, {"Windows", "zip"},
+		{"Darwin", "tar.gz"}, {"Linux", "tar.gz"},
 	} {
 		for _, arch := range []string{"x86_64", "arm64"} {
 			spec.archives = append(spec.archives, prefix+"_"+platform.name+"_"+arch+"."+platform.extension)
@@ -51,7 +51,7 @@ func newReleaseSpec(tag string) (releaseSpec, error) {
 }
 
 func (s releaseSpec) assetNames(provenance bool) []string {
-	names := make([]string, 0, 21)
+	names := make([]string, 0, 15)
 	names = append(names, "bom.json")
 	for _, archive := range s.archives {
 		names = append(names, archive, archive+"_checksums.txt", archive+"_checksums.txt.sigstore.json")
@@ -102,7 +102,7 @@ func copyFile(source, destination string) error {
 }
 
 func (s releaseSpec) assetDigests(directory string) (map[string]string, error) {
-	digests := make(map[string]string, 19)
+	digests := make(map[string]string, 13)
 	for _, name := range s.assetNames(false) {
 		digest, err := digestFile(filepath.Join(directory, name))
 		if err != nil {

@@ -430,6 +430,7 @@ func (p *Parser) convertParameters(params []Parameter) []model.Parameter {
 	for i := range params {
 		param := &params[i]
 		mp := model.Parameter{
+			Ref: param.sourceRef, RefExtensions: clonedExtensions(param.sourceRefExtensions),
 			Name:            param.Name,
 			In:              model.ParameterLocation(param.In),
 			Description:     param.Description,
@@ -453,6 +454,7 @@ func (p *Parser) convertParameters(params []Parameter) []model.Parameter {
 				mp.Content[k] = p.convertMediaType(v)
 			}
 		}
+		mp.CaptureReference()
 		result = append(result, mp)
 	}
 	return result
@@ -460,6 +462,7 @@ func (p *Parser) convertParameters(params []Parameter) []model.Parameter {
 
 func (p *Parser) convertRequestBody(body *RequestBody) model.RequestBody {
 	result := model.RequestBody{
+		Ref: body.sourceRef, RefExtensions: clonedExtensions(body.sourceRefExtensions),
 		Description: body.Description,
 		Required:    body.Required,
 		Content:     make(map[string]model.MediaType),
@@ -468,6 +471,7 @@ func (p *Parser) convertRequestBody(body *RequestBody) model.RequestBody {
 	for mediaType, content := range body.Content {
 		result.Content[mediaType] = p.convertMediaType(content)
 	}
+	result.CaptureReference()
 	return result
 }
 
@@ -486,8 +490,10 @@ func (p *Parser) convertHeader(header *Header) model.Header {
 	return result
 }
 
+//nolint:gocritic // Responses are copied deliberately when converting or resolving them.
 func (p *Parser) convertResponse(resp Response) model.Response {
 	res := model.Response{
+		Ref: resp.sourceRef, RefExtensions: clonedExtensions(resp.sourceRefExtensions),
 		Description: resp.Description,
 		Content:     make(map[string]model.MediaType),
 		Headers:     make(map[string]model.Header),
@@ -508,6 +514,7 @@ func (p *Parser) convertResponse(resp Response) model.Response {
 			res.Links[name] = linkToModel(&link)
 		}
 	}
+	res.CaptureReference()
 	return res
 }
 

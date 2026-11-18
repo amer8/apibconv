@@ -90,6 +90,11 @@ func (r *Runner) Convert(ctx context.Context, cfg *Config) error {
 	if outputEncoding != "" {
 		ctx = converter.WithEncoding(ctx, outputEncoding)
 	}
+	if cfg.APIInfoVersion != "" {
+		ctx = converter.WithAPIInfoVersion(ctx, cfg.APIInfoVersion)
+	} else if inputFormat == format.FormatAPIBlueprint {
+		fmt.Fprintln(os.Stderr, "Warning: API Blueprint has no API version; set --api-version to populate info.version")
+	}
 	if cfg.OpenAPIVersion != "" {
 		ctx = converter.WithOpenAPIVersion(ctx, cfg.OpenAPIVersion)
 	}

@@ -116,6 +116,45 @@ func (p *Parser) parseV2(ctx context.Context, r io.Reader) (*model.API, error) {
 		}
 	}
 
+	for name := range doc.Parameters {
+		param := doc.Parameters[name]
+		resolved, err := resolveParameter(&param, doc.Parameters, "#/parameters/")
+		if err != nil {
+			return nil, fmt.Errorf("parameter %q: %w", name, err)
+		}
+		converted := p.convertV2Parameters([]Parameter{resolved})[0]
+		if converted.In == "body" || converted.In == "formData" {
+			if api.Components.Swagger2Parameters == nil {
+				api.Components.Swagger2Parameters = make(map[string]model.Parameter)
+			}
+			api.Components.Swagger2Parameters[name] = converted
+			if converted.In == "body" {
+				consumes := doc.Consumes
+				if len(consumes) == 0 {
+					consumes = []string{"application/json"}
+				}
+				content := make(map[string]model.MediaType, len(consumes))
+				for _, ct := range consumes {
+					content[ct] = model.MediaType{Schema: converted.Schema}
+				}
+				api.Components.RequestBodies[name] = model.RequestBody{Description: converted.Description, Required: converted.Required, Content: content, Extensions: clonedExtensions(converted.Extensions)}
+			}
+		} else {
+			api.Components.Parameters[name] = converted
+		}
+	}
+	produces := doc.Produces
+	if len(produces) == 0 {
+		produces = []string{"application/json"}
+	}
+	for name, response := range doc.Responses {
+		resolved, err := resolveResponse(response, doc.Responses, "#/responses/")
+		if err != nil {
+			return nil, fmt.Errorf("response %q: %w", name, err)
+		}
+		api.Components.Responses[name] = p.convertV2Response(resolved, produces)
+	}
+
 	// Paths
 	for path, item := range doc.Paths {
 		item, err := resolvePathV2(&item, &doc)
@@ -230,11 +269,13 @@ func (p *Parser) convertV2Operation(op *Operation, globalConsumes, globalProduce
 			}
 
 			res.RequestBody = &model.RequestBody{
+				Ref: param.Ref, RefExtensions: clonedExtensions(param.RefExtensions),
 				Description: param.Description,
 				Required:    param.Required,
 				Content:     content,
 				Extensions:  clonedExtensions(param.Extensions),
 			}
+			res.RequestBody.CaptureReference()
 		case "formData":
 			schema := param.Schema
 			if schema == nil {
@@ -280,6 +321,7 @@ func (p *Parser) convertV2Parameters(params []Parameter) []model.Parameter {
 	for i := range params {
 		param := &params[i]
 		mp := model.Parameter{
+			Ref: param.sourceRef, RefExtensions: clonedExtensions(param.sourceRefExtensions),
 			Name:            param.Name,
 			In:              model.ParameterLocation(param.In),
 			Description:     param.Description,
@@ -319,13 +361,16 @@ func (p *Parser) convertV2Parameters(params []Parameter) []model.Parameter {
 			}
 		}
 
+		mp.CaptureReference()
 		result = append(result, mp)
 	}
 	return result
 }
 
+//nolint:gocritic // Responses are copied deliberately when converting or resolving them.
 func (p *Parser) convertV2Response(resp Response, produces []string) model.Response {
 	res := model.Response{
+		Ref: resp.sourceRef, RefExtensions: clonedExtensions(resp.sourceRefExtensions),
 		Description: resp.Description,
 		Content:     make(map[string]model.MediaType),
 		Headers:     make(map[string]model.Header),
@@ -339,6 +384,12 @@ func (p *Parser) convertV2Response(resp Response, produces []string) model.Respo
 				Schema: p.convertSchema(resp.Schema),
 			}
 		}
+	}
+
+	for ct, example := range resp.Examples {
+		media := res.Content[ct]
+		media.Example = example
+		res.Content[ct] = media
 	}
 
 	for name, h := range resp.Headers {
@@ -356,6 +407,7 @@ func (p *Parser) convertV2Response(resp Response, produces []string) model.Respo
 		res.Headers[name] = header
 	}
 
+	res.CaptureReference()
 	return res
 }
 

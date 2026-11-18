@@ -141,6 +141,10 @@ paths:
 			upgradedItem := upgradedDoc["paths"].(map[string]interface{})["/things/{tags}"].(map[string]interface{})
 			for _, raw := range []interface{}{upgradedItem["parameters"].([]interface{})[0], upgradedItem["get"].(map[string]interface{})["parameters"].([]interface{})[0]} {
 				p := raw.(map[string]interface{})
+				if p["$ref"] != "#/components/parameters/Tags" {
+					t.Fatalf("reference lost: %#v", p)
+				}
+				p = upgradedDoc["components"].(map[string]interface{})["parameters"].(map[string]interface{})["Tags"].(map[string]interface{})
 				if p["style"] != tc.style || p["explode"] != tc.explode {
 					t.Fatalf("wrong upgraded serialization: %#v", p)
 				}
@@ -156,6 +160,10 @@ paths:
 			itemOut := doc["paths"].(map[string]interface{})["/things/{tags}"].(map[string]interface{})
 			for _, raw := range []interface{}{itemOut["parameters"].([]interface{})[0], itemOut["get"].(map[string]interface{})["parameters"].([]interface{})[0]} {
 				p := raw.(map[string]interface{})
+				if p["$ref"] != "#/parameters/Tags" {
+					t.Fatalf("reference lost: %#v", p)
+				}
+				p = doc["parameters"].(map[string]interface{})["Tags"].(map[string]interface{})
 				got, _ := p["collectionFormat"].(string)
 				if got != tc.v2 {
 					t.Fatalf("collectionFormat = %q; want %q", got, tc.v2)

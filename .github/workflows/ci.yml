@@ -74,6 +74,23 @@ jobs:
           mapfile -t packages < <(go list ./... | grep -v /examples/)
           go test -v -race -coverprofile=coverage.txt -covermode=atomic -coverpkg=./... "${packages[@]}"
 
+      - name: Enforce coverage threshold
+        shell: bash
+        run: |
+          coverage=$(go tool cover -func=coverage.txt | awk '/^total:/ {gsub("%", "", $NF); print $NF}')
+          awk -v coverage="$coverage" 'BEGIN {if (coverage == "" || coverage + 0 < 80) {print "Coverage below 80%: " coverage "%"; exit 1}; print "Coverage: " coverage "%"}'
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-go-${{ matrix.go-version }}
+          path: coverage.txt
+
+      - name: Fuzz parsers
+        run: |
+          go test ./pkg/format/apiblueprint -run '^$' -fuzz '^FuzzParserParse$' -fuzztime 10s
+          go test ./pkg/format/openapi -run '^$' -fuzz '^FuzzParserParse$' -fuzztime 10s
+
   security:
     name: Security Scan
     runs-on: ubuntu-latest
@@ -94,13 +111,12 @@ jobs:
         run: GOBIN="$RUNNER_TEMP" go install github.com/securego/gosec/v2/cmd/gosec@v2.30.0
 
       - name: Run Gosec Security Scanner
-        run: '"$RUNNER_TEMP/gosec" -no-fail -fmt sarif -out results.sarif ./...'
+        run: '"$RUNNER_TEMP/gosec" -fmt sarif -out results.sarif ./cmd/... ./internal/... ./pkg/... ./examples/...'
 
       - name: Upload SARIF file
         uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
           sarif_file: results.sarif
-        continue-on-error: true
         if: always()
 
   build:
@@ -137,7 +153,7 @@ jobs:
           docker run --rm apibconv:ci --help
           docker run --rm -i apibconv:ci --from apiblueprint --to openapi --encoding json \
             < test/integration/testdata/apiblueprint.apib > "$RUNNER_TEMP/docker-openapi.json"
-          jq -e '.openapi == "3.1.0" and (.paths | length > 0)' "$RUNNER_TEMP/docker-openapi.json"
+          jq -e '.openapi == "3.1.0" and .paths["/projects/{projectId}/members/{developerId}"].delete.responses["204"] and ([.paths | keys[] | select(contains("DELETE ") or contains("{?"))] | length == 0)' "$RUNNER_TEMP/docker-openapi.json"
 
       - name: Upload artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

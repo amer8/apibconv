@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"runtime"
 	"runtime/debug"
 	"strings"
 
@@ -36,6 +37,9 @@ func main() {
 }
 
 func run(args []string) error {
+	if err := checkPlatform(runtime.GOOS); err != nil {
+		return err
+	}
 	conv, err := setupConverter()
 	if err != nil {
 		return err
@@ -44,6 +48,13 @@ func run(args []string) error {
 	info, _ := debug.ReadBuildInfo()
 	app := cli.NewApp(conv, resolveVersion(version, info))
 	return app.Run(context.Background(), args)
+}
+
+func checkPlatform(goos string) error {
+	if goos == "windows" {
+		return fmt.Errorf("native Windows is unsupported; run apibconv using Windows Subsystem for Linux (WSL)")
+	}
+	return nil
 }
 
 func setupConverter() (*converter.Converter, error) {

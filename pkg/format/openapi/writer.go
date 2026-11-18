@@ -5,9 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"net/url"
+	"reflect"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 
 	"go.yaml.in/yaml/v3"
@@ -119,6 +122,12 @@ func (w *Writer) Write(ctx context.Context, api *model.API, wr io.Writer) error 
 		return fmt.Errorf("unsupported OpenAPI output encoding %q", encoding)
 	}
 
+	if version := converter.APIInfoVersionFromContext(ctx); version != "" {
+		copyAPI := *api
+		copyAPI.Info = api.Info
+		copyAPI.Info.Version = version
+		api = &copyAPI
+	}
 	if err := validateSchemaCompatibility(api, w.version); err != nil {
 		return err
 	}
@@ -300,6 +309,9 @@ func (w *Writer) convertFromModel(api *model.API) *OpenAPI {
 		doc.Components.Parameters = make(map[string]Parameter, len(api.Components.Parameters))
 		for name := range api.Components.Parameters {
 			parameter := api.Components.Parameters[name]
+			if parameter.In == "body" || parameter.In == "formData" {
+				continue
+			}
 			doc.Components.Parameters[name] = w.convertParameters([]model.Parameter{parameter}, api)[0]
 		}
 	}
@@ -322,23 +334,8 @@ func (w *Writer) convertFromModel(api *model.API) *OpenAPI {
 		}
 	}
 
-	// Ensure Error schema is present, as it's used by the default 404 response
-	if doc.Components.Schemas == nil {
-		doc.Components.Schemas = make(map[string]*Schema)
-	}
-	if _, ok := doc.Components.Schemas["Error"]; !ok {
-		doc.Components.Schemas["Error"] = &Schema{
-			Type:     "object",
-			Required: []string{"code", "message"},
-			Properties: map[string]*Schema{
-				"code":    {Type: "integer"},
-				"message": {Type: "string"},
-			},
-		}
-	}
-
 	// Webhooks (OpenAPI 3.1)
-	if w.version >= "3.1" && len(api.Webhooks) > 0 {
+	if strings.HasPrefix(w.version, "3.1.") && len(api.Webhooks) > 0 {
 		doc.Webhooks = make(map[string]PathItem)
 		for name := range api.Webhooks {
 			item := api.Webhooks[name]
@@ -388,27 +385,12 @@ func (w *Writer) convertOperation(op *model.Operation, api *model.API) *Operatio
 	}
 
 	res.Responses = make(map[string]Response)
-	found4xx := false
 	if len(op.Responses) > 0 {
 		for status, resp := range op.Responses {
-			if len(status) == 3 && status[0] == '4' {
-				found4xx = true
+			if resp.Description == "" {
+				resp.Description = responseDescription(status)
 			}
 			res.Responses[status] = w.convertResponse(resp, api)
-		}
-	}
-
-	// Add a default 404 response if no 4XX response is present.
-	if !found4xx {
-		res.Responses["404"] = Response{
-			Description: "Not Found",
-			Content: map[string]MediaType{
-				"application/json": {
-					Schema: &Schema{
-						Ref: "#/components/schemas/Error",
-					},
-				},
-			},
 		}
 	}
 
@@ -483,6 +465,18 @@ func (w *Writer) convertParameters(params []model.Parameter, api *model.API) []P
 	result := make([]Parameter, 0, len(params))
 	for i := range params {
 		param := &params[i]
+		if name, err := referenceName(param.Ref, "#/components/parameters/"); err == nil && param.ReferenceUnchanged() {
+			if _, ok := api.Components.Parameters[name]; ok {
+				result = append(result, Parameter{Ref: param.Ref, Extensions: clonedExtensions(param.RefExtensions)})
+				continue
+			}
+		}
+		if name, err := referenceName(param.Ref, "#/parameters/"); err == nil && param.ReferenceUnchanged() {
+			if _, ok := api.Components.Parameters[name]; ok {
+				result = append(result, Parameter{Ref: "#/components/parameters/" + strings.TrimPrefix(param.Ref, "#/parameters/"), Extensions: clonedExtensions(param.RefExtensions)})
+				continue
+			}
+		}
 		p := Parameter{
 			Name:            param.Name,
 			In:              string(param.In),
@@ -517,6 +511,16 @@ func (w *Writer) convertParameters(params []model.Parameter, api *model.API) []P
 }
 
 func (w *Writer) convertRequestBody(body *model.RequestBody, api *model.API) RequestBody {
+	if name, err := referenceName(body.Ref, "#/components/requestBodies/"); err == nil && body.ReferenceUnchanged() {
+		if _, ok := api.Components.RequestBodies[name]; ok {
+			return RequestBody{Ref: body.Ref, Extensions: clonedExtensions(body.RefExtensions)}
+		}
+	}
+	if name, err := referenceName(body.Ref, "#/parameters/"); err == nil && body.ReferenceUnchanged() {
+		if component, ok := api.Components.RequestBodies[name]; ok && body.Description == component.Description && body.Required == component.Required && reflect.DeepEqual(body.Content, component.Content) {
+			return RequestBody{Ref: "#/components/requestBodies/" + strings.TrimPrefix(body.Ref, "#/parameters/"), Extensions: clonedExtensions(body.RefExtensions)}
+		}
+	}
 	result := RequestBody{
 		Description: body.Description,
 		Required:    body.Required,
@@ -544,10 +548,21 @@ func (w *Writer) convertHeader(header model.Header, api *model.API) Header {
 	return result
 }
 
+//nolint:gocritic // Responses are intentionally passed by value.
 func (w *Writer) convertResponse(resp model.Response, api *model.API) Response {
+	if name, err := referenceName(resp.Ref, "#/components/responses/"); err == nil && resp.ReferenceUnchanged() {
+		if _, ok := api.Components.Responses[name]; ok {
+			return Response{Ref: resp.Ref, Extensions: clonedExtensions(resp.RefExtensions)}
+		}
+	}
+	if name, err := referenceName(resp.Ref, "#/responses/"); err == nil && resp.ReferenceUnchanged() {
+		if component, ok := api.Components.Responses[name]; ok && resp.Description == component.Description && reflect.DeepEqual(resp.Content, component.Content) && reflect.DeepEqual(resp.Headers, component.Headers) {
+			return Response{Ref: "#/components/responses/" + strings.TrimPrefix(resp.Ref, "#/responses/"), Extensions: clonedExtensions(resp.RefExtensions)}
+		}
+	}
 	description := resp.Description
 	if description == "" {
-		description = "OK"
+		description = "Response"
 	}
 	res := Response{
 		Description: description,
@@ -624,28 +639,32 @@ func (w *Writer) convertOperationV2(op *model.Operation, api *model.API) *Operat
 		contentTypes := sortedOpenAPIContentTypes(op.RequestBody.Content)
 		if len(contentTypes) > 0 {
 			res.Consumes = contentTypes
-			for _, contentType := range contentTypes {
-				if schema := op.RequestBody.Content[contentType].Schema; schema != nil {
-					res.Parameters = append(res.Parameters, Parameter{
-						Name:        "body",
-						In:          "body",
-						Description: op.RequestBody.Description,
-						Required:    op.RequestBody.Required,
-						Schema:      w.convertSchema(schema, api),
-						Extensions:  clonedExtensions(op.RequestBody.Extensions),
-					})
-					break
+			name, refErr := referenceName(op.RequestBody.Ref, "#/parameters/")
+			if param, ok := api.Components.Swagger2Parameters[name]; refErr == nil && ok && param.In == "body" && op.RequestBody.ReferenceUnchanged() {
+				res.Parameters = append(res.Parameters, Parameter{Ref: op.RequestBody.Ref, Extensions: clonedExtensions(op.RequestBody.RefExtensions)})
+			} else {
+				for _, contentType := range contentTypes {
+					if schema := op.RequestBody.Content[contentType].Schema; schema != nil {
+						res.Parameters = append(res.Parameters, Parameter{
+							Name:        "body",
+							In:          "body",
+							Description: op.RequestBody.Description,
+							Required:    op.RequestBody.Required,
+							Schema:      w.convertSchema(schema, api),
+							Extensions:  clonedExtensions(op.RequestBody.Extensions),
+						})
+						break
+					}
 				}
 			}
 		}
 	}
 
 	res.Responses = make(map[string]Response)
-	found4xx := false
 	if len(op.Responses) > 0 {
 		for status, resp := range op.Responses {
-			if len(status) == 3 && status[0] == '4' {
-				found4xx = true
+			if resp.Description == "" {
+				resp.Description = responseDescription(status)
 			}
 			response := w.convertResponseV2(resp, api)
 			for _, contentType := range sortedOpenAPIContentTypes(resp.Content) {
@@ -657,15 +676,6 @@ func (w *Writer) convertOperationV2(op *model.Operation, api *model.API) *Operat
 		}
 	}
 
-	if !found4xx {
-		res.Responses["404"] = Response{
-			Description: "Not Found",
-			Schema: &Schema{
-				Ref: "#/definitions/Error",
-			},
-		}
-	}
-
 	return res
 }
 
@@ -673,6 +683,22 @@ func (w *Writer) convertParametersV2(params []model.Parameter, api *model.API) [
 	result := make([]Parameter, 0, len(params))
 	for i := range params {
 		param := &params[i]
+		if name, err := referenceName(param.Ref, "#/parameters/"); err == nil && param.ReferenceUnchanged() {
+			_, ordinary := api.Components.Parameters[name]
+			_, swaggerOnly := api.Components.Swagger2Parameters[name]
+			if ordinary || swaggerOnly {
+				result = append(result, Parameter{Ref: param.Ref, Extensions: clonedExtensions(param.RefExtensions)})
+				continue
+			}
+		}
+		if param.In == "formData" && param.Schema != nil && param.Schema.Type == "file" {
+			result = append(result, Parameter{Name: param.Name, In: "formData", Type: "file", Description: param.Description, Required: param.Required, Extensions: clonedExtensions(param.Extensions)})
+			continue
+		}
+		if param.In == "body" {
+			result = append(result, Parameter{Name: param.Name, In: "body", Description: param.Description, Required: param.Required, Schema: w.convertSchema(param.Schema, api), Extensions: clonedExtensions(param.Extensions)})
+			continue
+		}
 		p := Parameter{
 			Name:            param.Name,
 			In:              string(param.In),
@@ -712,10 +738,16 @@ func (w *Writer) convertParametersV2(params []model.Parameter, api *model.API) [
 	return result
 }
 
+//nolint:gocritic // Responses are intentionally passed by value.
 func (w *Writer) convertResponseV2(resp model.Response, api *model.API) Response {
+	if name, err := referenceName(resp.Ref, "#/responses/"); err == nil && resp.ReferenceUnchanged() {
+		if _, ok := api.Components.Responses[name]; ok {
+			return Response{Ref: resp.Ref, Extensions: clonedExtensions(resp.RefExtensions)}
+		}
+	}
 	description := resp.Description
 	if description == "" {
-		description = "OK"
+		description = "Response"
 	}
 	res := Response{
 		Description: description,
@@ -725,9 +757,14 @@ func (w *Writer) convertResponseV2(resp model.Response, api *model.API) Response
 
 	for _, contentType := range sortedOpenAPIContentTypes(resp.Content) {
 		mt := resp.Content[contentType]
-		if mt.Schema != nil {
+		if mt.Schema != nil && res.Schema == nil {
 			res.Schema = w.convertSchema(mt.Schema, api)
-			break
+		}
+		if mt.Example != nil {
+			if res.Examples == nil {
+				res.Examples = make(map[string]interface{})
+			}
+			res.Examples[contentType] = mt.Example
 		}
 	}
 
@@ -966,6 +1003,9 @@ func (w *Writer) convertSchema(s *model.Schema, api *model.API) *Schema {
 		ms.Not = w.convertSchema(s.Not, api)
 	}
 
+	if s.Nullable && s.Type == "" && strings.HasPrefix(w.version, "3.1") {
+		return &Schema{AnyOf: []*Schema{ms, {Type: "null"}}}
+	}
 	return ms
 }
 
@@ -1031,18 +1071,19 @@ func (w *Writer) convertV2(api *model.API) (interface{}, error) {
 		}
 	}
 
-	// Ensure Error definition is present, as it's used by the default 404 response
-	if doc.Definitions == nil {
-		doc.Definitions = make(map[string]*Schema)
+	if len(api.Components.Parameters)+len(api.Components.Swagger2Parameters) > 0 {
+		doc.Parameters = make(map[string]Parameter, len(api.Components.Parameters)+len(api.Components.Swagger2Parameters))
+		for _, parameters := range []map[string]model.Parameter{api.Components.Parameters, api.Components.Swagger2Parameters} {
+			for name := range parameters {
+				param := parameters[name]
+				doc.Parameters[name] = w.convertParametersV2([]model.Parameter{param}, api)[0]
+			}
+		}
 	}
-	if _, ok := doc.Definitions["Error"]; !ok {
-		doc.Definitions["Error"] = &Schema{
-			Type:     "object",
-			Required: []string{"code", "message"},
-			Properties: map[string]*Schema{
-				"code":    {Type: "integer"},
-				"message": {Type: "string"},
-			},
+	if len(api.Components.Responses) > 0 {
+		doc.Responses = make(map[string]Response, len(api.Components.Responses))
+		for name, response := range api.Components.Responses {
+			doc.Responses[name] = w.convertResponseV2(response, api)
 		}
 	}
 
@@ -1083,4 +1124,13 @@ func (w *Writer) convertV2(api *model.API) (interface{}, error) {
 	}
 
 	return doc, nil
+}
+
+func responseDescription(status string) string {
+	if code, err := strconv.Atoi(status); err == nil {
+		if text := http.StatusText(code); text != "" {
+			return text
+		}
+	}
+	return "Response"
 }
