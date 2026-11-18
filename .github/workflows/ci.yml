@@ -144,6 +144,31 @@ jobs:
           path: ${{ runner.temp }}/capslock-report.json
           if-no-files-found: ignore
 
+  capabilities-macos:
+    name: Capability analysis (macOS)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.27.3"
+
+      - name: Check macOS capabilities
+        env:
+          CAPSLOCK_REPORT: ${{ runner.temp }}/capslock-darwin-arm64.json
+        run: ./scripts/capslock.sh --check darwin/arm64
+
+      - name: Upload macOS capability report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: capslock-darwin-arm64
+          path: ${{ runner.temp }}/capslock-darwin-arm64.json
+          if-no-files-found: ignore
+
   build:
     name: Build
     runs-on: ubuntu-latest

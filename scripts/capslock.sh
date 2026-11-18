@@ -4,10 +4,27 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 mode=${1:---check}
-if [[ $# -gt 1 || ( "$mode" != "--check" && "$mode" != "--write" ) ]]; then
-  echo "Usage: $0 [--check|--write]" >&2
+platform=${2:-linux/amd64}
+if [[ $# -gt 2 || ( "$mode" != "--check" && "$mode" != "--write" ) ]]; then
+  echo "Usage: $0 [--check|--write] [linux/amd64|darwin/arm64]" >&2
   exit 2
 fi
+case "$platform" in
+  linux/amd64)
+    target_os=linux
+    target_arch=amd64
+    baseline=scripts/capslock-baseline.txt
+    ;;
+  darwin/arm64)
+    target_os=darwin
+    target_arch=arm64
+    baseline=scripts/capslock-baseline-darwin-arm64.txt
+    ;;
+  *)
+    echo "Unsupported Capslock platform: $platform (use linux/amd64 or darwin/arm64)." >&2
+    exit 2
+    ;;
+esac
 
 # Keep these versions in sync with the CI job and docs/capabilities.md.
 export GOTOOLCHAIN=local GOWORK=off GOFLAGS= GOEXPERIMENT= CGO_ENABLED=0 GOAMD64=v1
@@ -19,14 +36,13 @@ fi
 tmpdir=$(mktemp -d)
 trap 'rm -rf "$tmpdir"' EXIT
 report="$tmpdir/report.json"
-baseline=scripts/capslock-baseline.txt
 
-# Build for the host, then set the analysis environment to match CI. Capslock
+# Build for the host, then set the analysis environment to the target. Capslock
 # also loads the standard library without its -goos/-goarch flags.
 GOOS=$(go env GOHOSTOS) GOARCH=$(go env GOHOSTARCH) GOBIN="$tmpdir" \
   go install github.com/google/capslock/cmd/capslock@v0.3.4
-GOOS=linux GOARCH=amd64 "$tmpdir/capslock" \
-  -packages=./... -force_local_module -goos=linux -goarch=amd64 \
+GOOS="$target_os" GOARCH="$target_arch" "$tmpdir/capslock" \
+  -packages=./... -force_local_module -goos="$target_os" -goarch="$target_arch" \
   -output=json > "$report"
 if [[ -n ${CAPSLOCK_REPORT:-} ]]; then
   cp "$report" "$CAPSLOCK_REPORT"
@@ -55,6 +71,6 @@ if [[ "$mode" == "--write" ]]; then
 elif diff -u "$baseline" "$tmpdir/baseline.txt"; then
   echo "Capslock capabilities match $baseline."
 else
-  echo "Capslock capabilities changed. Review the report and run $0 --write if expected." >&2
+  echo "Capslock capabilities changed. Review the report and run $0 --write $platform if expected." >&2
   exit 1
 fi
