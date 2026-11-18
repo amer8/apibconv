@@ -290,6 +290,9 @@ Format Go code with `gofmt` and follow the conventions in
 The release helper's policy tests are included in `go test ./...`. To run them
 separately, use `go test ./internal/releasetool`.
 
+For capability analysis and updating its CI baseline, see
+[Capability analysis](docs/capabilities.md).
+
 ## Releasing
 
 Enable **Settings → Releases → Enable release immutability** before publishing with
