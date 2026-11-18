@@ -12,6 +12,11 @@ COPY . .
 
 # Build arguments
 ARG VERSION=dev
+ARG TARGETARCH
+
+# Verify that the embedded license report matches this platform's dependencies.
+RUN go install github.com/google/go-licenses/v2@v2.0.1 && \
+    ./scripts/generate-licenses.sh --check linux "${TARGETARCH:-$(go env GOARCH)}"
 
 # Build static binary
 # -ldflags="-s -w" strips debug symbols for smaller size
@@ -30,6 +35,7 @@ COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 # Copy the binary
 COPY --from=builder /build/apibconv /apibconv
 COPY --from=builder /build/LICENSE /LICENSE
+COPY --from=builder /build/licenses/ /licenses/
 COPY --from=builder /build/THIRD_PARTY_NOTICES.md /THIRD_PARTY_NOTICES.md
 
 # Use a non-root user (ID 65532 is commonly used for nonroot)

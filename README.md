@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/amer8/apibconv/actions/workflows/ci.yml/badge.svg)](https://github.com/amer8/apibconv/actions/workflows/ci.yml)
 [![Go Reference](https://pkg.go.dev/badge/github.com/amer8/apibconv.svg)](https://pkg.go.dev/github.com/amer8/apibconv)
-[![Go Version](https://img.shields.io/github/go-mod/go-version/amer8/apibconv)](go.mod)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/amer8/apibconv)](https://github.com/amer8/apibconv/blob/main/go.mod)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/amer8/apibconv/badge)](https://scorecard.dev/viewer/?uri=github.com/amer8/apibconv)
 [![License](https://img.shields.io/github/license/amer8/apibconv)](LICENSE)
 
@@ -32,30 +32,11 @@ Downgrades and other cross-format conversions are rejected. The default output
 version is OpenAPI 3.1. For a same-version conversion to an
 older version, specify `--openapi-version` explicitly.
 
-Conversion is not lossless, including same-version encoding conversion: it goes
-through a shared model and can omit or change fields. In particular, the API
-Blueprint parser handles a subset of the format; Swagger operation-level
-`schemes` and OpenAPI referenced response headers are not preserved. Keep the
-original files, validate the output, and review it against the source before using
-it as an API contract. Unsupported schema keywords and some security combinations
-are rejected. Blueprint URI-template query variables are converted to query
-parameters. Reserved, label, path-segment and matrix expansions (`+`, `.`, `/`,
-`;`) and variable modifiers cannot be expressed faithfully and are rejected.
-Fragment expressions are omitted because fragments are not sent in HTTP requests.
-Blueprint request headers named `Authorization`, `Accept`, or `Content-Type` are
-rejected with an explanation because OpenAPI ignores them as header parameters;
-define the intended security and media types explicitly.
-
-
-OpenAPI parameter, response, and request-body references remain references when
-re-encoding OpenAPI 3; Swagger 2 parameter and response references are retained
-when re-encoding Swagger 2. Swagger 2 references are retained on upgrade when their media types match the reusable component; otherwise they are inlined to preserve the operation's media types. When a resolved reference is modified in the model, the modified value is written inline; unchanged references remain reusable. Swagger body and form components are held in
-`Swagger2Parameters` because they do not map directly to OpenAPI 3 parameters.
-
-The Go `ParseToModel` and `WriteFromModel` methods and individual parser/writer
-packages are lower-level building blocks. They do not enforce conversion direction
-because a standalone model does not record a trustworthy source format. Custom
-plugin formats registered with `Converter` define their own conversion rules.
+**Conversion is not lossless**, even when only changing the encoding. The API
+Blueprint parser supports a subset of the format, and some fields may be omitted
+or changed. Keep the originals, validate the output, and review it against the
+source before using it as an API contract. For supported conversions, reference
+handling, and known limitations, see [conversion behavior](docs/conversion.md).
 
 ## Installation
 
@@ -99,7 +80,7 @@ docker run --rm -v "$(pwd):/data" -w /data ghcr.io/amer8/apibconv -o openapi.jso
 Download pre-built binaries from [GitHub Releases](https://github.com/amer8/apibconv/releases).
 
 Prebuilt macOS binaries require **macOS 13 Ventura or newer**. See
-[Release verification](#release-verification) for checksums and attestations.
+[Release verification](docs/release-verification.md) for checksums and attestations.
 
 ## Usage
 
@@ -120,40 +101,13 @@ apibconv --validate --report json spec.json
 apibconv --validate-output -o openapi.yaml api.apib
 ```
 
-Options can appear before or after the input file. Use `--` before a filename
-that starts with `-`. Only one input file is accepted, and `--validate` cannot
-be combined with output options. CLI conversion supports OpenAPI output only;
-an `.apib` or `.md` output path requires an explicit `--to openapi` override.
-Encoding and output-version values are checked before conversion, including
-defaults supplied through environment variables.
+`--validate` checks input without converting it. By default, generated OpenAPI
+is also validated before it is written. Validation cannot guarantee a lossless
+conversion; review the generated contract and its API version. API Blueprint
+input has no API version, so use `--api-version` to provide one.
 
-Explicit options take precedence over environment variables, which take
-precedence over built-in defaults. `APIBCONV_DEFAULT_ENCODING` overrides the
-output filename extension; without either, OpenAPI output defaults to YAML.
-`APIBCONV_OPENAPI_VERSION` overrides the default target version, 3.1.
-
-`--validate` checks the input without converting. For OpenAPI, it checks the
-document against the bundled schema and runs the built-in model rules; for API
-Blueprint, it parses the supported subset and runs the model rules. Text
-diagnostics include severity, path, and message. `--report json` writes an object
-with `valid`, `issues` (each with `level`, `path`, and `message`), and an
-optional `error` to stdout once validation is attempted; operational messages
-go to stderr. Error-level issues fail validation, while warnings do not.
-
-By default, the CLI validates the generated OpenAPI document using the same
-schema and model checks before sending it to stdout or replacing the output
-file. It buffers the output in memory. If validation fails, no output document
-is emitted or installed. These checks do not guarantee that conversion is
-lossless or require a non-empty `info.version`; review the generated contract,
-including its API version. Blueprint input has no API version: the CLI warns when it is missing, and `--api-version` supplies it. Use `--validate-output=false` to disable output checks. An explicit `--validate-output` and `--validate` are mutually
-exclusive; `--report` applies to `--validate` only.
-
-Output files are replaced atomically. On macOS and Linux, replacing an existing
-file is refused when its ACL or ownership cannot be preserved safely. The
-existing destination must be readable for change detection; changes detected
-during conversion abort replacement. The final check and rename are separate
-filesystem operations, so concurrent writers must coordinate or use distinct
-output paths. On other platforms, choose a new output path when ACL preservation is unavailable.
+See the [CLI reference](docs/cli.md) for validation reports, option precedence,
+and file-replacement behavior.
 
 ### GitHub Actions
 
@@ -178,159 +132,20 @@ Published action assets target `x64` and `arm64` runners.
 
 ### Go projects
 
-Use the Go packages to integrate conversion into your own application. The examples
-show how to register parsers and writers and configure a converter. Run them from
-the repository root with `go run ./examples/basic`, `go run ./examples/advanced`,
-or `go run ./examples/plugin`. The first two create or replace `petstore.json` and
-`transformed.yaml` in that directory.
-
-The Go options support model validation, warning handling, and preservation of
-OpenAPI `x-` extensions on the document and supported model objects, including
-metadata, servers, paths, operations, parameters, request and response bodies,
-media types, headers, schemas, components, and security schemes and flows.
-Fields and extension locations that the shared model does not represent can still
-be lost during conversion.
-
-`converter.WithStrict(true)` validates the model before and after transformation
-and treats warnings as errors. `converter.WithWarningHandler` enables the same
-model checks and reports warnings at each stage; for example, an empty OpenAPI
-`info.version` produces a warning. These model checks are not a substitute for
-validating the serialized document against its specification schema.
-
-`openapi.WithVersion` requires a matching input version: a major/minor version
-accepts any patch, while a full version must match exactly. `openapi.WithStrict`
-validates the input against the bundled schema before parsing. For API Blueprint,
-`WithMarkdownParsing(true)` captures API, resource, and action descriptions;
-the writer's `WithFormat` accepts the supported version, `1A`.
-
-`model.API.Validate` checks model structure, local schema references, security,
-and nested schemas across components, paths, webhooks, and callbacks.
-`model.SecurityScheme.Validate` checks required fields for the scheme type.
-These checks do not resolve external references or replace version-specific
-specification validation.
-See the [Go reference](https://pkg.go.dev/github.com/amer8/apibconv/pkg/converter)
-for the package APIs.
-
-- Basic [example](./examples/basic/main.go)
-- Advanced [example](./examples/advanced/main.go)
-- Custom transformation [example](./examples/plugin/main.go)
-
-## Release verification
-
-- published release assets cover Linux and macOS on `x64` and `arm64`
-- each platform archive ships with a matching `*_checksums.txt` file for targeted verification
-- signed releases also ship a matching `*.sigstore.json` bundle for the checksum file
-- each release also includes a CycloneDX `bom.json` SBOM
-
-Older releases may only have the checksum file. In that case, verify the checksum directly.
-
-Example verification:
-
-```sh
-cosign verify-blob \
-  --bundle apibconv_X.Y.Z_Linux_x86_64.tar.gz_checksums.txt.sigstore.json \
-  --certificate-identity "https://github.com/amer8/apibconv/.github/workflows/release.yml@refs/tags/vX.Y.Z" \
-  --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-  apibconv_X.Y.Z_Linux_x86_64.tar.gz_checksums.txt
-
-sha256sum -c apibconv_X.Y.Z_Linux_x86_64.tar.gz_checksums.txt
-```
-
-Releases produced by the provenance-enabled release workflow additionally include
-`apibconv_X.Y.Z_provenance.sigstore.json` and `apibconv_X.Y.Z_provenance.intoto.jsonl`.
-The native Sigstore bundle contains signed SLSA build provenance covering every platform
-archive, checksum file, checksum signature bundle, and the SBOM. The JSONL file exports
-the same signed in-toto envelope for tools such as OpenSSF Scorecard.
-
-For an immutable release, verify GitHub's release attestation and a downloaded archive:
-
-```sh
-gh release verify vX.Y.Z --repo amer8/apibconv
-gh release verify-asset vX.Y.Z apibconv_X.Y.Z_Linux_x86_64.tar.gz --repo amer8/apibconv
-```
-
-Verify the archive's build provenance using its downloaded native bundle:
-
-```sh
-gh attestation verify apibconv_X.Y.Z_Linux_x86_64.tar.gz \
-  --repo amer8/apibconv \
-  --bundle apibconv_X.Y.Z_provenance.sigstore.json \
-  --cert-identity "https://github.com/amer8/apibconv/.github/workflows/release.yml@refs/tags/vX.Y.Z" \
-  --source-ref refs/tags/vX.Y.Z \
-  --deny-self-hosted-runners
-```
-
-Add `--source-digest <expected-commit-sha>` to require a particular source commit.
-Build provenance identifies the source and build workflow. GitHub's release attestation
-binds the published tag, commit, and release assets. Older releases may lack either
-attestation; use the checksum and signature checks available for those releases.
-
-Container provenance is published with the image in GHCR. After authenticating to GHCR,
-verify an image by its exact digest, replacing `IMAGE_DIGEST` with the SHA-256 digest:
-
-```sh
-gh attestation verify oci://ghcr.io/amer8/apibconv@sha256:IMAGE_DIGEST \
-  --repo amer8/apibconv --bundle-from-oci \
-  --cert-identity "https://github.com/amer8/apibconv/.github/workflows/release.yml@refs/tags/vX.Y.Z" \
-  --source-ref refs/tags/vX.Y.Z \
-  --deny-self-hosted-runners
-```
+Use the Go packages to integrate conversion into your own application. See the
+[Go integration guide](docs/go-integration.md) and the
+[Go reference](https://pkg.go.dev/github.com/amer8/apibconv/pkg/converter).
 
 ## Contributing
 
-Contributions are welcome! Please ensure:
-
-1. All tests pass: `go test ./...`
-2. Linter passes: `golangci-lint run`
-3. Code coverage remains high
-
-Format Go code with `gofmt` and follow the conventions in
-[Go Code Review Comments](https://go.dev/wiki/CodeReviewComments).
-
-The release helper's policy tests are included in `go test ./...`. To run them
-separately, use `go test ./internal/releasetool`.
-
-For capability analysis and updating its CI baseline, see
-[Capability analysis](docs/capabilities.md).
-
-## Releasing
-
-Enable **Settings → Releases → Enable release immutability** before publishing with
-the provenance-enabled workflow. Immutability applies to future releases. Merge the
-release workflow changes before creating the next version tag.
-
-The workflow builds the standard-library-only Go release helper once per job.
-Run `go run ./internal/releasetool --help` to inspect its commands locally.
-
-The release workflow runs in this order:
-
-1. Build and sign all platform archives once, upload them to a draft release, and
-   smoke-test the same artifacts through the install action.
-2. Generate build provenance, attach the verification bundle and signed in-toto
-   envelope, then download and verify the complete draft asset inventory.
-3. Publish the completed draft. GitHub freezes its assets and tag and generates
-   the release attestation.
-4. Download the published assets and verify their checksums, Cosign signatures,
-   build provenance, and release attestation. Verification requires the expected
-   workflow identity, tag, and source commit, and rejects a modified archive.
-5. Build and push the container image, generate provenance for its exact digest,
-   and verify the provenance from GHCR.
-
-If **Build and Verify Draft** fails, leave the release as a draft and rerun the
-failed jobs. The next attempt replaces the incomplete draft and rebuilds its assets.
-If **Publish Completed Draft** loses its response after publishing, rerunning it
-recognizes the existing release and continues to verification.
-
-If **Verify Published Release** or the Docker job fails, rerun only the failed jobs
-from the original workflow run. The build job refuses to rebuild a published version.
-Published asset corrections require a new version tag. Container attestations can
-be retried by rerunning the Docker job; consumers should pin and verify image digests.
-
-GitHub release attestations are generated automatically after immutability is enabled.
-OpenSSF Scorecard currently discovers build provenance through the attached
-`*.intoto.jsonl` asset and evaluates the last five releases, so its Signed-Releases
-score improves as releases with provenance enter that window.
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for development
+checks, [capability analysis](docs/capabilities.md) for updating its CI baseline,
+and the [release guide](docs/releasing.md) for maintainer procedures.
 
 ## License
 
-See [LICENSE](LICENSE).
+apibconv is licensed under the [MIT License](LICENSE). It includes third-party
+software and OpenAPI validation schemas under their respective licenses. See
+[third-party notices](THIRD_PARTY_NOTICES.md) for details. Run
+`apibconv --licenses` to display the notices and license texts embedded in the
+executable.

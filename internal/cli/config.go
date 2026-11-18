@@ -36,6 +36,8 @@ const (
 	ModeInfo
 	// ModeVersion indicates that the application should print version information.
 	ModeVersion
+	// ModeLicenses indicates that the application should print third-party notices.
+	ModeLicenses
 	// ModeHelp indicates that the application should print help information.
 	ModeHelp
 )
@@ -59,6 +61,10 @@ func ConfigFromFlags(f *Flags, args []string) (*Config, error) {
 	}
 	if f.Version {
 		cfg.Mode = ModeVersion
+		return cfg, nil
+	}
+	if f.Licenses {
+		cfg.Mode = ModeLicenses
 		return cfg, nil
 	}
 	if len(args) > 1 {

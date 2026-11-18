@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/amer8/apibconv/internal/licenses"
 	"github.com/amer8/apibconv/pkg/converter"
 )
 
@@ -46,6 +47,9 @@ func (a *App) Run(ctx context.Context, args []string) error {
 		return a.printUsage()
 	case ModeVersion:
 		return a.printVersion()
+	case ModeLicenses:
+		_, err := fmt.Print(licenses.Content())
+		return err
 	case ModeValidate:
 		return a.runner.Validate(ctx, cfg)
 	case ModeConvert:
@@ -83,6 +87,7 @@ Options:
     --report FORMAT            Validation report: text or json (requires --validate)
     --verbose                  Report progress
     -v, --version              Print version
+    --licenses                 Print third-party licenses and notices
     -h, --help                 Show help
 
 Output files default to OpenAPI. Use --to openapi when writing to stdout.
