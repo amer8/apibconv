@@ -6,7 +6,7 @@ cd "$(dirname "$0")/.."
 mode=${1:---check}
 platform=${2:-linux/amd64}
 if [[ $# -gt 2 || ( "$mode" != "--check" && "$mode" != "--write" ) ]]; then
-  echo "Usage: $0 [--check|--write] [linux/amd64|darwin/arm64]" >&2
+  echo "Usage: $0 [--check|--write] [linux/amd64|linux/arm64|darwin/amd64|darwin/arm64]" >&2
   exit 2
 fi
 case "$platform" in
@@ -15,19 +15,29 @@ case "$platform" in
     target_arch=amd64
     baseline=scripts/capslock-baseline.txt
     ;;
+  linux/arm64)
+    target_os=linux
+    target_arch=arm64
+    baseline=scripts/capslock-baseline-linux-arm64.txt
+    ;;
+  darwin/amd64)
+    target_os=darwin
+    target_arch=amd64
+    baseline=scripts/capslock-baseline-darwin-amd64.txt
+    ;;
   darwin/arm64)
     target_os=darwin
     target_arch=arm64
     baseline=scripts/capslock-baseline-darwin-arm64.txt
     ;;
   *)
-    echo "Unsupported Capslock platform: $platform (use linux/amd64 or darwin/arm64)." >&2
+    echo "Unsupported Capslock platform: $platform (use linux/amd64, linux/arm64, darwin/amd64 or darwin/arm64)." >&2
     exit 2
     ;;
 esac
 
 # Keep these versions in sync with the CI job and docs/capabilities.md.
-export GOTOOLCHAIN=local GOWORK=off GOFLAGS= GOEXPERIMENT= CGO_ENABLED=0 GOAMD64=v1
+export GOTOOLCHAIN=local GOWORK=off GOFLAGS= GOEXPERIMENT= CGO_ENABLED=0 GOAMD64=v1 GOARM64=v8.0
 if [[ $(go env GOVERSION) != go1.27.3 ]]; then
   echo "Capslock requires Go 1.27.3 for a reproducible baseline." >&2
   exit 2
