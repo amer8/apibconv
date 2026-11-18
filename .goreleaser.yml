@@ -4,6 +4,8 @@ before:
   hooks:
     - go mod tidy
     - go test ./...
+    - go install github.com/google/go-licenses/v2@v2.0.1
+    - ./scripts/generate-licenses.sh --check
     - mkdir -p .release-artifacts
     - go run github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@v1.10.0 mod -licenses -json -output .release-artifacts/bom.json .
 
@@ -37,6 +39,16 @@ archives:
       - LICENSE
       - THIRD_PARTY_NOTICES.md
       - README.md
+      - CONTRIBUTING.md
+      - src: 'licenses/*'
+        dst: licenses
+        strip_parent: true
+      - src: 'docs/*.md'
+        dst: docs
+        strip_parent: true
+      - src: 'docs/demo/apibconv.gif'
+        dst: docs/demo
+        strip_parent: true
 
 checksum:
   name_template: '{{ .ArtifactName }}_checksums.txt'
