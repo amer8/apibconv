@@ -27,7 +27,7 @@ jobs:
       attestations: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -50,57 +50,32 @@ jobs:
       - name: Run tests
         run: go test -v ./...
 
-      - name: Check capabilities
-        env:
-          CAPSLOCK_REPORT: ${{ runner.temp }}/capslock-report.json
-        run: ./scripts/capslock.sh --check
-
-      - name: Upload capability report
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      - name: Check Linux amd64 capabilities
+        uses: ./.github/actions/check-capabilities
         with:
-          name: capslock-linux-amd64-release
-          path: ${{ runner.temp }}/capslock-report.json
-          if-no-files-found: ignore
+          platform: linux/amd64
+          artifact-name: capslock-linux-amd64-release
 
-      - name: Check macOS capabilities
-        env:
-          CAPSLOCK_REPORT: ${{ runner.temp }}/capslock-darwin-arm64.json
-        run: ./scripts/capslock.sh --check darwin/arm64
-
-      - name: Upload macOS capability report
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      - name: Check macOS arm64 capabilities
+        uses: ./.github/actions/check-capabilities
         with:
-          name: capslock-darwin-arm64-release
-          path: ${{ runner.temp }}/capslock-darwin-arm64.json
-          if-no-files-found: ignore
+          platform: darwin/arm64
+          artifact-name: capslock-darwin-arm64-release
+          report-name: capslock-darwin-arm64.json
 
       - name: Check Linux arm64 capabilities
-        env:
-          CAPSLOCK_REPORT: ${{ runner.temp }}/capslock-linux-arm64.json
-        run: ./scripts/capslock.sh --check linux/arm64
-
-      - name: Upload Linux arm64 capability report
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        uses: ./.github/actions/check-capabilities
         with:
-          name: capslock-linux-arm64-release
-          path: ${{ runner.temp }}/capslock-linux-arm64.json
-          if-no-files-found: ignore
+          platform: linux/arm64
+          artifact-name: capslock-linux-arm64-release
+          report-name: capslock-linux-arm64.json
 
       - name: Check macOS amd64 capabilities
-        env:
-          CAPSLOCK_REPORT: ${{ runner.temp }}/capslock-darwin-amd64.json
-        run: ./scripts/capslock.sh --check darwin/amd64
-
-      - name: Upload macOS amd64 capability report
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        uses: ./.github/actions/check-capabilities
         with:
-          name: capslock-darwin-amd64-release
-          path: ${{ runner.temp }}/capslock-darwin-amd64.json
-          if-no-files-found: ignore
+          platform: darwin/amd64
+          artifact-name: capslock-darwin-amd64-release
+          report-name: capslock-darwin-amd64.json
 
       - name: Build and upload draft release
         uses: goreleaser/goreleaser-action@a4f02ab5355a589de60d917a659ce617ed19b3de # v7.3.0
@@ -121,7 +96,7 @@ jobs:
       - name: Assert signature verification succeeded
         run: test "${{ steps.install-action.outputs.signature-verified }}" = "true"
 
-      - name: Test installed binary
+      - name: Verify installed binary version flags
         run: |
           for flag in -v --version; do
             actual_version=$(apibconv "$flag")
@@ -163,7 +138,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -188,7 +163,7 @@ jobs:
       attestations: read
     steps:
       - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -222,7 +197,7 @@ jobs:
       attestations: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -236,7 +211,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata
+      - name: Prepare Docker image tags and labels
         id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6
         with:
@@ -247,7 +222,7 @@ jobs:
             type=semver,pattern={{major}}
             type=raw,value=latest,enable={{is_default_branch}}
 
-      - name: Prepare version
+      - name: Prepare Docker build version
         id: prep
         run: |
           VERSION=${GITHUB_REF_NAME#v}
