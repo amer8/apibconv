@@ -50,6 +50,17 @@ func validateAPI(api *API) error {
 			return fmt.Errorf("component parameter %q: %w", name, err)
 		}
 	}
+	for name := range api.Components.Swagger2Parameters {
+		parameter := api.Components.Swagger2Parameters[name]
+		if strings.TrimSpace(parameter.Name) == "" || (parameter.In != "body" && parameter.In != "formData") {
+			return fmt.Errorf("invalid Swagger parameter %q", name)
+		}
+		if parameter.Schema != nil && parameter.Schema.Type != "file" {
+			if err := v.schema(parameter.Schema); err != nil {
+				return fmt.Errorf("swagger parameter %q: %w", name, err)
+			}
+		}
+	}
 	for name, body := range api.Components.RequestBodies {
 		if err := v.content(body.Content); err != nil {
 			return fmt.Errorf("component request body %q: %w", name, err)
@@ -312,6 +323,7 @@ func (v *modelValidator) examples(examples map[string]Example) error {
 	return nil
 }
 
+//nolint:gocritic // Responses are intentionally passed by value.
 func (v *modelValidator) response(response Response) error {
 	if err := v.content(response.Content); err != nil {
 		return err

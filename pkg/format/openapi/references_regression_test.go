@@ -59,6 +59,20 @@ components:
 	if err := NewWriter(WithWriterVersion("3.0.3")).Write(context.Background(), api, &output); err != nil {
 		t.Fatal(err)
 	}
+	var written map[string]interface{}
+	if err := yaml.Unmarshal(output.Bytes(), &written); err != nil {
+		t.Fatal(err)
+	}
+	paths := written["paths"].(map[string]interface{})
+	for _, path := range []string{"/original", "/alias"} {
+		get := paths[path].(map[string]interface{})["get"].(map[string]interface{})
+		param := get["parameters"].([]interface{})[0].(map[string]interface{})
+		body := get["requestBody"].(map[string]interface{})
+		response := get["responses"].(map[string]interface{})["200"].(map[string]interface{})
+		if param["$ref"] != "#/components/parameters/Limit" || body["$ref"] != "#/components/requestBodies/Body" || response["$ref"] != "#/components/responses/Success" {
+			t.Fatalf("references lost at %s: %s", path, output.String())
+		}
+	}
 	if issues := specschema.Validate(format.FormatOpenAPI, output.Bytes()); len(issues) != 0 {
 		t.Fatalf("invalid output: %v\n%s", issues, output.String())
 	}
@@ -218,5 +232,98 @@ components:
 	alias := reparsed.Paths["/alias"]
 	if alias.Extensions["x-alias"] != "alias" || alias.Get.Parameters[0].Extensions["x-shared"] != "local" {
 		t.Fatal("reference extensions were lost after writing")
+	}
+}
+
+func TestSwaggerReferencesRemainReferencesOnSameVersion(t *testing.T) {
+	input := `swagger: '2.0'
+info: {title: Test, version: '1'}
+parameters:
+  Limit: {name: limit, in: query, type: integer}
+  Body: {name: item, in: body, required: true, schema: {type: string}}
+responses:
+  OK: {description: accepted, schema: {type: string}}
+paths:
+  /original:
+    post:
+      parameters: [{$ref: '#/parameters/Limit'}, {$ref: '#/parameters/Body'}]
+      responses: {'200': {$ref: '#/responses/OK'}}
+`
+	api, err := NewParser().Parse(context.Background(), strings.NewReader(input))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := api.Validate(); err != nil {
+		t.Fatalf("valid Swagger model rejected: %v", err)
+	}
+	var output bytes.Buffer
+	if err := NewWriter(WithWriterVersion("2.0"), WithJSONOutput(true)).Write(context.Background(), api, &output); err != nil {
+		t.Fatal(err)
+	}
+	if issues := specschema.Validate(format.FormatOpenAPI, output.Bytes()); len(issues) != 0 {
+		t.Fatalf("invalid output: %v\n%s", issues, output.String())
+	}
+	var doc map[string]interface{}
+	if err := yaml.Unmarshal(output.Bytes(), &doc); err != nil {
+		t.Fatal(err)
+	}
+	op := doc["paths"].(map[string]interface{})["/original"].(map[string]interface{})["post"].(map[string]interface{})
+	params := op["parameters"].([]interface{})
+	if params[0].(map[string]interface{})["$ref"] != "#/parameters/Limit" || params[1].(map[string]interface{})["$ref"] != "#/parameters/Body" || op["responses"].(map[string]interface{})["200"].(map[string]interface{})["$ref"] != "#/responses/OK" {
+		t.Fatalf("refs lost: %s", output.String())
+	}
+	var upgraded bytes.Buffer
+	if err := NewWriter(WithWriterVersion("3.1"), WithJSONOutput(true)).Write(context.Background(), api, &upgraded); err != nil {
+		t.Fatal(err)
+	}
+	if issues := specschema.Validate(format.FormatOpenAPI, upgraded.Bytes()); len(issues) != 0 {
+		t.Fatalf("invalid upgraded output: %v\n%s", issues, upgraded.String())
+	}
+	if err := yaml.Unmarshal(upgraded.Bytes(), &doc); err != nil {
+		t.Fatal(err)
+	}
+	op = doc["paths"].(map[string]interface{})["/original"].(map[string]interface{})["post"].(map[string]interface{})
+	if op["parameters"].([]interface{})[0].(map[string]interface{})["$ref"] != "#/components/parameters/Limit" || op["requestBody"].(map[string]interface{})["$ref"] != "#/components/requestBodies/Body" || op["responses"].(map[string]interface{})["200"].(map[string]interface{})["$ref"] != "#/components/responses/OK" {
+		t.Fatalf("upgraded refs lost: %s", upgraded.String())
+	}
+}
+
+func TestSwaggerReferenceUpgradePreservesOperationMediaTypes(t *testing.T) {
+	input := `swagger: '2.0'
+info: {title: Test, version: '1'}
+consumes: [application/json]
+produces: [application/json]
+parameters:
+  Body: {name: item, in: body, schema: {type: string}}
+responses:
+  OK: {description: accepted, schema: {type: string}}
+paths:
+  /original:
+    post:
+      consumes: [text/plain]
+      produces: [text/plain]
+      parameters: [{$ref: '#/parameters/Body'}]
+      responses: {'200': {$ref: '#/responses/OK'}}
+`
+	api, err := NewParser().Parse(context.Background(), strings.NewReader(input))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var output bytes.Buffer
+	if err := NewWriter(WithWriterVersion("3.1"), WithJSONOutput(true)).Write(context.Background(), api, &output); err != nil {
+		t.Fatal(err)
+	}
+	var doc map[string]interface{}
+	if err := yaml.Unmarshal(output.Bytes(), &doc); err != nil {
+		t.Fatal(err)
+	}
+	op := doc["paths"].(map[string]interface{})["/original"].(map[string]interface{})["post"].(map[string]interface{})
+	body := op["requestBody"].(map[string]interface{})
+	response := op["responses"].(map[string]interface{})["200"].(map[string]interface{})
+	if _, ok := body["content"].(map[string]interface{})["text/plain"]; !ok {
+		t.Fatalf("body media lost: %s", output.String())
+	}
+	if _, ok := response["content"].(map[string]interface{})["text/plain"]; !ok {
+		t.Fatalf("response media lost: %s", output.String())
 	}
 }

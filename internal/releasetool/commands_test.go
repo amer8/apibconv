@@ -100,8 +100,8 @@ func TestVerificationPinsWorkflowCommitAndRef(t *testing.T) {
 		t.Fatal(err)
 	}
 	calls := callsWithPrefix(fake.calls, "gh", "attestation", "verify")
-	if len(calls) != 8 { // Seven subjects plus the tampered archive.
-		t.Fatalf("expected 8 provenance checks, got %d", len(calls))
+	if want := len(f.spec.archives) + 2; len(calls) != want { // Archives, SBOM, and the tampered archive.
+		t.Fatalf("expected %d provenance checks, got %d", want, len(calls))
 	}
 	for _, call := range calls {
 		for _, argument := range []string{h.identity(), testCommit, "refs/tags/" + testTag, "--deny-self-hosted-runners"} {
@@ -110,8 +110,8 @@ func TestVerificationPinsWorkflowCommitAndRef(t *testing.T) {
 			}
 		}
 	}
-	if count := len(callsWithPrefix(fake.calls, "cosign", "verify-blob")); count != 6 {
-		t.Fatalf("expected six checksum signature checks, got %d", count)
+	if count := len(callsWithPrefix(fake.calls, "cosign", "verify-blob")); count != len(f.spec.archives) {
+		t.Fatalf("expected %d checksum signature checks, got %d", len(f.spec.archives), count)
 	}
 }
 
@@ -234,7 +234,7 @@ func TestReleaseAttestationRetriesThenVerifiesEveryAsset(t *testing.T) {
 	calls := callsWithPrefix(fake.calls, "gh", "release", "verify-asset")
 	names := f.spec.assetNames(true)
 	if len(calls) != len(names) {
-		t.Fatalf("expected 21 asset checks, got %d", len(calls))
+		t.Fatalf("expected %d asset checks, got %d", len(names), len(calls))
 	}
 	for i, call := range calls {
 		if call[3] != testTag || call[4] != filepath.Join(f.directory, names[i]) {

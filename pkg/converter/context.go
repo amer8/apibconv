@@ -7,6 +7,7 @@ type contextKey string
 const (
 	contextKeyOpenAPIVersion = contextKey("openAPIVersion")
 	contextKeyEncoding       = contextKey("encoding")
+	contextKeyAPIInfoVersion = contextKey("apiInfoVersion")
 )
 
 // WithEncoding adds the target encoding (json/yaml) to the context.
@@ -33,4 +34,15 @@ func OpenAPIVersionFromContext(ctx context.Context) string {
 		return version
 	}
 	return ""
+}
+
+// WithAPIInfoVersion overrides the API's own info.version in generated OpenAPI.
+func WithAPIInfoVersion(ctx context.Context, version string) context.Context {
+	return context.WithValue(ctx, contextKeyAPIInfoVersion, version)
+}
+
+// APIInfoVersionFromContext retrieves the optional API version override.
+func APIInfoVersionFromContext(ctx context.Context) string {
+	version, _ := ctx.Value(contextKeyAPIInfoVersion).(string)
+	return version
 }

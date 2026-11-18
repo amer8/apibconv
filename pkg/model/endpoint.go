@@ -44,20 +44,26 @@ type Operation struct {
 
 // Parameter represents an OpenAPI Parameter object.
 type Parameter struct {
-	Name            string
-	In              ParameterLocation // path, query, header, cookie
-	Description     string
-	Required        bool
-	Deprecated      bool
-	AllowEmptyValue bool
-	Style           string
-	Explode         bool
-	ExplodeSet      bool // Explode was explicitly specified, including false.
-	Schema          *Schema
-	Example         interface{}
-	Examples        map[string]Example
-	Content         map[string]MediaType
-	Extensions      map[string]interface{}
+	// Ref identifies the reusable component; resolved fields remain available for inspection.
+	Ref string
+	// RefExtensions contains extensions present on the reference itself.
+	RefExtensions map[string]interface{}
+	// ReferenceSnapshot tracks the parsed reference's resolved value for change detection.
+	ReferenceSnapshot string `json:"-" yaml:"-"`
+	Name              string
+	In                ParameterLocation // path, query, header, cookie
+	Description       string
+	Required          bool
+	Deprecated        bool
+	AllowEmptyValue   bool
+	Style             string
+	Explode           bool
+	ExplodeSet        bool // Explode was explicitly specified, including false.
+	Schema            *Schema
+	Example           interface{}
+	Examples          map[string]Example
+	Content           map[string]MediaType
+	Extensions        map[string]interface{}
 }
 
 // ParameterLocation defines the location of a parameter.
@@ -76,10 +82,16 @@ const (
 
 // RequestBody represents an OpenAPI Request Body object.
 type RequestBody struct {
-	Description string
-	Content     map[string]MediaType
-	Required    bool
-	Extensions  map[string]interface{}
+	// Ref identifies the reusable component; resolved fields remain available for inspection.
+	Ref string
+	// RefExtensions contains extensions present on the reference itself.
+	RefExtensions map[string]interface{}
+	// ReferenceSnapshot tracks the parsed reference's resolved value for change detection.
+	ReferenceSnapshot string `json:"-" yaml:"-"`
+	Description       string
+	Content           map[string]MediaType
+	Required          bool
+	Extensions        map[string]interface{}
 }
 
 // Responses is a map of status codes to Response objects.
@@ -87,11 +99,17 @@ type Responses map[string]Response
 
 // Response represents an OpenAPI Response object.
 type Response struct {
-	Description string
-	Headers     map[string]Header
-	Content     map[string]MediaType
-	Links       map[string]Link
-	Extensions  map[string]interface{}
+	// Ref identifies the reusable component; resolved fields remain available for inspection.
+	Ref string
+	// RefExtensions contains extensions present on the reference itself.
+	RefExtensions map[string]interface{}
+	// ReferenceSnapshot tracks the parsed reference's resolved value for change detection.
+	ReferenceSnapshot string `json:"-" yaml:"-"`
+	Description       string
+	Headers           map[string]Header
+	Content           map[string]MediaType
+	Links             map[string]Link
+	Extensions        map[string]interface{}
 }
 
 // MediaType represents an OpenAPI Media Type object.
@@ -202,6 +220,8 @@ func (o *Operation) AddParameter(param *Parameter) {
 }
 
 // AddResponse adds or replaces a response for the given status code.
+//
+//nolint:gocritic // Responses are intentionally passed by value.
 func (o *Operation) AddResponse(code string, resp Response) {
 	if o.Responses == nil {
 		o.Responses = make(Responses)

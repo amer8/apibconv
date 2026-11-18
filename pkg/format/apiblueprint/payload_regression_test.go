@@ -25,7 +25,7 @@ func TestParseRequestExample(t *testing.T) {
 		t.Fatal(err)
 	}
 	op := api.Paths["/things"].Post
-	if op == nil || op.RequestBody == nil || !strings.Contains(op.RequestBody.Content["application/json"].Example.(string), "test") {
+	if op == nil || op.RequestBody == nil || op.RequestBody.Content["application/json"].Example.(map[string]interface{})["name"] != "test" {
 		t.Fatalf("request lost: %#v", op)
 	}
 	if _, ok := op.Responses["201"]; !ok {
@@ -114,7 +114,7 @@ func TestResponseJSONSchemaAndExample(t *testing.T) {
 	if mt.Schema == nil || mt.Schema.Properties["name"].MinLength == nil || *mt.Schema.Properties["name"].MinLength != 3 || mt.Schema.Properties["nested"].Properties["count"].Type != model.TypeInteger {
 		t.Fatalf("schema lost: %#v\n%s", mt.Schema, out.String())
 	}
-	if example, ok := mt.Example.(string); !ok || !strings.Contains(example, "abc") {
+	if example, ok := mt.Example.(map[string]interface{}); !ok || example["name"] != "abc" {
 		t.Fatalf("example lost: %#v\n%s", mt.Example, out.String())
 	}
 }

@@ -95,7 +95,7 @@ func validateSchemaCompatibility(api *model.API, version string) error {
 	checkParameters := func(parameters []model.Parameter) error {
 		for i := range parameters {
 			parameter := &parameters[i]
-			if swagger {
+			if swagger && parameter.In != "body" && (parameter.In != "formData" || parameter.Schema == nil || parameter.Schema.Type != "file") {
 				if _, err := swaggerParameterSchema(parameter.Schema, api); err != nil {
 					return err
 				}
@@ -181,6 +181,14 @@ func validateSchemaCompatibility(api *model.API, version string) error {
 		parameter := api.Components.Parameters[name]
 		if err := checkParameters([]model.Parameter{parameter}); err != nil {
 			return fmt.Errorf("parameter component %q: %w", name, err)
+		}
+	}
+	if swagger {
+		for name := range api.Components.Swagger2Parameters {
+			parameter := api.Components.Swagger2Parameters[name]
+			if err := checkParameters([]model.Parameter{parameter}); err != nil {
+				return fmt.Errorf("swagger parameter %q: %w", name, err)
+			}
 		}
 	}
 	for name, body := range api.Components.RequestBodies {

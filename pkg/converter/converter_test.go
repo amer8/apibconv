@@ -228,7 +228,7 @@ func TestNew(t *testing.T) {
 	if c == nil {
 		t.Fatal("New() returned nil")
 	}
-	if c.parsers == nil || c.writers == nil {
+	if c.registry == nil || c.registry.parsers == nil || c.registry.writers == nil {
 		t.Error("New() did not initialize maps")
 	}
 	if c.validator == nil {
@@ -242,14 +242,14 @@ func TestRegistration(t *testing.T) {
 	// Test Parser Registration
 	mp := &mockParser{fmt: format.FormatOpenAPI}
 	c.RegisterParser(mp)
-	if _, ok := c.parsers[format.FormatOpenAPI]; !ok {
+	if _, ok := c.registry.parsers[format.FormatOpenAPI]; !ok {
 		t.Error("RegisterParser failed to register parser")
 	}
 
 	// Test Writer Registration
 	mw := &mockWriter{fmt: format.Format("custom")}
 	c.RegisterWriter(mw)
-	if _, ok := c.writers[format.Format("custom")]; !ok {
+	if _, ok := c.registry.writers[format.Format("custom")]; !ok {
 		t.Error("RegisterWriter failed to register writer")
 	}
 }

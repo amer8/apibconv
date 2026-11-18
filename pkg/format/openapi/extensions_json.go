@@ -57,12 +57,16 @@ func (value Parameter) MarshalJSON() ([]byte, error) {
 }
 
 // MarshalJSON includes vendor extensions.
+//
+//nolint:gocritic // A value copy preserves the existing conversion and marshaling behavior.
 func (value RequestBody) MarshalJSON() ([]byte, error) {
 	type plain RequestBody
 	return marshalExtensionsJSON(plain(value), value.Extensions)
 }
 
 // MarshalJSON includes vendor extensions.
+//
+//nolint:gocritic // Responses are copied deliberately when converting or resolving them.
 func (value Response) MarshalJSON() ([]byte, error) {
 	type plain Response
 	return marshalExtensionsJSON(plain(value), value.Extensions)

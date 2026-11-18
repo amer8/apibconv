@@ -97,14 +97,16 @@ type Discriminator struct {
 
 // Components holds a set of reusable objects for different aspects of the API.
 type Components struct {
-	Schemas         map[string]*Schema
-	Responses       map[string]Response
-	Parameters      map[string]Parameter
-	Examples        map[string]Example
-	RequestBodies   map[string]RequestBody
-	Headers         map[string]Header
-	SecuritySchemes map[string]SecurityScheme
-	Links           map[string]Link
+	Schemas    map[string]*Schema
+	Responses  map[string]Response
+	Parameters map[string]Parameter
+	// Swagger2Parameters retains reusable body and form parameters for Swagger 2 re-encoding.
+	Swagger2Parameters map[string]Parameter
+	Examples           map[string]Example
+	RequestBodies      map[string]RequestBody
+	Headers            map[string]Header
+	SecuritySchemes    map[string]SecurityScheme
+	Links              map[string]Link
 	// CallbackExtensions contains extensions on each named callback object.
 	CallbackExtensions map[string]map[string]interface{}
 	Callbacks          map[string]Callback

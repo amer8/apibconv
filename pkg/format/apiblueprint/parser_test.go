@@ -64,9 +64,10 @@ Description of My API.
 							Parameters: []model.Parameter{{Name: "id", In: model.ParameterInPath, Required: true, Description: "User ID", Schema: &model.Schema{Type: model.TypeNumber}}},
 							Responses: model.Responses{
 								"200": model.Response{
+									Description: "OK",
 									Content: map[string]model.MediaType{
 										"application/json": {
-											Example: "{\n\"id\": 1,\n\"name\": \"John Doe\"\n}\n\n",
+											Example: map[string]interface{}{"id": model.JSONNumber("1"), "name": "John Doe"},
 										},
 									},
 								},

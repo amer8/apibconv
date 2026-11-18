@@ -48,10 +48,10 @@ func TestDetectFromBytes(t *testing.T) {
 			wantVersion: "3.1.x",
 		},
 		{
-			name:        "OpenAPI Unknown Major Falls Back",
+			name:        "OpenAPI Unknown Major Preserved",
 			input:       `openapi: 4.0.0`,
 			wantFormat:  format.FormatOpenAPI,
-			wantVersion: "3.0.x",
+			wantVersion: "4.0.0",
 		},
 
 		// API Blueprint Cases

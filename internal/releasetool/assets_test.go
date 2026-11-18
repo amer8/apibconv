@@ -5,11 +5,28 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
 
 const testTag = "v1.2.3-rc.1"
+
+func TestReleaseSpecPlatforms(t *testing.T) {
+	spec, err := newReleaseSpec(testTag)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{
+		"apibconv_1.2.3-rc.1_Darwin_x86_64.tar.gz",
+		"apibconv_1.2.3-rc.1_Darwin_arm64.tar.gz",
+		"apibconv_1.2.3-rc.1_Linux_x86_64.tar.gz",
+		"apibconv_1.2.3-rc.1_Linux_arm64.tar.gz",
+	}
+	if !slices.Equal(spec.archives, want) {
+		t.Fatalf("release archives = %v, want %v", spec.archives, want)
+	}
+}
 
 type fixture struct {
 	spec                                  releaseSpec
@@ -137,15 +154,15 @@ func TestCompleteInventoryAndSignedEnvelopeExport(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if lines := strings.Count(string(data), "\n"); lines != 19 {
-		t.Fatalf("expected 19 provenance subjects, got %d", lines)
+	if lines := strings.Count(string(data), "\n"); lines != 13 {
+		t.Fatalf("expected 13 provenance subjects, got %d", lines)
 	}
 	entries, err := os.ReadDir(f.directory)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(entries) != 21 {
-		t.Fatalf("expected 21 assets, got %d", len(entries))
+	if len(entries) != 15 {
+		t.Fatalf("expected 15 assets, got %d", len(entries))
 	}
 }
 
@@ -163,7 +180,7 @@ func TestSingleHashChecksumsAreSupported(t *testing.T) {
 
 func TestMissingPlatformPreventsStaging(t *testing.T) {
 	f := newFixture(t)
-	if err := os.Remove(filepath.Join(f.dist, f.spec.archives[5])); err != nil {
+	if err := os.Remove(filepath.Join(f.dist, f.spec.archives[3])); err != nil {
 		t.Fatal(err)
 	}
 	requireError(t, f.spec.prepare(f.directory, f.dist, f.sbom, f.subjects), "missing regular release asset")
@@ -188,7 +205,7 @@ func TestChangedArchiveAndChecksumStillFailProvenance(t *testing.T) {
 func TestUncoveredArchiveRejectsBundle(t *testing.T) {
 	f := newFixture(t)
 	f.prepare(t)
-	_, err := f.spec.checkBundle(f.bundle(t, f.spec.archives[5]), f.directory)
+	_, err := f.spec.checkBundle(f.bundle(t, f.spec.archives[3]), f.directory)
 	requireError(t, err, "provenance subjects must match")
 }
 

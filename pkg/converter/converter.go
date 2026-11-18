@@ -19,8 +19,7 @@ import (
 
 // Converter handles the conversion between different API specification formats.
 type Converter struct {
-	parsers   map[format.Format]format.Parser
-	writers   map[format.Format]format.Writer
+	registry  *Registry
 	validator *validator.Validator
 	opts      Options
 }
@@ -41,8 +40,7 @@ func New(opts ...Option) (*Converter, error) {
 	}
 
 	return &Converter{
-		parsers:   make(map[format.Format]format.Parser),
-		writers:   make(map[format.Format]format.Writer),
+		registry:  NewRegistry(),
 		validator: v,
 		opts:      options,
 	}, nil
@@ -50,12 +48,12 @@ func New(opts ...Option) (*Converter, error) {
 
 // RegisterParser registers a parser for a specific format.
 func (c *Converter) RegisterParser(p format.Parser) {
-	c.parsers[p.Format()] = p
+	_ = c.registry.RegisterParser(p)
 }
 
 // RegisterWriter registers a writer for a specific format.
 func (c *Converter) RegisterWriter(w format.Writer) {
-	c.writers[w.Format()] = w
+	_ = c.registry.RegisterWriter(w)
 }
 
 // Convert migrates built-in formats in the supported directions: API Blueprint
@@ -66,7 +64,7 @@ func (c *Converter) Convert(ctx context.Context, input io.Reader, output io.Writ
 	if err != nil {
 		return err
 	}
-	writer, ok := c.writers[to]
+	writer, ok := c.registry.GetWriter(to)
 	if !ok {
 		return fmt.Errorf("no writer registered for format: %s", to)
 	}
@@ -89,7 +87,7 @@ func (c *Converter) ParseToModel(ctx context.Context, input io.Reader, from form
 }
 
 func (c *Converter) parseToModel(ctx context.Context, input io.Reader, from format.Format, validate bool) (*model.API, error) {
-	parser, ok := c.parsers[from]
+	parser, ok := c.registry.GetParser(from)
 	if !ok {
 		return nil, fmt.Errorf("no parser registered for format: %s", from)
 	}
@@ -120,7 +118,7 @@ func (c *Converter) parseToModel(ctx context.Context, input io.Reader, from form
 
 // WriteFromModel writes the unified model to the output format.
 func (c *Converter) WriteFromModel(ctx context.Context, api *model.API, output io.Writer, to format.Format) error {
-	writer, ok := c.writers[to]
+	writer, ok := c.registry.GetWriter(to)
 	if !ok {
 		return fmt.Errorf("no writer registered for format: %s", to)
 	}
@@ -195,10 +193,10 @@ func (c *Converter) Validate(ctx context.Context, input io.Reader, formatType fo
 
 // SupportedFormats returns registered input and output formats in unspecified order.
 func (c *Converter) SupportedFormats() (inputs, outputs []format.Format) {
-	for k := range c.parsers {
+	for k := range c.registry.parsers {
 		inputs = append(inputs, k)
 	}
-	for k := range c.writers {
+	for k := range c.registry.writers {
 		outputs = append(outputs, k)
 	}
 	return

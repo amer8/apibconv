@@ -217,6 +217,10 @@ func TestAtomicOutputCommitsAndPreservesPermissions(t *testing.T) {
 	if err := os.WriteFile(output, []byte("original"), 0o640); err != nil {
 		t.Fatal(err)
 	}
+	originalInfo, err := os.Stat(output)
+	if err != nil {
+		t.Fatal(err)
+	}
 	destination, err := newAtomicOutput("", output)
 	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
 		if err == nil {
@@ -245,7 +249,7 @@ func TestAtomicOutputCommitsAndPreservesPermissions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Mode().Perm() != 0o640 {
+	if info.Mode().Perm() != originalInfo.Mode().Perm() {
 		t.Fatalf("permissions: %o", info.Mode().Perm())
 	}
 }

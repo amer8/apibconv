@@ -48,6 +48,7 @@ func mergeReferenceExtensions(base map[string]interface{}, overlays []map[string
 
 func resolveParameter(input *Parameter, values map[string]Parameter, prefix string) (Parameter, error) {
 	v := *input
+	sourceRef, sourceExtensions := v.Ref, clonedExtensions(v.Extensions)
 	seen := map[string]bool{}
 	var overlays []map[string]interface{}
 	for v.Ref != "" {
@@ -67,10 +68,15 @@ func resolveParameter(input *Parameter, values map[string]Parameter, prefix stri
 		v = target
 	}
 	v.Extensions = mergeReferenceExtensions(v.Extensions, overlays)
+	if sourceRef != "" {
+		v.sourceRef, v.sourceRefExtensions = sourceRef, sourceExtensions
+	}
 	return v, nil
 }
 
+//nolint:gocritic // Responses are copied deliberately when converting or resolving them.
 func resolveResponse(v Response, values map[string]Response, prefix string) (Response, error) {
+	sourceRef, sourceExtensions := v.Ref, clonedExtensions(v.Extensions)
 	seen := map[string]bool{}
 	var overlays []map[string]interface{}
 	for v.Ref != "" {
@@ -90,10 +96,15 @@ func resolveResponse(v Response, values map[string]Response, prefix string) (Res
 		v = target
 	}
 	v.Extensions = mergeReferenceExtensions(v.Extensions, overlays)
+	if sourceRef != "" {
+		v.sourceRef, v.sourceRefExtensions = sourceRef, sourceExtensions
+	}
 	return v, nil
 }
 
+//nolint:gocritic // A value copy preserves the existing conversion and marshaling behavior.
 func resolveRequestBody(v RequestBody, values map[string]RequestBody) (RequestBody, error) {
+	sourceRef, sourceExtensions := v.Ref, clonedExtensions(v.Extensions)
 	seen := map[string]bool{}
 	var overlays []map[string]interface{}
 	for v.Ref != "" {
@@ -113,6 +124,9 @@ func resolveRequestBody(v RequestBody, values map[string]RequestBody) (RequestBo
 		v = target
 	}
 	v.Extensions = mergeReferenceExtensions(v.Extensions, overlays)
+	if sourceRef != "" {
+		v.sourceRef, v.sourceRefExtensions = sourceRef, sourceExtensions
+	}
 	return v, nil
 }
 

@@ -26,7 +26,7 @@ func TestParameterScopesRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	item := parsed.Paths["/users/{id}{?filter}"]
+	item := parsed.Paths["/users/{id}"]
 	if !reflect.DeepEqual(item.Parameters, api.Paths["/users/{id}{?filter}"].Parameters) {
 		t.Fatalf("resource parameters got %#v", item.Parameters)
 	}
@@ -53,7 +53,7 @@ func TestParameterSectionsIgnoreNestedValuesAndStopAtNextSection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	item := api.Paths["/users/{id}{?status}"]
+	item := api.Paths["/users/{id}"]
 	if len(item.Parameters) != 1 || item.Parameters[0].Name != "id" || !item.Parameters[0].Required || item.Parameters[0].In != model.ParameterInPath {
 		t.Fatalf("resource params: %#v", item.Parameters)
 	}

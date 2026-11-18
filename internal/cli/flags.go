@@ -22,6 +22,7 @@ type Flags struct {
 	Version        bool
 	Help           bool
 	OpenAPIVersion string
+	APIInfoVersion string
 	provided       map[string]bool
 }
 
@@ -41,7 +42,7 @@ func ParseFlags(args []string) (*Flags, []string, error) {
 	fs.StringVar(&f.Encoding, "encoding", "", "Output encoding (json, yaml)")
 
 	fs.BoolVar(&f.Validate, "validate", false, "Validate input without converting")
-	fs.BoolVar(&f.ValidateOutput, "validate-output", false, "Validate generated output before writing it")
+	fs.BoolVar(&f.ValidateOutput, "validate-output", true, "Validate generated output before writing it (default true)")
 	fs.StringVar(&f.Report, "report", "", "Validation report format (text, json; requires --validate)")
 	fs.BoolVar(&f.Verbose, "verbose", false, "Enable verbose output (including progress)")
 	fs.BoolVar(&f.Version, "v", false, "Print version information (shorthand)")
@@ -50,6 +51,7 @@ func ParseFlags(args []string) (*Flags, []string, error) {
 	fs.BoolVar(&f.Help, "help", false, "Show help message")
 
 	fs.StringVar(&f.OpenAPIVersion, "openapi-version", "", "OpenAPI version to generate")
+	fs.StringVar(&f.APIInfoVersion, "api-version", "", "Version of the API described by the output")
 
 	// The standard flag parser stops at the first positional argument. Separate
 	// options from positional arguments while preserving flag values and --.

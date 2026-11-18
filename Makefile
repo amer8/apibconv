@@ -22,7 +22,7 @@ bench-all: bench
 
 # Linting
 lint-install:
-	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
+	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.11.4
 
 lint:
 	golangci-lint run
@@ -53,7 +53,7 @@ doc-server:
 	@echo "Starting documentation server at http://localhost:6060"
 	@echo "View package docs at: http://localhost:6060/pkg/github.com/amer8/apibconv/"
 	@echo "Press Ctrl+C to stop"
-	@command -v godoc >/dev/null 2>&1 || { echo "Installing godoc..."; go install golang.org/x/tools/cmd/godoc@latest; }
+	@command -v godoc >/dev/null 2>&1 || { echo "Installing godoc..."; go install golang.org/x/tools/cmd/godoc@v0.43.0; }
 	godoc -http=:6060
 
 # Help

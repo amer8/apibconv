@@ -38,9 +38,19 @@ Blueprint parser handles a subset of the format; Swagger operation-level
 `schemes` and OpenAPI referenced response headers are not preserved. Keep the
 original files, validate the output, and review it against the source before using
 it as an API contract. Unsupported schema keywords and some security combinations
-are rejected.
-The OpenAPI writer also adds a default `404` response when an operation has no
-4xx response.
+are rejected. Blueprint URI-template query variables are converted to query
+parameters. Reserved, label, path-segment and matrix expansions (`+`, `.`, `/`,
+`;`) and variable modifiers cannot be expressed faithfully and are rejected.
+Fragment expressions are omitted because fragments are not sent in HTTP requests.
+Blueprint request headers named `Authorization`, `Accept`, or `Content-Type` are
+rejected with an explanation because OpenAPI ignores them as header parameters;
+define the intended security and media types explicitly.
+
+
+OpenAPI parameter, response, and request-body references remain references when
+re-encoding OpenAPI 3; Swagger 2 parameter and response references are retained
+when re-encoding Swagger 2. Swagger 2 references are retained on upgrade when their media types match the reusable component; otherwise they are inlined to preserve the operation's media types. When a resolved reference is modified in the model, the modified value is written inline; unchanged references remain reusable. Swagger body and form components are held in
+`Swagger2Parameters` because they do not map directly to OpenAPI 3 parameters.
 
 The Go `ParseToModel` and `WriteFromModel` methods and individual parser/writer
 packages are lower-level building blocks. They do not enforce conversion direction
@@ -48,6 +58,12 @@ because a standalone model does not record a trustworthy source format. Custom
 plugin formats registered with `Converter` define their own conversion rules.
 
 ## Installation
+
+The CLI supports Linux and macOS. On Windows, use the Linux CLI from
+[Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/install).
+Native Windows binaries and Windows GitHub Actions runners are not supported;
+use a Linux runner for the install action. In WSL, keep input and output files
+in the Linux filesystem for the most consistent file-permission behavior.
 
 ### Using Homebrew
 
@@ -95,7 +111,7 @@ The output file extension selects JSON or YAML unless `--encoding` or an
 environment variable overrides it. See `apibconv --help` for all options.
 
 ```sh
-apibconv -o openapi.yaml spec.apib
+apibconv --api-version 1.0.0 -o openapi.yaml spec.apib
 apibconv -o openapi.json swagger.yaml
 apibconv --to openapi --openapi-version 3.0 -o output.json input.yaml
 apibconv --to openapi -e json < spec.apib > openapi.json
@@ -124,12 +140,12 @@ with `valid`, `issues` (each with `level`, `path`, and `message`), and an
 optional `error` to stdout once validation is attempted; operational messages
 go to stderr. Error-level issues fail validation, while warnings do not.
 
-`--validate-output` validates the generated OpenAPI document using the same
+By default, the CLI validates the generated OpenAPI document using the same
 schema and model checks before sending it to stdout or replacing the output
 file. It buffers the output in memory. If validation fails, no output document
 is emitted or installed. These checks do not guarantee that conversion is
 lossless or require a non-empty `info.version`; review the generated contract,
-including its API version. `--validate-output` and `--validate` are mutually
+including its API version. Blueprint input has no API version: the CLI warns when it is missing, and `--api-version` supplies it. Use `--validate-output=false` to disable output checks. An explicit `--validate-output` and `--validate` are mutually
 exclusive; `--report` applies to `--validate` only.
 
 Output files are replaced atomically. On macOS and Linux, replacing an existing
@@ -137,9 +153,7 @@ file is refused when its ACL or ownership cannot be preserved safely. The
 existing destination must be readable for change detection; changes detected
 during conversion abort replacement. The final check and rename are separate
 filesystem operations, so concurrent writers must coordinate or use distinct
-output paths. On other platforms, including Windows, choose a new output path:
-replacing an existing file is currently unavailable because its ACL cannot be
-checked reliably.
+output paths. On other platforms, choose a new output path when ACL preservation is unavailable.
 
 ### GitHub Actions
 
@@ -203,7 +217,7 @@ for the package APIs.
 
 ## Release verification
 
-- published release assets cover Linux, macOS, and Windows on `x64` and `arm64`
+- published release assets cover Linux and macOS on `x64` and `arm64`
 - each platform archive ships with a matching `*_checksums.txt` file for targeted verification
 - signed releases also ship a matching `*.sigstore.json` bundle for the checksum file
 - each release also includes a CycloneDX `bom.json` SBOM

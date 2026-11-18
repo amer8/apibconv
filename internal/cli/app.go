@@ -76,9 +76,10 @@ Options:
     --from FORMAT              Input: apiblueprint, openapi
     --to FORMAT                Output: openapi
     -e, --encoding FORMAT      json or yaml
-    --openapi-version VERSION  Output version (default: 3.1)
+    --openapi-version VERSION  Output OpenAPI version (default: 3.1)
+    --api-version VERSION      Set the API info.version
     --validate                 Validate input without converting
-    --validate-output          Validate generated OpenAPI before writing it
+    --validate-output          Validate output (default true; use =false to disable)
     --report FORMAT            Validation report: text or json (requires --validate)
     --verbose                  Report progress
     -v, --version              Print version
@@ -91,7 +92,7 @@ OpenAPI conversion.
 Environment variables: APIBCONV_DEFAULT_ENCODING, APIBCONV_OPENAPI_VERSION.
 Precedence: explicit option, then environment variable, then default.
 Encoding defaults to the output extension, or YAML when no encoding is inferred.
---validate-output checks the generated document against its OpenAPI schema and
+Output validation checks the generated document against its OpenAPI schema and
 the built-in model rules; it does not guarantee a lossless conversion or a
 non-empty info.version.
 

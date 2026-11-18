@@ -162,18 +162,20 @@ func (c Callback) MarshalYAML() (interface{}, error) {
 
 // Parameter describes a single operation parameter.
 type Parameter struct {
-	Name            string               `yaml:"name,omitempty" json:"name,omitempty"`
-	In              string               `yaml:"in,omitempty" json:"in,omitempty"`
-	Description     string               `yaml:"description,omitempty" json:"description,omitempty"`
-	Required        bool                 `yaml:"required,omitempty" json:"required,omitempty"`
-	Deprecated      bool                 `yaml:"deprecated,omitempty" json:"deprecated,omitempty"`
-	AllowEmptyValue bool                 `yaml:"allowEmptyValue,omitempty" json:"allowEmptyValue,omitempty"`
-	Style           string               `yaml:"style,omitempty" json:"style,omitempty"`
-	Explode         *bool                `yaml:"explode,omitempty" json:"explode,omitempty"`
-	Schema          *Schema              `yaml:"schema,omitempty" json:"schema,omitempty"` // V3
-	Example         interface{}          `yaml:"example,omitempty" json:"example,omitempty"`
-	Content         map[string]MediaType `yaml:"content,omitempty" json:"content,omitempty"`
-	Ref             string               `yaml:"$ref,omitempty" json:"$ref,omitempty"`
+	sourceRef           string
+	sourceRefExtensions map[string]interface{}
+	Name                string               `yaml:"name,omitempty" json:"name,omitempty"`
+	In                  string               `yaml:"in,omitempty" json:"in,omitempty"`
+	Description         string               `yaml:"description,omitempty" json:"description,omitempty"`
+	Required            bool                 `yaml:"required,omitempty" json:"required,omitempty"`
+	Deprecated          bool                 `yaml:"deprecated,omitempty" json:"deprecated,omitempty"`
+	AllowEmptyValue     bool                 `yaml:"allowEmptyValue,omitempty" json:"allowEmptyValue,omitempty"`
+	Style               string               `yaml:"style,omitempty" json:"style,omitempty"`
+	Explode             *bool                `yaml:"explode,omitempty" json:"explode,omitempty"`
+	Schema              *Schema              `yaml:"schema,omitempty" json:"schema,omitempty"` // V3
+	Example             interface{}          `yaml:"example,omitempty" json:"example,omitempty"`
+	Content             map[string]MediaType `yaml:"content,omitempty" json:"content,omitempty"`
+	Ref                 string               `yaml:"$ref,omitempty" json:"$ref,omitempty"`
 
 	// V2 specific fields (valid for non-body parameters)
 	Type             string                 `yaml:"type,omitempty" json:"type,omitempty"`
@@ -199,22 +201,27 @@ type Parameter struct {
 
 // RequestBody describes a single request body.
 type RequestBody struct {
-	Description string                 `yaml:"description,omitempty" json:"description,omitempty"`
-	Content     map[string]MediaType   `yaml:"content,omitempty" json:"content,omitempty"`
-	Required    bool                   `yaml:"required,omitempty" json:"required,omitempty"`
-	Ref         string                 `yaml:"$ref,omitempty" json:"$ref,omitempty"`
-	Extensions  map[string]interface{} `yaml:",inline" json:"-"`
+	sourceRef           string
+	sourceRefExtensions map[string]interface{}
+	Description         string                 `yaml:"description,omitempty" json:"description,omitempty"`
+	Content             map[string]MediaType   `yaml:"content,omitempty" json:"content,omitempty"`
+	Required            bool                   `yaml:"required,omitempty" json:"required,omitempty"`
+	Ref                 string                 `yaml:"$ref,omitempty" json:"$ref,omitempty"`
+	Extensions          map[string]interface{} `yaml:",inline" json:"-"`
 }
 
 // Response describes a single response from an API Operation.
 type Response struct {
-	Description string               `yaml:"description,omitempty" json:"description,omitempty"`
-	Headers     map[string]Header    `yaml:"headers,omitempty" json:"headers,omitempty"`
-	Content     map[string]MediaType `yaml:"content,omitempty" json:"content,omitempty"`
-	Links       map[string]Link      `yaml:"links,omitempty" json:"links,omitempty"`
-	Ref         string               `yaml:"$ref,omitempty" json:"$ref,omitempty"`
+	sourceRef           string
+	sourceRefExtensions map[string]interface{}
+	Description         string               `yaml:"description,omitempty" json:"description,omitempty"`
+	Headers             map[string]Header    `yaml:"headers,omitempty" json:"headers,omitempty"`
+	Content             map[string]MediaType `yaml:"content,omitempty" json:"content,omitempty"`
+	Links               map[string]Link      `yaml:"links,omitempty" json:"links,omitempty"`
+	Ref                 string               `yaml:"$ref,omitempty" json:"$ref,omitempty"`
 
 	// V2 specific fields
+	Examples   map[string]interface{} `yaml:"examples,omitempty" json:"examples,omitempty"`
 	Schema     *Schema                `yaml:"schema,omitempty" json:"schema,omitempty"`
 	Extensions map[string]interface{} `yaml:",inline" json:"-"`
 }
