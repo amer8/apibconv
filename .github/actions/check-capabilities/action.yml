@@ -1,0 +1,29 @@
+name: Check capabilities
+description: Check a platform's capability baseline and upload the report
+inputs:
+  platform:
+    description: Target operating system and architecture
+    required: true
+  artifact-name:
+    description: Name of the uploaded capability report
+    required: true
+  report-name:
+    description: Filename of the capability report
+    default: capslock-report.json
+runs:
+  using: composite
+  steps:
+    - name: Check capability baseline
+      shell: bash
+      env:
+        CAPSLOCK_PLATFORM: ${{ inputs.platform }}
+        CAPSLOCK_REPORT: ${{ runner.temp }}/${{ inputs.report-name }}
+      run: ./scripts/capslock.sh --check "$CAPSLOCK_PLATFORM"
+
+    - name: Upload capability report
+      if: always()
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ runner.temp }}/${{ inputs.report-name }}
+        if-no-files-found: ignore

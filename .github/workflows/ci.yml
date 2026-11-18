@@ -115,14 +115,77 @@ jobs:
       - name: Install Gosec
         run: GOBIN="$RUNNER_TEMP" go install github.com/securego/gosec/v2/cmd/gosec@v2.30.0
 
-      - name: Run Gosec Security Scanner
+      - name: Scan Go packages with Gosec
         run: '"$RUNNER_TEMP/gosec" -fmt sarif -out results.sarif ./cmd/... ./internal/... ./pkg/... ./examples/...'
 
-      - name: Upload SARIF file
+      - name: Upload Gosec SARIF report
         uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
           sarif_file: results.sarif
         if: always()
+
+  capabilities:
+    name: Capability analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.27.3"
+
+      - name: Check Linux amd64 capabilities
+        uses: ./.github/actions/check-capabilities
+        with:
+          platform: linux/amd64
+          artifact-name: capslock-linux-amd64
+
+  capabilities-macos:
+    name: Capability analysis (macOS)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.27.3"
+
+      - name: Check macOS arm64 capabilities
+        uses: ./.github/actions/check-capabilities
+        with:
+          platform: darwin/arm64
+          artifact-name: capslock-darwin-arm64
+          report-name: capslock-darwin-arm64.json
+
+  capabilities-additional:
+    name: Capability analysis (${{ matrix.platform }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/arm64
+            artifact: linux-arm64
+          - platform: darwin/amd64
+            artifact: darwin-amd64
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.27.3"
+
+      - name: Check ${{ matrix.platform }} capabilities
+        uses: ./.github/actions/check-capabilities
+        with:
+          platform: ${{ matrix.platform }}
+          artifact-name: capslock-${{ matrix.artifact }}
 
   build:
     name: Build
@@ -136,10 +199,10 @@ jobs:
         with:
           go-version: "1.27.3"
 
-      - name: Build
+      - name: Build CLI binary
         run: go build -v -ldflags="-X main.version=0.0.0-ci" -o apibconv ./cmd/apibconv
 
-      - name: Test binary
+      - name: Verify CLI version flags
         run: |
           for flag in -v --version; do
             actual_version=$(./apibconv "$flag")
@@ -149,7 +212,7 @@ jobs:
       - name: Build Docker image
         run: docker build --build-arg VERSION=0.0.0-ci --tag apibconv:ci .
 
-      - name: Test Docker image
+      - name: Verify Docker image and conversion
         run: |
           for flag in -v --version; do
             actual_version=$(docker run --rm apibconv:ci "$flag")
@@ -160,7 +223,7 @@ jobs:
             < test/integration/testdata/apiblueprint.apib > "$RUNNER_TEMP/docker-openapi.json"
           jq -e '.openapi == "3.1.0" and .paths["/projects/{projectId}/members/{developerId}"].delete.responses["204"] and ([.paths | keys[] | select(contains("DELETE ") or contains("{?"))] | length == 0)' "$RUNNER_TEMP/docker-openapi.json"
 
-      - name: Upload artifact
+      - name: Upload CLI binary
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: apibconv-linux-amd64
@@ -192,5 +255,5 @@ jobs:
         with:
           version: ${{ steps.latest-release.outputs.version }}
 
-      - name: Test installed binary
+      - name: Check installed binary version
         run: apibconv -v

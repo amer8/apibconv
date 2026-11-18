@@ -139,7 +139,8 @@ Use the Go packages to integrate conversion into your own application. See the
 ## Contributing
 
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for development
-checks and the [release guide](docs/releasing.md) for maintainer procedures.
+checks, [capability analysis](docs/capabilities.md) for updating its CI baseline,
+and the [release guide](docs/releasing.md) for maintainer procedures.
 
 ## License
 
