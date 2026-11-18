@@ -1,4 +1,4 @@
-.PHONY: test test-coverage test-race coverage-html bench bench-all lint lint-install lint-fix doc doc-server build validate clean help
+.PHONY: test test-coverage test-race coverage-html bench bench-all lint lint-install lint-fix doc doc-server build validate clean licenses licenses-check help
 
 # Running Tests
 test:
@@ -33,6 +33,14 @@ lint-fix:
 # Building
 build:
 	go build -o apibconv ./cmd/apibconv
+
+licenses:
+	go install github.com/google/go-licenses/v2@v2.0.1
+	./scripts/generate-licenses.sh --write
+
+licenses-check:
+	go install github.com/google/go-licenses/v2@v2.0.1
+	./scripts/generate-licenses.sh --check
 
 clean:
 	rm -f apibconv coverage.txt
@@ -76,6 +84,8 @@ help:
 	@echo ""
 	@echo "Building:"
 	@echo "  build             - Build the CLI tool"
+	@echo "  licenses          - Regenerate embedded third-party license reports"
+	@echo "  licenses-check    - Verify embedded license reports"
 	@echo "  clean             - Remove build artifacts"
 	@echo ""
 	@echo "Documentation:"

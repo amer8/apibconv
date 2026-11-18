@@ -20,6 +20,7 @@ type Flags struct {
 	Report         string
 	Verbose        bool
 	Version        bool
+	Licenses       bool
 	Help           bool
 	OpenAPIVersion string
 	APIInfoVersion string
@@ -47,6 +48,7 @@ func ParseFlags(args []string) (*Flags, []string, error) {
 	fs.BoolVar(&f.Verbose, "verbose", false, "Enable verbose output (including progress)")
 	fs.BoolVar(&f.Version, "v", false, "Print version information (shorthand)")
 	fs.BoolVar(&f.Version, "version", false, "Print version information")
+	fs.BoolVar(&f.Licenses, "licenses", false, "Print third-party licenses and notices")
 	fs.BoolVar(&f.Help, "h", false, "Show help message (shorthand)")
 	fs.BoolVar(&f.Help, "help", false, "Show help message")
 
