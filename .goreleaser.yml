@@ -120,7 +120,7 @@ release:
     
     **Using Docker**
     ```sh
-    docker pull ghcr.io/amer8/apibconv:{{ .Tag }}
+    docker pull ghcr.io/amer8/apibconv:{{ .Version }}
     ```
   footer: |
     **Full Changelog**: https://github.com/amer8/apibconv/compare/{{ .PreviousTag }}...{{ .Tag }}
