@@ -3,37 +3,53 @@ package fs
 
 import (
 	"context"
+	"fmt"
 	"io"
+	"math"
+
+	apierrors "github.com/amer8/apibconv/pkg/errors"
 )
 
-// ReadAll reads from r until an error or EOF and returns the data it read.
-// It checks the context before each read; it cannot interrupt a blocked read.
+// DefaultMaxInputBytes bounds memory consumed before document parsing begins.
+const DefaultMaxInputBytes int64 = 16 << 20
+
+type limitKey struct{}
+
+// WithMaxInputBytes sets the byte budget for an input reader.
+func WithMaxInputBytes(ctx context.Context, limit int64) context.Context {
+	return context.WithValue(ctx, limitKey{}, limit)
+}
+
+type contextReader struct {
+	ctx context.Context
+	r   io.Reader
+}
+
+func (r contextReader) Read(p []byte) (int, error) {
+	if err := r.ctx.Err(); err != nil {
+		return 0, err
+	}
+	return r.r.Read(p)
+}
+
+// ReadAll checks cancellation between reads and rejects inputs larger than the
+// budget. Reading one extra byte distinguishes an exact fit from truncation.
 func ReadAll(ctx context.Context, r io.Reader) ([]byte, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
+	limit, ok := ctx.Value(limitKey{}).(int64)
+	if !ok {
+		limit = DefaultMaxInputBytes
 	}
-
-	b := make([]byte, 0, 512)
-	for {
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
-
-		if len(b) == cap(b) {
-			// Add more capacity (let append pick how much).
-			b = append(b, 0)[:len(b)]
-		}
-
-		n, err := r.Read(b[len(b):cap(b)])
-		b = b[:len(b)+n]
-
-		if err != nil {
-			if err == io.EOF {
-				err = nil
-			}
-			return b, err
-		}
+	if limit <= 0 {
+		return nil, fmt.Errorf("maximum input bytes must be positive")
 	}
+	if limit < math.MaxInt64 {
+		r = io.LimitReader(r, limit+1)
+	}
+	data, err := io.ReadAll(contextReader{ctx, r})
+	if int64(len(data)) > limit {
+		return nil, fmt.Errorf("%w: maximum %d bytes", apierrors.ErrInputTooLarge, limit)
+	}
+	return data, err
 }
 
 // NewProgressReader creates a reader that reports progress. onProgress must not be nil.

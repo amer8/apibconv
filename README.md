@@ -127,7 +127,9 @@ Pin the action itself to a full commit SHA and pin the binary version to a relea
 The action downloads the published release asset for the current runner, verifies its SHA-256 checksum,
 and when the release includes a Sigstore bundle it also verifies the checksum signature with cosign
 against this repository's release workflow identity.
-Older releases without a bundle fall back to checksum-only verification with a warning.
+For an older release without a bundle, supply the platform archive's independently
+verified SHA-256 through the `archive-sha256` action input. A missing bundle
+otherwise fails the install. A supplied digest is checked on signed releases too.
 Published action assets target `x64` and `arm64` runners.
 
 ### Go projects

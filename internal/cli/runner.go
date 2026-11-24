@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/amer8/apibconv/internal/detect"
+	"github.com/amer8/apibconv/internal/fs"
 	"github.com/amer8/apibconv/pkg/converter"
 	"github.com/amer8/apibconv/pkg/errors"
 	"github.com/amer8/apibconv/pkg/format"
@@ -36,7 +37,7 @@ func (r *Runner) Convert(ctx context.Context, cfg *Config) error {
 	inputFormat := cfg.InputFormat
 	if inputFormat == "" {
 		// Detection consumes the input, so keep a copy for the parser.
-		data, err := io.ReadAll(input)
+		data, err := fs.ReadAll(ctx, input)
 		if err != nil {
 			return fmt.Errorf("failed to read input: %w", err)
 		}
@@ -50,7 +51,7 @@ func (r *Runner) Convert(ctx context.Context, cfg *Config) error {
 		input = bytes.NewReader(data)
 
 		if cfg.InputPath != "" {
-			fmt.Fprintf(os.Stderr, "Detected input format: %s (%s)\n", fmtDetected, ver)
+			fmt.Fprintf(os.Stderr, "Detected input format: %s (%s)\n", fmtDetected, DiagnosticText(ver))
 		}
 	}
 
@@ -126,7 +127,9 @@ func (r *Runner) Convert(ctx context.Context, cfg *Config) error {
 		return errors.Wrap("convert", string(outputFormat), fmt.Errorf("%w: %w", errors.ErrConversionFailed, err))
 	}
 	if cfg.ValidateOutput {
-		issues, validationErr := r.conv.Validate(ctx, bytes.NewReader(pending.Bytes()), outputFormat)
+		// This buffer was produced locally and may be larger than the source document.
+		outputCtx := converter.WithMaxInputBytes(ctx, max(1, int64(pending.Len())))
+		issues, validationErr := r.conv.Validate(outputCtx, bytes.NewReader(pending.Bytes()), outputFormat)
 		report := makeValidationReport(issues, validationErr)
 		if err := writeTextIssues(os.Stderr, report.Issues); err != nil {
 			return fmt.Errorf("write output validation diagnostics: %w", err)
@@ -168,7 +171,7 @@ func (r *Runner) Validate(ctx context.Context, cfg *Config) error {
 	}
 	defer closeInput()
 
-	data, err := io.ReadAll(input)
+	data, err := fs.ReadAll(ctx, input)
 	if err != nil {
 		return err
 	}
@@ -181,7 +184,7 @@ func (r *Runner) Validate(ctx context.Context, cfg *Config) error {
 			return fmt.Errorf("format detection failed: %w", err)
 		}
 		inputFormat = fmtDetected
-		fmt.Fprintf(os.Stderr, "Detected format: %s (%s)\n", fmtDetected, ver)
+		fmt.Fprintf(os.Stderr, "Detected format: %s (%s)\n", fmtDetected, DiagnosticText(ver))
 	}
 
 	input = bytes.NewReader(data)
@@ -212,7 +215,7 @@ func openInput(path string) (io.Reader, func(), error) {
 	}
 	closeInput := func() {
 		if err := file.Close(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error closing input file %s: %v\n", path, err)
+			fmt.Fprintf(os.Stderr, "Error closing input file %s: %v\n", DiagnosticText(path), DiagnosticText(err.Error()))
 		}
 	}
 	return file, closeInput, nil

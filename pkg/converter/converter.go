@@ -202,16 +202,9 @@ func (c *Converter) SupportedFormats() (inputs, outputs []format.Format) {
 	return
 }
 
-// DetectFormat attempts to detect the format of the input. It reads the entire
-// input and does not currently use ctx to interrupt the read.
+// DetectFormat identifies the format within the input byte budget.
 func (c *Converter) DetectFormat(ctx context.Context, input io.Reader) (format.Format, string, error) {
-	data, err := io.ReadAll(input)
-	if err != nil {
-		return format.FormatUnknown, "", fmt.Errorf("failed to read input for detection: %w", err)
-	}
-
-	detector := detect.NewDetector()
-	return detector.DetectFromBytes(data)
+	return detect.NewDetector().Detect(ctx, input)
 }
 
 // SetProgress sets the progress callback function.

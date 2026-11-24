@@ -42,3 +42,33 @@ func TestValidationReportSeverityAndPaths(t *testing.T) {
 		t.Fatalf("report = %+v", got)
 	}
 }
+
+func TestTextDiagnosticStaysOnOneLine(t *testing.T) {
+	issue := reportIssue{Level: format.LevelError, Path: "/items\nnext", Message: "bad\rfield\x1b\u2028end"}
+	var out bytes.Buffer
+	if err := writeTextIssues(&out, []reportIssue{issue}); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Count(out.String(), "\n") != 1 || strings.ContainsAny(out.String(), "\r\x1b\u2028") || !strings.Contains(out.String(), `/items\nnext`) {
+		t.Fatalf("text: %q", out.String())
+	}
+	out.Reset()
+	if err := writeValidationReport(validationReport{Issues: []reportIssue{issue}}, "json", &out, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	var got validationReport
+	if err := json.Unmarshal(out.Bytes(), &got); err != nil || len(got.Issues) != 1 || got.Issues[0] != issue {
+		t.Fatalf("JSON issue: %+v, %v", got, err)
+	}
+}
+
+func TestTextDiagnosticNormalizesInvalidUTF8(t *testing.T) {
+	issue := reportIssue{Level: format.LevelWarning, Path: "/café/\xff", Message: "naïve\xa0\rfield"}
+	var out bytes.Buffer
+	if err := writeTextIssues(&out, []reportIssue{issue}); err != nil {
+		t.Fatal(err)
+	}
+	if want := "warning: /café/�: naïve�\\rfield\n"; out.String() != want {
+		t.Fatalf("got %q, want %q", out.String(), want)
+	}
+}

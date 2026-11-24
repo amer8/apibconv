@@ -39,3 +39,7 @@ existing destination must be readable for change detection; changes detected
 during conversion abort replacement. The final check and rename are separate
 filesystem operations, so concurrent writers must coordinate or use distinct
 output paths. On other platforms, choose a new output path when ACL preservation is unavailable.
+
+The CLI accepts up to 16 MiB of input by default. Use `--max-input-bytes N` to
+set a positive byte limit for a trusted larger document. The limit applies to
+files and stdin, including format detection and validation.

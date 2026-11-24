@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/amer8/apibconv/internal/yamlguard"
 	"go.yaml.in/yaml/v3"
 )
 
@@ -119,6 +120,9 @@ func addMapExtensionsYAML(value interface{}, field string, extensions map[string
 
 // UnmarshalYAML preserves extensions on the Paths Object.
 func (doc *OpenAPI) UnmarshalYAML(node *yaml.Node) error {
+	if err := yamlguard.Check(node); err != nil {
+		return err
+	}
 	clean, extensions, err := splitMapExtensions(node, "paths")
 	if err != nil {
 		return err
@@ -135,6 +139,9 @@ func (doc *OpenAPI) UnmarshalYAML(node *yaml.Node) error {
 
 // UnmarshalYAML preserves extensions on Swagger's Paths Object.
 func (doc *Swagger20) UnmarshalYAML(node *yaml.Node) error {
+	if err := yamlguard.Check(node); err != nil {
+		return err
+	}
 	clean, extensions, err := splitMapExtensions(node, "paths")
 	if err != nil {
 		return err
@@ -151,6 +158,9 @@ func (doc *Swagger20) UnmarshalYAML(node *yaml.Node) error {
 
 // UnmarshalYAML preserves extensions on the Responses Object.
 func (op *Operation) UnmarshalYAML(node *yaml.Node) error {
+	if err := yamlguard.Check(node); err != nil {
+		return err
+	}
 	clean, extensions, err := splitMapExtensions(node, "responses")
 	if err != nil {
 		return err

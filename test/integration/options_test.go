@@ -3,11 +3,13 @@ package integration
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/amer8/apibconv/pkg/converter"
+	apierrors "github.com/amer8/apibconv/pkg/errors"
 	"github.com/amer8/apibconv/pkg/format"
 	"github.com/amer8/apibconv/pkg/format/apiblueprint"
 	"github.com/amer8/apibconv/pkg/format/openapi"
@@ -519,5 +521,26 @@ paths:
 	field := schema["properties"].(map[string]interface{})["file"].(map[string]interface{})
 	if field["x-field"] != "retained" {
 		t.Fatalf("form field extension lost: %s", out.String())
+	}
+}
+
+func TestPublicInputBudget(t *testing.T) {
+	c, err := converter.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := converter.WithMaxInputBytes(context.Background(), 8)
+	content := func() *strings.Reader { return strings.NewReader("123456789") }
+	for _, p := range []format.Parser{openapi.NewParser(), apiblueprint.NewParser()} {
+		c.RegisterParser(p)
+		if _, err := p.Parse(ctx, content()); !errors.Is(err, apierrors.ErrInputTooLarge) {
+			t.Fatalf("%s Parse: %v", p.Format(), err)
+		}
+		if _, err := c.Validate(ctx, content(), p.Format()); !errors.Is(err, apierrors.ErrInputTooLarge) {
+			t.Fatalf("%s Validate: %v", p.Format(), err)
+		}
+	}
+	if _, _, err := c.DetectFormat(ctx, content()); !errors.Is(err, apierrors.ErrInputTooLarge) {
+		t.Fatalf("DetectFormat: %v", err)
 	}
 }

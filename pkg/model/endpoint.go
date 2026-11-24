@@ -37,6 +37,8 @@ type Operation struct {
 	Deprecated          bool
 	Security            []SecurityRequirement
 	Servers             []Server
+	// Swagger2HostSchemes restrict transport when Swagger inherits its host from the document URL.
+	Swagger2HostSchemes []string
 	ExternalDocs        *ExternalDocs
 	Bindings            map[string]interface{} // Protocol-specific operation bindings
 	Extensions          map[string]interface{}

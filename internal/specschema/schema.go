@@ -11,8 +11,8 @@ import (
 	"sync"
 
 	"github.com/santhosh-tekuri/jsonschema/v6"
-	"go.yaml.in/yaml/v3"
 
+	"github.com/amer8/apibconv/internal/yamlguard"
 	"github.com/amer8/apibconv/pkg/format"
 )
 
@@ -74,7 +74,11 @@ func Validate(formatType format.Format, data []byte) []format.ValidationError {
 
 func decodeYAML(data []byte) (any, error) {
 	var doc any
-	if err := yaml.Unmarshal(data, &doc); err != nil {
+	root, err := yamlguard.Parse(data)
+	if err != nil {
+		return nil, err
+	}
+	if err := root.Decode(&doc); err != nil {
 		return nil, err
 	}
 	return normalizeYAML(doc), nil

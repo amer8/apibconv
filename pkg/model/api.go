@@ -8,6 +8,8 @@ type API struct {
 	Version string   // Spec version
 	Info    Info     // API metadata
 	Servers []Server // Server configurations
+	// Swagger2Origin holds relative origin settings for a Swagger document with no explicit host.
+	Swagger2Origin *Swagger2Origin
 	// PathsExtensions contains extensions on the paths object itself.
 	PathsExtensions map[string]interface{}
 	Paths           map[string]PathItem    // API paths/endpoints
@@ -17,6 +19,12 @@ type API struct {
 	Tags            []Tag                  // API tags
 	ExternalDocs    *ExternalDocs          // External documentation
 	Extensions      map[string]interface{} // Vendor extensions (x-*)
+}
+
+// Swagger2Origin describes settings relative to the URL from which the document is served.
+type Swagger2Origin struct {
+	BasePath string
+	Schemes  []string
 }
 
 // Info provides metadata about the API.

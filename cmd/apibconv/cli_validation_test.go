@@ -7,8 +7,10 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 func TestCLIValidationHelper(t *testing.T) {
@@ -49,6 +51,27 @@ func writeSpec(t *testing.T, content string) string {
 		t.Fatal(err)
 	}
 	return path
+}
+
+func TestCLIInvalidSwaggerSchemeDiagnostic(t *testing.T) {
+	const marker = "invalid-scheme-marker"
+	schemes := "[https, " + marker + strings.Repeat("x", 4096) + "]"
+	const header = "swagger: '2.0'\ninfo: {title: Example, version: '1'}\n"
+	operation := ":\n    get:\n      schemes: " + schemes + "\n      responses: {'200': {description: OK}}\n"
+	for _, tc := range []struct{ name, body string }{
+		{"root", "schemes: " + schemes + "\npaths: {}\n"},
+		{"operation", "paths:\n  /items" + operation},
+		{"long operation path", "paths:\n  /" + strings.Repeat("a", 512) + operation},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			path := writeSpec(t, header+tc.body)
+			stdout, stderr, code := invokeCLI(t, "--from", "openapi", "--to", "openapi", "--openapi-version", "2.0", path)
+			if code != 3 || stdout != "" || !strings.Contains(stderr, "unsupported Swagger scheme at position 2") ||
+				strings.Contains(stderr, marker) || len(stderr) > 256 {
+				t.Fatalf("exit=%d, stdout=%d bytes, stderr=%d bytes: %.128q", code, len(stdout), len(stderr), stderr)
+			}
+		})
+	}
 }
 
 func TestCLIJSONValidationReports(t *testing.T) {
@@ -171,5 +194,65 @@ func TestBlueprintRepeatedHeadersProduceOneParameter(t *testing.T) {
 	params := post["parameters"].([]interface{})
 	if len(params) != 1 || len(params[0].(map[string]interface{})["examples"].(map[string]interface{})) != 2 {
 		t.Fatalf("parameters: %s", stdout)
+	}
+}
+
+func TestBlueprintWithBOMPreservesMetadataHost(t *testing.T) {
+	input := writeSpec(t, "\uFEFFFORMAT: 1A\r\nHOST: https://api.example.test\r\n# Example\r\nHOST: https://prose.example.test\r\n")
+	stdout, stderr, code := invokeCLI(t, "--to", "openapi", "-e", "json", input)
+	if code != 0 {
+		t.Fatalf("exit=%d stderr=%q", code, stderr)
+	}
+	var doc struct {
+		Servers []struct{ URL string }
+	}
+	if err := json.Unmarshal([]byte(stdout), &doc); err != nil {
+		t.Fatal(err)
+	}
+	if len(doc.Servers) != 1 || doc.Servers[0].URL != "https://api.example.test" {
+		t.Fatalf("servers = %+v", doc.Servers)
+	}
+}
+
+func TestCLIEnforcesSourceByteLimit(t *testing.T) {
+	spec := "openapi: 3.1.0\ninfo: {title: API, version: '1'}\npaths: {}\n"
+	file := writeSpec(t, spec)
+	for _, args := range [][]string{{"--validate"}, {"--validate", "--from", "openapi"}, {"--to", "openapi"}, {"--from", "openapi", "--to", "openapi"}} {
+		run := func(n int) (string, string, int) {
+			return invokeCLI(t, append(append([]string{}, args...), "--max-input-bytes", strconv.Itoa(n), file)...)
+		}
+		out, errText, code := run(len(spec) - 1)
+		if code == 0 || out != "" || !strings.Contains(errText, "input exceeds byte limit") {
+			t.Errorf("oversize %v: %d %q %q", args, code, out, errText)
+		}
+		out, errText, code = run(len(spec))
+		if code != 0 || out == "" {
+			t.Errorf("exact size %v: %d %q %q", args, code, out, errText)
+		}
+	}
+}
+
+func TestCLITextReportUsesOneLinePerIssue(t *testing.T) {
+	doc := "openapi: 3.1.0\ninfo: {title: Example, version: '1'}\npaths:\n  \"bad\\nextra\": {}\n"
+	_, stderr, code := invokeCLI(t, "--validate", "--from", "openapi", writeSpec(t, doc))
+	if code != 2 || strings.Contains(stderr, "\nextra") || !strings.Contains(stderr, `bad\nextra`) {
+		t.Fatalf("code=%d stderr=%q", code, stderr)
+	}
+}
+
+func TestCLIDetectedVersionIsValidUTF8(t *testing.T) {
+	input := writeSpec(t, "openapi: !!binary My7/\ninfo: {title: Example, version: '1'}\npaths: {}\n")
+	for _, args := range [][]string{{"--validate", input}, {"--to", "openapi", input}} {
+		_, stderr, _ := invokeCLI(t, args...)
+		if !utf8.ValidString(stderr) || !strings.Contains(stderr, "openapi (3.�)") {
+			t.Fatalf("%v: stderr=%q", args, stderr)
+		}
+	}
+}
+
+func TestCLIFlagErrorIsValidUTF8(t *testing.T) {
+	_, stderr, code := invokeCLI(t, "--unknown-\xff")
+	if code != 1 || !utf8.ValidString(stderr) || !strings.Contains(stderr, "unknown-�") || !strings.Contains(stderr, "Usage of apibconv:") {
+		t.Fatalf("exit=%d stderr=%q", code, stderr)
 	}
 }

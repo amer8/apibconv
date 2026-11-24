@@ -1,6 +1,10 @@
 package converter
 
-import "context"
+import (
+	"context"
+
+	"github.com/amer8/apibconv/internal/fs"
+)
 
 type contextKey string
 
@@ -45,4 +49,10 @@ func WithAPIInfoVersion(ctx context.Context, version string) context.Context {
 func APIInfoVersionFromContext(ctx context.Context) string {
 	version, _ := ctx.Value(contextKeyAPIInfoVersion).(string)
 	return version
+}
+
+// WithMaxInputBytes sets the positive input byte limit for built-in parsing,
+// format detection and validation. The default is 16 MiB.
+func WithMaxInputBytes(ctx context.Context, limit int64) context.Context {
+	return fs.WithMaxInputBytes(ctx, limit)
 }

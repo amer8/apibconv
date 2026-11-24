@@ -2,9 +2,11 @@ package detect
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
+	"github.com/amer8/apibconv/internal/yamlguard"
 	"github.com/amer8/apibconv/pkg/format"
 )
 
@@ -44,6 +46,12 @@ func TestDetectFromBytes(t *testing.T) {
 		{
 			name:        "OpenAPI 3.1.0 YAML",
 			input:       `openapi: 3.1.0`,
+			wantFormat:  format.FormatOpenAPI,
+			wantVersion: "3.1.x",
+		},
+		{
+			name:        "OpenAPI 3.1.0 with valid aliased version key",
+			input:       "x-label: &label openapi\n? *label\n: 3.1.0\n",
 			wantFormat:  format.FormatOpenAPI,
 			wantVersion: "3.1.x",
 		},
@@ -180,5 +188,46 @@ func TestOpenAPIExtensionEndingInAPIDoesNotChangeDetection(t *testing.T) {
 	got, _, err := NewDetector().DetectFromBytes(input)
 	if err != nil || got != format.FormatOpenAPI {
 		t.Fatalf("DetectFromBytes() = %q, %v", got, err)
+	}
+}
+
+func TestBlueprintDescriptionLabelsAreNotYAMLMappingKeys(t *testing.T) {
+	for _, header := range []string{"FORMAT: 1A\n", "HOST: https://docs.example.test\nFORMAT: 1A\n", ""} {
+		input := []byte(header + "\n# API\nNote: first\n## Items [/items]\nNote: second\n")
+		got, _, err := NewDetector().DetectFromBytes(input)
+		if got != format.FormatAPIBlueprint || err != nil {
+			t.Fatalf("DetectFromBytes: %v, %v", got, err)
+		}
+	}
+	input := []byte("FORMAT: 1A\nopenapi: 3.1.0\nkey: one\nkey: two\n")
+	if got, _, err := NewDetector().DetectFromBytes(input); got != format.FormatUnknown || err == nil {
+		t.Fatalf("invalid structured document: %v, %v", got, err)
+	}
+}
+
+func TestRejectedYAMLRequiresLiteralKeysForBlueprintFallback(t *testing.T) {
+	const prose = "FORMAT: 1A\nNote: first\nNote: second\n"
+	for _, tc := range []struct {
+		name, extra string
+		want        format.Format
+	}{
+		{"plain labels", "Title: Example\n", format.FormatAPIBlueprint},
+		{"quoted label", "'Title': Example\n", format.FormatAPIBlueprint},
+		{"alias key", "Label: &label Title\n? *label\n: Example\n", format.FormatUnknown},
+		{"tagged numeric key", "!!int 7: Example\n", format.FormatUnknown},
+		{"sequence key", "? [Title]\n: Example\n", format.FormatUnknown},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, _, err := NewDetector().DetectFromBytes([]byte(prose + tc.extra))
+			if got != tc.want {
+				t.Fatalf("detected %q, want %q, err=%v", got, tc.want, err)
+			}
+			if tc.want == format.FormatUnknown && !errors.Is(err, yamlguard.ErrUnsafe) {
+				t.Fatalf("expected original YAML guard error, got %v", err)
+			}
+			if tc.want == format.FormatAPIBlueprint && err != nil {
+				t.Fatal(err)
+			}
+		})
 	}
 }

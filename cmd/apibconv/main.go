@@ -21,7 +21,7 @@ var version = "dev"
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error: %s\n", cli.DiagnosticText(err.Error()))
 
 		exitCode := 1
 		if errors.Is(err, errors.ErrValidationFailed) {

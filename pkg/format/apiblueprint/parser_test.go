@@ -138,3 +138,28 @@ func TestFormat(t *testing.T) {
 		t.Errorf("Format() = %v, want %v", p.Format(), format.FormatAPIBlueprint)
 	}
 }
+
+func TestHostIsRecognizedOnlyInMetadata(t *testing.T) {
+	for _, tc := range []struct{ name, content, host string }{
+		{"preamble followed by example", "FORMAT: 1A\nX-Project: Sample\nHOST: https://api.example.test  \n\n# API: Example\n\n    HOST: https://docs.example.test\n", "https://api.example.test"},
+		{"fenced description", "# API: Example\n\n~~~\nHOST: https://docs.example.test\n~~~\n", ""},
+		{"leading indented example", "    HOST: https://docs.example.test\n\n# API\n", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			api, err := NewParser(WithMarkdownParsing(true)).Parse(context.Background(), strings.NewReader(tc.content))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tc.host == "" {
+				if len(api.Servers) != 0 {
+					t.Fatalf("unexpected servers: %v", api.Servers)
+				}
+			} else if len(api.Servers) != 1 || api.Servers[0].URL != tc.host {
+				t.Fatalf("servers: %v", api.Servers)
+			}
+			if tc.name == "fenced description" && !strings.Contains(api.Info.Description, "HOST: https://docs.example.test") {
+				t.Fatalf("description: %q", api.Info.Description)
+			}
+		})
+	}
+}
