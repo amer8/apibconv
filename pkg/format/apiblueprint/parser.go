@@ -325,7 +325,10 @@ func (p *Parser) parseDocument(content string) (*model.API, error) {
 					continue
 				}
 				membersIndent = -1
-				param := parseBlueprintParameter(trimmed, currentPath)
+				param, err := parseBlueprintParameter(trimmed, currentPath)
+				if err != nil {
+					return nil, fmt.Errorf("line %d: %w", j+1, err)
+				}
 				if param.Name == "" {
 					continue
 				}
@@ -696,10 +699,10 @@ func inheritParameters(inherited, explicit []model.Parameter) []model.Parameter 
 	return append(result, explicit...)
 }
 
-// Blueprint parameter schemas can have JSON defaults and enum values. Copy the
-// schema and those values when a resource parameter becomes operation-specific.
+// Copy the schema and JSON values when a resource parameter becomes operation-specific.
 func cloneBlueprintParameter(parameter *model.Parameter) model.Parameter {
 	result := *parameter
+	result.Example = cloneBlueprintValue(parameter.Example)
 	if parameter.Schema != nil {
 		schema := *parameter.Schema
 		schema.Default = cloneBlueprintValue(schema.Default)
@@ -855,12 +858,17 @@ func parseMSONProperty(line string, parent *model.Schema) *model.Schema {
 func msonValue(value string, typ model.SchemaType) interface{} {
 	value = strings.Trim(strings.TrimSpace(value), "`")
 	if typ == model.TypeInteger || typ == model.TypeNumber || typ == model.TypeBoolean {
-		var decoded interface{}
-		decoder := json.NewDecoder(strings.NewReader(value))
-		decoder.UseNumber()
-		if decoder.Decode(&decoded) == nil && json.Valid([]byte(value)) {
-			return preserveJSONValue(decoded)
-		}
+		return parseBlueprintJSONValue(value)
+	}
+	return strings.Trim(value, "\"")
+}
+
+func parseBlueprintJSONValue(value string) interface{} {
+	var decoded interface{}
+	decoder := json.NewDecoder(strings.NewReader(value))
+	decoder.UseNumber()
+	if decoder.Decode(&decoded) == nil && json.Valid([]byte(value)) {
+		return preserveJSONValue(decoded)
 	}
 	return strings.Trim(value, "\"")
 }
@@ -933,25 +941,28 @@ func (p *msonParser) add(line string) {
 }
 
 // parseBlueprintParameter infers path versus query from the URI template.
-func parseBlueprintParameter(line, path string) model.Parameter {
+func parseBlueprintParameter(line, path string) (model.Parameter, error) {
 	text := strings.TrimSpace(strings.TrimPrefix(line, "+"))
-	head, desc, _ := strings.Cut(text, " - ")
-	name := strings.TrimSpace(head)
-	if i := strings.IndexAny(name, ": ("); i >= 0 {
+	name := text
+	if i := strings.IndexAny(name, ": (\t"); i >= 0 {
 		name = name[:i]
 	}
+	sample, tail := splitParameterExample(text[len(name):])
+	attrs, desc, _ := strings.Cut(tail, " - ")
 	name = strings.Trim(name, "`")
 	param := model.Parameter{Name: name, In: model.ParameterInQuery, Description: strings.TrimSpace(desc), Schema: &model.Schema{Type: model.TypeString}}
 	if name != "" && strings.Contains(path, "{"+name+"}") {
 		param.In = model.ParameterInPath
 		param.Required = true
 	}
-	for _, group := range reParameterAttrs.FindAllStringSubmatch(head, -1) {
+	for _, group := range reParameterAttrs.FindAllStringSubmatch(attrs, -1) {
 		for _, raw := range strings.Split(group[1], ",") {
 			attr := strings.ToLower(strings.TrimSpace(raw))
 			switch {
 			case attr == "required":
 				param.Required = true
+			case attr == "nullable" || attr == "fixed" || attr == "default":
+				return model.Parameter{}, fmt.Errorf("URI parameter %q does not support inline modifier %q", name, attr)
 			case isPrimitiveType(attr):
 				param.Schema.Type = model.SchemaType(attr)
 			case strings.HasPrefix(attr, "enum[") && strings.HasSuffix(attr, "]"):
@@ -964,7 +975,42 @@ func parseBlueprintParameter(line, path string) model.Parameter {
 			}
 		}
 	}
-	return param
+	if sample != "" {
+		literal := strings.Trim(sample, "`")
+		param.Example = literal
+		if param.Schema.Type != model.TypeString {
+			param.Example = parseBlueprintJSONValue(literal)
+		}
+	}
+	return param, nil
+}
+
+// splitParameterExample separates the optional value after the name from the
+// attributes and description. A Markdown code span can contain either delimiter.
+func splitParameterExample(tail string) (sample, rest string) {
+	value, ok := strings.CutPrefix(strings.TrimLeft(tail, " \t"), ":")
+	if !ok {
+		return "", tail
+	}
+	trimmed := strings.TrimLeft(value, " \t")
+	content := strings.TrimLeft(trimmed, "`")
+	fenceLen := len(trimmed) - len(content)
+	if fenceLen > 0 {
+		for {
+			start := strings.IndexByte(content, '`')
+			if start < 0 {
+				break
+			}
+			after := strings.TrimLeft(content[start:], "`")
+			if len(content[start:])-len(after) == fenceLen {
+				return trimmed[:len(trimmed)-len(after)], after
+			}
+			content = after
+		}
+	}
+	beforeDesc, _, _ := strings.Cut(value, " - ")
+	beforeAttrs, _, _ := strings.Cut(beforeDesc, "(")
+	return strings.TrimSpace(beforeAttrs), value[len(beforeAttrs):]
 }
 
 func msonArrayItem(itemType string) *model.Schema {
