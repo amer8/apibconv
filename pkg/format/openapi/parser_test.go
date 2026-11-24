@@ -360,16 +360,14 @@ paths:
 	rateLimit := headers["X-Rate-Limit"].Schema
 	if rateLimit == nil {
 		t.Fatal("X-Rate-Limit header schema is nil")
-	}
-	if rateLimit.Type != model.TypeInteger || rateLimit.Format != "int32" {
+	} else if rateLimit.Type != model.TypeInteger || rateLimit.Format != "int32" {
 		t.Fatalf("X-Rate-Limit schema = (%q, %q), want (integer, int32)", rateLimit.Type, rateLimit.Format)
 	}
 
 	tags := headers["X-Tags"].Schema
 	if tags == nil || tags.Items == nil {
 		t.Fatalf("X-Tags header schema/items missing: %#v", tags)
-	}
-	if tags.Type != model.TypeArray || tags.Items.Type != model.TypeString {
+	} else if tags.Type != model.TypeArray || tags.Items.Type != model.TypeString {
 		t.Fatalf("X-Tags schema = (%q, %q), want (array, string)", tags.Type, tags.Items.Type)
 	}
 }

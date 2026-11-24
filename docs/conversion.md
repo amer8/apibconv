@@ -10,6 +10,9 @@ are rejected. Blueprint URI-template query variables are converted to query
 parameters. Reserved, label, path-segment and matrix expansions (`+`, `.`, `/`,
 `;`) and variable modifiers cannot be expressed faithfully and are rejected.
 Fragment expressions are omitted because fragments are not sent in HTTP requests.
+An inline Blueprint URI parameter value becomes the OpenAPI parameter's `example`.
+A nested `+ Default:` sets its schema's `default`. The parser rejects the inline
+URI parameter modifiers `nullable`, `fixed`, and `default`.
 Blueprint request headers named `Authorization`, `Accept`, or `Content-Type` are
 rejected with an explanation because OpenAPI ignores them as header parameters;
 define the intended security and media types explicitly.

@@ -471,13 +471,12 @@ func normalizeOpenAPIVersion(version string) string {
 func assertMeaningfulModel(t *testing.T, label string, api *model.API) {
 	t.Helper()
 
-	if api == nil {
+	switch {
+	case api == nil:
 		t.Fatalf("%s parsed to nil model", label)
-	}
-	if len(api.Paths) == 0 && len(api.Webhooks) == 0 && len(api.Components.Schemas) == 0 {
+	case len(api.Paths) == 0 && len(api.Webhooks) == 0 && len(api.Components.Schemas) == 0:
 		t.Fatalf("%s has no paths, webhooks, or schemas", label)
-	}
-	if countOperations(api) == 0 && len(api.Components.Schemas) == 0 {
+	case countOperations(api) == 0 && len(api.Components.Schemas) == 0:
 		t.Fatalf("%s has no operations or schemas", label)
 	}
 }

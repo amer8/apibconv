@@ -65,6 +65,52 @@ func TestParameterSectionsIgnoreNestedValuesAndStopAtNextSection(t *testing.T) {
 	}
 }
 
+func TestURIParameterRejectsInlineModifiers(t *testing.T) {
+	for _, modifier := range []string{"nullable", "FIXED", "Default"} {
+		t.Run(modifier, func(t *testing.T) {
+			doc := "FORMAT: 1A\n# API\n## Items [/items/{id}]\n+ Parameters\n    + id: one (string, " + modifier + ")\n### Read [GET]\n+ Response 200\n"
+			api, err := NewParser().Parse(context.Background(), strings.NewReader(doc))
+			if err == nil || api != nil {
+				t.Fatalf("expected a parse error for %q, got %v", modifier, err)
+			}
+			for _, want := range []string{"line 5", `"id"`, strings.ToLower(modifier)} {
+				if !strings.Contains(strings.ToLower(err.Error()), want) {
+					t.Errorf("error %q is missing %q", err, want)
+				}
+			}
+		})
+	}
+}
+
+func TestURIParameterInlineExampleAndDefault(t *testing.T) {
+	for _, tc := range []struct {
+		name, declaration, nestedDefault string
+		example, defaultValue            any
+	}{
+		{"number", "q: `9` (number, optional)", "7", model.JSONNumber("9"), model.JSONNumber("7")},
+		{"boolean", "q: false (boolean, optional)", "true", false, true},
+		{"string", "q: `(fixed) - Tier: 01` (string, optional)", "all", "(fixed) - Tier: 01", "all"},
+		{"literal quotes", "q: ``\"a`b\"``", "all", "\"a`b\"", "all"},
+		{"default only", "q (string, optional)", "default", nil, "default"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			doc := fmt.Sprintf("FORMAT: 1A\n# API\n## Items [/items{?q}]\n### Read [GET]\n+ Parameters\n    + %s - Search option\n        + Default: %s\n+ Response 200\n", tc.declaration, tc.nestedDefault)
+			api, err := NewParser().Parse(context.Background(), strings.NewReader(doc))
+			if err != nil {
+				t.Fatal(err)
+			}
+			params := api.Paths["/items"].Get.Parameters
+			if len(params) != 1 {
+				t.Fatalf("got %d parameters, want 1", len(params))
+			}
+			p := params[0]
+			if p.Example != tc.example || p.Schema.Default != tc.defaultValue || p.Description != "Search option" || p.Schema.Format != "" {
+				t.Errorf("got example %#v, default %#v, description %q, format %q", p.Example, p.Schema.Default, p.Description, p.Schema.Format)
+			}
+		})
+	}
+}
+
 func TestNestedMSONRoundTrip(t *testing.T) {
 	nested := &model.Schema{Type: model.TypeObject, Properties: map[string]*model.Schema{
 		"child": {Type: model.TypeObject, Properties: map[string]*model.Schema{

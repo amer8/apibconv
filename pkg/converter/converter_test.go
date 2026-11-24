@@ -226,7 +226,8 @@ func TestNew(t *testing.T) {
 		t.Fatalf("New() failed: %v", err)
 	}
 	if c == nil {
-		t.Fatal("New() returned nil")
+		t.Error("New() returned nil")
+		return
 	}
 	if c.registry == nil || c.registry.parsers == nil || c.registry.writers == nil {
 		t.Error("New() did not initialize maps")

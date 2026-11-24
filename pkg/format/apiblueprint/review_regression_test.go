@@ -330,12 +330,13 @@ func TestInheritedParametersAreIndependent(t *testing.T) {
 func TestInheritedParameterJSONValuesAreIndependent(t *testing.T) {
 	doc := `FORMAT: 1A
 # API
-## Items [/items{?value}]
+## Items [/items{?value,filter}]
 + Parameters
     + value (number)
         + Default: {"nested":[1]}
         + Members
             + {"nested":[2]}
+    + filter: {"nested":[3]} (object)
 ### Read [GET]
 + Response 200
 ### Create [POST]
@@ -354,5 +355,9 @@ func TestInheritedParameterJSONValuesAreIndependent(t *testing.T) {
 	get.Enum[0].(map[string]interface{})["nested"].([]interface{})[0] = "changed"
 	if post.Default.(map[string]interface{})["nested"].([]interface{})[0] != model.JSONNumber("1") || post.Enum[0].(map[string]interface{})["nested"].([]interface{})[0] != model.JSONNumber("2") {
 		t.Fatal("nested default or enum mutation leaked to POST")
+	}
+	item.Get.Parameters[1].Example.(map[string]interface{})["nested"].([]interface{})[0] = "changed"
+	if item.Post.Parameters[1].Example.(map[string]interface{})["nested"].([]interface{})[0] != model.JSONNumber("3") {
+		t.Fatal("nested example mutation leaked to POST")
 	}
 }
