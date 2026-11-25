@@ -13,6 +13,19 @@ media types, headers, schemas, components, and security schemes and flows.
 Fields and extension locations that the shared model does not represent can still
 be lost during conversion.
 
+The built-in readers accept up to 16 MiB per input by default.
+`converter.WithMaxInputBytes(ctx, n)` sets a positive byte limit for detection,
+parsing and validation. Oversize input returns `errors.ErrInputTooLarge` from
+the apibconv errors package. YAML processing also limits nesting to 128,
+mappings to 2,048 entries, and total expanded nodes to 250,000. Aggregate
+comparison and alias-expansion budgets can reject a document within those
+individual limits. OpenAPI callback expansion shares a 4,096-visit budget and
+a 32 MiB model-work budget across a document. Swagger server URL expansion
+has a separate 32 MiB budget for the root and operation servers combined,
+including when writing an OpenAPI 3 model as Swagger 2.0.
+Each occurrence counts its URL length in bytes plus 128 bytes for the server entry.
+With an implicit host, the scheme length takes the place of the URL length.
+
 `converter.WithStrict(true)` validates the model before and after transformation
 and treats warnings as errors. `converter.WithWarningHandler` enables the same
 model checks and reports warnings at each stage; for example, an empty OpenAPI

@@ -9,6 +9,9 @@ inputs:
   asset-base-url:
     description: Optional base URL for release assets, for example file:///path/to/dist
     required: false
+  archive-sha256:
+    description: Trusted SHA-256 of this platform's archive. Required for legacy releases without a signature bundle.
+    required: false
 
 outputs:
   binary-path:
@@ -41,6 +44,7 @@ runs:
       env:
         APIBCONV_VERSION: ${{ inputs.version }}
         APIBCONV_ASSET_BASE_URL: ${{ inputs.asset-base-url }}
+        APIBCONV_ARCHIVE_SHA256: ${{ inputs.archive-sha256 }}
       run: |
         sh "$GITHUB_ACTION_PATH/scripts/install-apibconv-release.sh"
 

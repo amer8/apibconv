@@ -128,7 +128,7 @@ func (w *Writer) Write(ctx context.Context, api *model.API, wr io.Writer) error 
 		copyAPI.Info.Version = version
 		api = &copyAPI
 	}
-	if err := validateSchemaCompatibility(api, w.version); err != nil {
+	if err := validateSchemaCompatibility(api, w.version, maxSwaggerServerBytes); err != nil {
 		return err
 	}
 
@@ -142,9 +142,6 @@ func (w *Writer) Write(ctx context.Context, api *model.API, wr io.Writer) error 
 		}
 		if len(api.Webhooks) > 0 {
 			return fmt.Errorf("OpenAPI 2.0 output cannot represent OpenAPI webhooks without loss")
-		}
-		if err := security.CheckServerOverrides(api, "OpenAPI 2.0"); err != nil {
-			return err
 		}
 		doc, err = w.convertV2(api)
 	case "3.0", "3.0.0", "3.0.1", "3.0.2", "3.0.3", "3.1", "3.1.0":
@@ -268,6 +265,9 @@ func (w *Writer) convertFromModel(api *model.API) *OpenAPI {
 		}
 	}
 
+	if origin := api.Swagger2Origin; origin != nil {
+		doc.Servers = []Server{{URL: origin.BasePath}}
+	}
 	for _, s := range api.Servers {
 		srv := Server{
 			URL:         s.URL,
@@ -635,6 +635,15 @@ func (w *Writer) convertOperationV2(op *model.Operation, api *model.API) *Operat
 		ResponsesExtensions: clonedExtensions(op.ResponsesExtensions),
 	}
 
+	res.Schemes = op.Swagger2HostSchemes
+	for _, server := range op.Servers {
+		scheme, _, _ := strings.Cut(server.URL, "://")
+		scheme = strings.ToLower(scheme)
+		if !slices.Contains(res.Schemes, scheme) {
+			res.Schemes = append(res.Schemes, scheme)
+		}
+	}
+
 	if op.RequestBody != nil {
 		contentTypes := sortedOpenAPIContentTypes(op.RequestBody.Content)
 		if len(contentTypes) > 0 {
@@ -856,20 +865,53 @@ func sortedOpenAPIContentTypes(content map[string]model.MediaType) []string {
 	return contentTypes
 }
 
-func convertServerToV2(rawURL string) (host, basePath string, schemes []string) {
-	parsed, err := url.Parse(rawURL)
-	if err != nil || parsed.Host == "" {
-		return rawURL, "", nil
+// Swagger has one host and base path, with either inherited or explicit schemes.
+func setSwaggerRootServers(doc *Swagger20, servers []model.Server) error {
+	var root swaggerServerLocation
+	var inheritsScheme bool
+	for i, server := range servers {
+		rawURL := server.URL
+		// Go callers also supply bare authorities, including IPv6 hosts with ports.
+		bareHost := rawURL != "" && !strings.ContainsAny(rawURL, "/?#@")
+		if bareHost {
+			rawURL = "//" + rawURL
+		}
+		u, err := url.Parse(rawURL)
+		if err != nil || (u.Host == "" && rawURL != "" && !strings.HasPrefix(rawURL, "/")) {
+			if i == 0 {
+				return fmt.Errorf("OpenAPI 2.0 cannot represent the primary server URL")
+			}
+			continue // The alternative has no usable host and base path to compare.
+		}
+		host, path, scheme := u.Host, u.EscapedPath(), u.Scheme
+		if !bareHost && host != "" && path == "" {
+			path = "/"
+		}
+		location := newSwaggerServerLocation(host, path)
+		if i == 0 {
+			doc.Host, doc.BasePath = host, path
+			root = location
+			inheritsScheme = scheme == ""
+		}
+		if location != root {
+			continue
+		}
+		if hasUnsupportedSwaggerURLParts(rawURL, u) {
+			return fmt.Errorf("OpenAPI 2.0 cannot represent user information, queries, fragments or URL templates in root server %d", i+1)
+		}
+		if (scheme == "") != inheritsScheme {
+			return fmt.Errorf("OpenAPI 2.0 cannot combine inherited and explicit schemes for the same root server")
+		}
+		if scheme != "" {
+			if !validSwaggerScheme(scheme) {
+				return fmt.Errorf("unsupported Swagger scheme in root server %d", i+1)
+			}
+			if !slices.Contains(doc.Schemes, scheme) {
+				doc.Schemes = append(doc.Schemes, scheme)
+			}
+		}
 	}
-
-	if parsed.Scheme != "" {
-		schemes = []string{parsed.Scheme}
-	}
-	basePath = parsed.EscapedPath()
-	if basePath == "" {
-		basePath = "/"
-	}
-	return parsed.Host, basePath, schemes
+	return nil
 }
 
 func (w *Writer) convertSchema(s *model.Schema, api *model.API) *Schema {
@@ -1058,9 +1100,10 @@ func (w *Writer) convertV2(api *model.API) (interface{}, error) {
 		}
 	}
 
-	// Swagger 2.0 has one host and base path, so use the first server.
-	if len(api.Servers) > 0 {
-		doc.Host, doc.BasePath, doc.Schemes = convertServerToV2(api.Servers[0].URL)
+	if origin := api.Swagger2Origin; origin != nil {
+		doc.BasePath, doc.Schemes = origin.BasePath, origin.Schemes
+	} else if err := setSwaggerRootServers(doc, api.Servers); err != nil {
+		return nil, err
 	}
 
 	// Components -> Definitions

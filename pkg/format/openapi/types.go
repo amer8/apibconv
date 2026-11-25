@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/amer8/apibconv/internal/yamlguard"
 	"go.yaml.in/yaml/v3"
 )
 
@@ -99,6 +100,7 @@ type Operation struct {
 	Servers      []Server              `yaml:"servers,omitempty" json:"servers,omitempty"`
 
 	// V2 specific fields
+	Schemes             []string               `yaml:"schemes,omitempty" json:"schemes,omitempty"`
 	Consumes            []string               `yaml:"consumes,omitempty" json:"consumes,omitempty"`
 	Produces            []string               `yaml:"produces,omitempty" json:"produces,omitempty"`
 	Extensions          map[string]interface{} `yaml:",inline" json:"-"`
@@ -114,6 +116,9 @@ type Callback struct {
 
 // UnmarshalYAML reads an inline callback or a reference.
 func (c *Callback) UnmarshalYAML(node *yaml.Node) error {
+	if err := yamlguard.Check(node); err != nil {
+		return err
+	}
 	if node.Kind != yaml.MappingNode {
 		return fmt.Errorf("callback must be an object")
 	}
@@ -257,6 +262,8 @@ type Encoding struct {
 
 // Schema allows the definition of input and output data types.
 type Schema struct {
+	// Retain the validated child for conversion while exposing the original raw value.
+	additionalSchema     *Schema
 	Ref                  string             `yaml:"$ref,omitempty" json:"$ref,omitempty"`
 	Type                 interface{}        `yaml:"type,omitempty" json:"type,omitempty"` // string or []string (3.1)
 	Format               string             `yaml:"format,omitempty" json:"format,omitempty"`
@@ -307,6 +314,9 @@ type Discriminator struct {
 // UnmarshalYAML rejects schema keywords that the model cannot preserve.
 // JSON Schema's const is representable as an intersecting single-value enum.
 func (s *Schema) UnmarshalYAML(node *yaml.Node) error {
+	if err := yamlguard.Check(node); err != nil {
+		return err
+	}
 	if node.Kind != yaml.MappingNode {
 		return fmt.Errorf("schema must be an object")
 	}
@@ -316,8 +326,18 @@ func (s *Schema) UnmarshalYAML(node *yaml.Node) error {
 		known[strings.Split(typ.Field(i).Tag.Get("yaml"), ",")[0]] = true
 	}
 	var constNode *yaml.Node
+	var additionalSchema *Schema
+	seen := make(map[string]bool, len(node.Content)/2)
 	for i := 0; i < len(node.Content); i += 2 {
-		key, value := node.Content[i].Value, node.Content[i+1]
+		key, ok := yamlguard.StringKey(node.Content[i])
+		if !ok {
+			return fmt.Errorf("schema keyword on line %d must be a string", node.Content[i].Line)
+		}
+		if seen[key] {
+			return fmt.Errorf("duplicate schema keyword %q", key)
+		}
+		seen[key] = true
+		value := node.Content[i+1]
 		if key == "const" {
 			constNode = value
 			continue
@@ -325,11 +345,15 @@ func (s *Schema) UnmarshalYAML(node *yaml.Node) error {
 		if !known[key] && !strings.HasPrefix(key, "x-") {
 			return fmt.Errorf("unsupported schema keyword %q", key)
 		}
+		if key == "additionalProperties" && value.Kind == yaml.AliasNode {
+			value = value.Alias
+		}
 		if key == "additionalProperties" && value.Kind == yaml.MappingNode {
 			var nested Schema
 			if err := value.Decode(&nested); err != nil {
 				return err
 			}
+			additionalSchema = &nested
 		}
 	}
 	type plain Schema
@@ -338,6 +362,7 @@ func (s *Schema) UnmarshalYAML(node *yaml.Node) error {
 		return err
 	}
 	*s = Schema(decoded)
+	s.additionalSchema = additionalSchema
 	if constNode != nil {
 		var value interface{}
 		if err := constNode.Decode(&value); err != nil {

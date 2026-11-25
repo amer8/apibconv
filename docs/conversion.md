@@ -2,9 +2,12 @@
 
 Conversion is not lossless, including same-version encoding conversion: it goes
 through a shared model and can omit or change fields. In particular, the API
-Blueprint parser handles a subset of the format; Swagger operation-level
-`schemes` and OpenAPI referenced response headers are not preserved. Keep the
-original files, validate the output, and review it against the source before using
+Blueprint parser handles a subset of the format; OpenAPI referenced
+response headers are not preserved. Swagger operation-level `schemes` are
+retained in Swagger output and translated into operation servers on upgrade.
+When Swagger inherits the host from the document URL, an upgrade that needs
+an explicit host to preserve transport restrictions fails. Keep the original
+files, validate the output, and review it against the source before using
 it as an API contract. Unsupported schema keywords and some security combinations
 are rejected. Blueprint URI-template query variables are converted to query
 parameters. Reserved, label, path-segment and matrix expansions (`+`, `.`, `/`,

@@ -69,7 +69,7 @@ func (p *Parser) SupportsVersion(version string) bool {
 
 // Regex patterns for API Blueprint parsing
 var (
-	reMetadata       = regexp.MustCompile(`^(\w+):\s*(.*)$`)
+	reMetadata       = regexp.MustCompile(`^([[:alnum:]_][[:alnum:]_. -]*):\s*(.*)$`)
 	reHeader         = regexp.MustCompile(`^#\s+(.*)$`)
 	reGroup          = regexp.MustCompile(`^#+\s+Group\s+(.*)$`)
 	reResource       = regexp.MustCompile(`^#+\s+(.*)\[(.*)\]$`)
@@ -92,7 +92,7 @@ func (p *Parser) parseDocument(content string) (*model.API, error) {
 	structureNames := make(map[string]string)
 	api.Version = "1A" // Default version for API Blueprint
 
-	lines := strings.Split(content, "\n")
+	lines := strings.Split(strings.TrimPrefix(content, "\uFEFF"), "\n")
 	var currentPath string
 	var resourcePath string
 	var resourceQuery []string
@@ -104,6 +104,7 @@ func (p *Parser) parseDocument(content string) (*model.API, error) {
 	var inDataStructures bool
 	var description *string
 	var descriptionBreak bool
+	inMetadata := true
 
 	for i := 0; i < len(lines); i++ {
 		line := strings.TrimSpace(lines[i])
@@ -115,9 +116,9 @@ func (p *Parser) parseDocument(content string) (*model.API, error) {
 		}
 
 		// Metadata
-		if matches := reMetadata.FindStringSubmatch(line); len(matches) > 0 {
+		if matches := reMetadata.FindStringSubmatch(strings.TrimSuffix(lines[i], "\r")); inMetadata && len(matches) > 0 {
 			key := matches[1]
-			val := matches[2]
+			val := strings.TrimSpace(matches[2])
 			switch key {
 			case "HOST":
 				api.Servers = append(api.Servers, model.Server{URL: val})
@@ -130,6 +131,8 @@ func (p *Parser) parseDocument(content string) (*model.API, error) {
 				continue
 			}
 		}
+
+		inMetadata = false
 
 		// API Name (First H1)
 		if matches := reHeader.FindStringSubmatch(line); len(matches) > 0 && api.Info.Title == "" && !inDataStructures {

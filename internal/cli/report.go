@@ -4,6 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strconv"
+	"strings"
+	"unicode"
 
 	"github.com/amer8/apibconv/pkg/format"
 )
@@ -35,9 +38,27 @@ func makeValidationReport(issues []format.ValidationError, validationErr error) 
 	return report
 }
 
+// DiagnosticText keeps untrusted fields on one printable terminal line.
+func DiagnosticText(value string) string {
+	value = strings.ToValidUTF8(value, "\uFFFD")
+	if strings.IndexFunc(value, func(r rune) bool { return !unicode.IsPrint(r) }) < 0 {
+		return value
+	}
+	var text strings.Builder
+	for _, r := range value {
+		if unicode.IsPrint(r) {
+			text.WriteRune(r)
+		} else {
+			quoted := strconv.QuoteRune(r)
+			text.WriteString(quoted[1 : len(quoted)-1])
+		}
+	}
+	return text.String()
+}
+
 func writeTextIssues(w io.Writer, issues []reportIssue) error {
 	for _, issue := range issues {
-		if _, err := fmt.Fprintf(w, "%s: %s: %s\n", issue.Level, issue.Path, issue.Message); err != nil {
+		if _, err := fmt.Fprintf(w, "%s: %s: %s\n", DiagnosticText(string(issue.Level)), DiagnosticText(issue.Path), DiagnosticText(issue.Message)); err != nil {
 			return err
 		}
 	}

@@ -61,6 +61,9 @@ func CheckServerUnsupported(api *model.API, target string) error {
 // CheckServerOverrides rejects path- and operation-level server overrides when
 // a target cannot represent them without changing the destination of an API.
 func CheckServerOverrides(api *model.API, target string) error {
+	if api.Swagger2Origin != nil {
+		return fmt.Errorf("%s cannot represent Swagger transport restrictions for an implicit host", target)
+	}
 	check := func(paths map[string]model.PathItem) error {
 		for path := range paths {
 			item := paths[path]
@@ -68,7 +71,7 @@ func CheckServerOverrides(api *model.API, target string) error {
 				return fmt.Errorf("%s cannot represent server override on path %q", target, path)
 			}
 			for _, op := range []*model.Operation{item.Get, item.Post, item.Put, item.Delete, item.Patch, item.Head, item.Options, item.Trace} {
-				if op != nil && len(op.Servers) != 0 {
+				if op != nil && (len(op.Servers) != 0 || len(op.Swagger2HostSchemes) != 0) {
 					return fmt.Errorf("%s cannot represent operation server override on path %q", target, path)
 				}
 			}

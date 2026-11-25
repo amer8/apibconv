@@ -174,6 +174,7 @@ download_file "$asset_base_url/$archive_name" "$archive_path"
 download_file "$asset_base_url/$checksum_name" "$checksum_path"
 
 signature_verified=false
+pinned_checksum=${APIBCONV_ARCHIVE_SHA256:-}
 if try_download_file "$asset_base_url/$bundle_name" "$bundle_path"; then
     require_command cosign
     certificate_identity="https://github.com/amer8/apibconv/.github/workflows/release.yml@refs/tags/${version}"
@@ -186,8 +187,9 @@ if try_download_file "$asset_base_url/$bundle_name" "$bundle_path"; then
         "$checksum_path"
 
     signature_verified=true
-else
-    echo "Warning: No Sigstore bundle found for $checksum_name. Falling back to checksum-only verification." >&2
+elif [ -z "$pinned_checksum" ]; then
+    echo "Missing Sigstore bundle for $checksum_name. An unsigned release requires an independently pinned archive-sha256." >&2
+    exit 1
 fi
 
 expected_checksum=$(get_expected_checksum "$checksum_path" "$archive_name")
@@ -200,6 +202,11 @@ case "$runner_os" in
         ;;
 esac
 actual_checksum=$(printf '%s\n' "$actual_checksum" | tr '[:upper:]' '[:lower:]')
+
+if [ -n "$pinned_checksum" ] && [ "$actual_checksum" != "$(printf '%s' "$pinned_checksum" | tr '[:upper:]' '[:lower:]')" ]; then
+    echo "Archive does not match the pinned archive-sha256." >&2
+    exit 1
+fi
 
 if [ "$actual_checksum" != "$expected_checksum" ]; then
     echo "Checksum mismatch for $archive_name. Expected $expected_checksum, got $actual_checksum." >&2

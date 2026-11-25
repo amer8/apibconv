@@ -3,14 +3,17 @@ package cli
 import (
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
+	inputfs "github.com/amer8/apibconv/internal/fs"
 	"github.com/amer8/apibconv/pkg/format"
 )
 
 // Flags holds the parsed command-line flags.
 type Flags struct {
+	MaxInputBytes  int64
 	Output         string
 	InputFormat    string
 	OutputFormat   string
@@ -31,7 +34,9 @@ type Flags struct {
 func ParseFlags(args []string) (*Flags, []string, error) {
 	f := &Flags{}
 	fs := flag.NewFlagSet("apibconv", flag.ContinueOnError)
-	fs.SetOutput(os.Stderr)
+	// main formats the returned diagnostic. The flag package would also echo
+	// the untrusted argument verbatim before printing its usage.
+	fs.SetOutput(io.Discard)
 
 	fs.StringVar(&f.Output, "o", "", "Output file path (shorthand)")
 	fs.StringVar(&f.Output, "output", "", "Output file path")
@@ -42,6 +47,7 @@ func ParseFlags(args []string) (*Flags, []string, error) {
 	fs.StringVar(&f.Encoding, "e", "", "Output encoding (json, yaml) (shorthand)")
 	fs.StringVar(&f.Encoding, "encoding", "", "Output encoding (json, yaml)")
 
+	fs.Int64Var(&f.MaxInputBytes, "max-input-bytes", inputfs.DefaultMaxInputBytes, "Maximum input document size in bytes")
 	fs.BoolVar(&f.Validate, "validate", false, "Validate input without converting")
 	fs.BoolVar(&f.ValidateOutput, "validate-output", true, "Validate generated output before writing it (default true)")
 	fs.StringVar(&f.Report, "report", "", "Validation report format (text, json; requires --validate)")
@@ -83,6 +89,8 @@ func ParseFlags(args []string) (*Flags, []string, error) {
 		}
 	}
 	if err := fs.Parse(options); err != nil {
+		fs.SetOutput(os.Stderr)
+		fs.Usage()
 		return nil, nil, err
 	}
 	f.provided = make(map[string]bool)

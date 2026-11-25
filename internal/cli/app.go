@@ -31,6 +31,13 @@ func (a *App) Run(ctx context.Context, args []string) error {
 		return err
 	}
 
+	if flags.MaxInputBytes <= 0 {
+		return fmt.Errorf("--max-input-bytes must be positive")
+	}
+	if flags.provided["max-input-bytes"] {
+		ctx = converter.WithMaxInputBytes(ctx, flags.MaxInputBytes)
+	}
+
 	cfg, err := ConfigFromFlags(flags, posArgs)
 	if err != nil {
 		return err
@@ -82,6 +89,7 @@ Options:
     -e, --encoding FORMAT      json or yaml
     --openapi-version VERSION  Output OpenAPI version (default: 3.1)
     --api-version VERSION      Set the API info.version
+    --max-input-bytes N        Maximum input size in bytes (default 16777216)
     --validate                 Validate input without converting
     --validate-output          Validate output (default true; use =false to disable)
     --report FORMAT            Validation report: text or json (requires --validate)

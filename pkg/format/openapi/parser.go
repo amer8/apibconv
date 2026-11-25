@@ -10,10 +10,9 @@ import (
 	"regexp"
 	"strings"
 
-	"go.yaml.in/yaml/v3"
-
 	"github.com/amer8/apibconv/internal/fs"
 	"github.com/amer8/apibconv/internal/specschema"
+	"github.com/amer8/apibconv/internal/yamlguard"
 	apierrors "github.com/amer8/apibconv/pkg/errors"
 	"github.com/amer8/apibconv/pkg/format"
 	"github.com/amer8/apibconv/pkg/model"
@@ -72,7 +71,11 @@ func (p *Parser) Parse(ctx context.Context, r io.Reader) (*model.API, error) {
 		Swagger string `yaml:"swagger"`
 		OpenAPI string `yaml:"openapi"`
 	}
-	if err := yaml.Unmarshal(data, &base); err != nil {
+	root, err := yamlguard.Parse(data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode OpenAPI document: %w", err)
+	}
+	if err := root.Decode(&base); err != nil {
 		return nil, fmt.Errorf("failed to detect openapi version: %w", err)
 	}
 
@@ -103,11 +106,11 @@ func (p *Parser) Parse(ctx context.Context, r io.Reader) (*model.API, error) {
 		}
 	}
 	if base.Swagger == "2.0" {
-		return p.parseV2(ctx, bytes.NewReader(data))
+		return p.parseV2(ctx, root, maxSwaggerServerBytes)
 	}
 
 	var doc OpenAPI
-	if err := yaml.Unmarshal(data, &doc); err != nil {
+	if err := root.Decode(&doc); err != nil {
 		return nil, fmt.Errorf("openapi v3 parse failed: %w", err)
 	}
 
@@ -134,12 +137,13 @@ func matchesVersion(actual, expected string) bool {
 }
 
 func (p *Parser) convertToModel(doc *OpenAPI) (*model.API, error) {
+	resolver := callbackResolver{doc: doc, remaining: maxCallbackVisits, modelBytes: maxCallbackModelBytes}
 	api := model.NewAPI()
 	copyExtensions(api.Extensions, doc.Extensions)
 	for name, callback := range doc.Components.Callbacks {
-		resolved, err := resolveCallback(callback, doc, 0)
+		resolved, err := resolver.resolveCallback(name, callback, 0)
 		if err != nil {
-			return nil, fmt.Errorf("callback component %q: %w", name, err)
+			return nil, fmt.Errorf("callback component %.128q: %w", name, err)
 		}
 		api.Components.Callbacks[name] = p.convertCallback(resolved)
 		if len(resolved.Extensions) > 0 {
@@ -209,23 +213,23 @@ func (p *Parser) convertToModel(doc *OpenAPI) (*model.API, error) {
 
 	for name := range doc.Components.Parameters {
 		parameter := doc.Components.Parameters[name]
-		resolved, err := resolveParameter(&parameter, doc.Components.Parameters, "#/components/parameters/")
+		resolved, err := resolveParameter(&parameter, doc.Components.Parameters, "#/components/parameters/", nil)
 		if err != nil {
-			return nil, fmt.Errorf("parameter component %q: %w", name, err)
+			return nil, fmt.Errorf("parameter component %.128q: %w", name, err)
 		}
 		api.Components.Parameters[name] = p.convertParameters([]Parameter{resolved})[0]
 	}
 	for name, response := range doc.Components.Responses {
-		resolved, err := resolveResponse(response, doc.Components.Responses, "#/components/responses/")
+		resolved, err := resolveResponse(response, doc.Components.Responses, "#/components/responses/", nil)
 		if err != nil {
-			return nil, fmt.Errorf("response component %q: %w", name, err)
+			return nil, fmt.Errorf("response component %.128q: %w", name, err)
 		}
 		api.Components.Responses[name] = p.convertResponse(resolved)
 	}
 	for name, body := range doc.Components.RequestBodies {
-		resolved, err := resolveRequestBody(body, doc.Components.RequestBodies)
+		resolved, err := resolveRequestBody(body, doc.Components.RequestBodies, nil)
 		if err != nil {
-			return nil, fmt.Errorf("request body component %q: %w", name, err)
+			return nil, fmt.Errorf("request body component %.128q: %w", name, err)
 		}
 		api.Components.RequestBodies[name] = p.convertRequestBody(&resolved)
 	}
@@ -243,18 +247,18 @@ func (p *Parser) convertToModel(doc *OpenAPI) (*model.API, error) {
 
 	for name := range doc.Webhooks {
 		item := doc.Webhooks[name]
-		resolved, err := resolvePathV3(&item, doc)
+		resolved, err := resolver.resolvePath(&item, 0)
 		if err != nil {
-			return nil, fmt.Errorf("webhook %q: %w", name, err)
+			return nil, fmt.Errorf("webhook %.128q: %w", name, err)
 		}
 		api.Webhooks[name] = p.convertPathItem(&resolved)
 	}
 
 	for path := range doc.Paths {
 		item := doc.Paths[path]
-		resolved, err := resolvePathV3(&item, doc)
+		resolved, err := resolver.resolvePath(&item, 0)
 		if err != nil {
-			return nil, fmt.Errorf("path %q: %w", path, err)
+			return nil, fmt.Errorf("path %.128q: %w", path, err)
 		}
 		converted := p.convertPathItem(&resolved)
 		api.AddPath(path, &converted)
@@ -588,15 +592,8 @@ func (p *Parser) convertSchema(s *Schema) *model.Schema {
 	}
 	ms.ExclusiveMinimum, ms.Minimum = schemaExclusive(s.ExclusiveMinimum, ms.Minimum, false)
 	ms.ExclusiveMaximum, ms.Maximum = schemaExclusive(s.ExclusiveMaximum, ms.Maximum, true)
-	if s.AdditionalProperties != nil {
-		if _, ok := s.AdditionalProperties.(bool); !ok {
-			if data, err := yaml.Marshal(s.AdditionalProperties); err == nil {
-				var nested Schema
-				if yaml.Unmarshal(data, &nested) == nil {
-					ms.AdditionalProperties = p.convertSchema(&nested)
-				}
-			}
-		}
+	if s.additionalSchema != nil {
+		ms.AdditionalProperties = p.convertSchema(s.additionalSchema)
 	}
 
 	// Rewrite Swagger 2.0 definitions to OpenAPI 3.0 components/schemas

@@ -7,6 +7,8 @@ import (
 )
 
 var (
+	// ErrInputTooLarge indicates that the document exceeds its input byte budget.
+	ErrInputTooLarge = errors.New("input exceeds byte limit")
 	// ErrUnsupportedFormat indicates that the requested format is not supported.
 	ErrUnsupportedFormat = errors.New("unsupported format")
 	// ErrUnsupportedConversion indicates that a format or version direction is not supported.

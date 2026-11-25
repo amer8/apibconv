@@ -3,7 +3,7 @@ package openapi
 import (
 	"context"
 	"fmt"
-	"io"
+	"slices"
 
 	"go.yaml.in/yaml/v3"
 
@@ -45,13 +45,47 @@ type PathItemV2 struct {
 	Extensions map[string]interface{} `yaml:",inline" json:"-"`
 }
 
-func (p *Parser) parseV2(ctx context.Context, r io.Reader) (*model.API, error) {
+// Charge every occurrence, including paths expanded from references. The fixed
+// cost covers the server entry even when the URL itself is short.
+type swaggerServerBudget int64
+
+const (
+	maxSwaggerServerBytes   swaggerServerBudget = 32 << 20
+	swaggerServerEntryBytes                     = 128
+)
+
+func (b *swaggerServerBudget) reserve(urlBytes int64) error {
+	if urlBytes > int64(*b)-swaggerServerEntryBytes {
+		return fmt.Errorf("swagger server URL expansion limit exceeded")
+	}
+	*b -= swaggerServerBudget(urlBytes + swaggerServerEntryBytes)
+	return nil
+}
+
+// For an implicit host the scheme alone is retained and emitted.
+func (b *swaggerServerBudget) reserveSchemes(schemes []string, originBytes int64) error {
+	for i, scheme := range schemes {
+		if !validSwaggerScheme(scheme) {
+			return fmt.Errorf("unsupported Swagger scheme at position %d", i+1)
+		}
+		// Swagger permits only four distinct schemes.
+		if slices.Contains(schemes[:i], scheme) {
+			return fmt.Errorf("duplicate Swagger scheme %q", scheme)
+		}
+		if err := b.reserve(originBytes + int64(len(scheme))); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (p *Parser) parseV2(ctx context.Context, root *yaml.Node, budget swaggerServerBudget) (*model.API, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 
 	var doc Swagger20
-	if err := yaml.NewDecoder(r).Decode(&doc); err != nil {
+	if err := root.Decode(&doc); err != nil {
 		return nil, fmt.Errorf("swagger 2.0 parse failed: %w", err)
 	}
 
@@ -96,17 +130,26 @@ func (p *Parser) parseV2(ctx context.Context, r io.Reader) (*model.API, error) {
 	}
 
 	// Servers (Host + BasePath + Schemes -> Servers)
+	var originBytes int64
+	schemes := doc.Schemes
 	if doc.Host != "" {
-		schemes := doc.Schemes
+		originBytes = int64(len(doc.Host)) + int64(len(doc.BasePath)) + int64(len("://"))
 		if len(schemes) == 0 {
 			schemes = []string{"https"} // Default
 		}
+	}
+	if err := budget.reserveSchemes(schemes, originBytes); err != nil {
+		return nil, err
+	}
+	if doc.Host != "" {
 		for _, scheme := range schemes {
-			url := fmt.Sprintf("%s://%s%s", scheme, doc.Host, doc.BasePath)
+			url := scheme + "://" + doc.Host + doc.BasePath
 			api.Servers = append(api.Servers, model.Server{
 				URL: url,
 			})
 		}
+	} else if doc.BasePath != "" || len(doc.Schemes) > 0 {
+		api.Swagger2Origin = &model.Swagger2Origin{BasePath: doc.BasePath, Schemes: doc.Schemes}
 	}
 
 	// Definitions -> Components/Schemas
@@ -118,7 +161,7 @@ func (p *Parser) parseV2(ctx context.Context, r io.Reader) (*model.API, error) {
 
 	for name := range doc.Parameters {
 		param := doc.Parameters[name]
-		resolved, err := resolveParameter(&param, doc.Parameters, "#/parameters/")
+		resolved, err := resolveParameter(&param, doc.Parameters, "#/parameters/", nil)
 		if err != nil {
 			return nil, fmt.Errorf("parameter %q: %w", name, err)
 		}
@@ -148,7 +191,7 @@ func (p *Parser) parseV2(ctx context.Context, r io.Reader) (*model.API, error) {
 		produces = []string{"application/json"}
 	}
 	for name, response := range doc.Responses {
-		resolved, err := resolveResponse(response, doc.Responses, "#/responses/")
+		resolved, err := resolveResponse(response, doc.Responses, "#/responses/", nil)
 		if err != nil {
 			return nil, fmt.Errorf("response %q: %w", name, err)
 		}
@@ -166,6 +209,9 @@ func (p *Parser) parseV2(ctx context.Context, r io.Reader) (*model.API, error) {
 		}
 		for _, op := range []*Operation{item.Get, item.Post, item.Put, item.Delete, item.Patch, item.Head, item.Options} {
 			if op != nil {
+				if err := budget.reserveSchemes(op.Schemes, originBytes); err != nil {
+					return nil, fmt.Errorf("path %.128q: %w", path, err)
+				}
 				if err := validateV2ParameterSerialization(op.Parameters); err != nil {
 					return nil, fmt.Errorf("path %q: %w", path, err)
 				}
@@ -202,7 +248,15 @@ func (p *Parser) parseV2(ctx context.Context, r io.Reader) (*model.API, error) {
 					copyOp.Parameters = append(copyOp.Parameters, *inherited)
 				}
 			}
-			return p.convertV2Operation(&copyOp, doc.Consumes, doc.Produces)
+			converted := p.convertV2Operation(&copyOp, doc.Consumes, doc.Produces)
+			if doc.Host == "" {
+				converted.Swagger2HostSchemes = op.Schemes
+			} else {
+				for _, scheme := range op.Schemes {
+					converted.Servers = append(converted.Servers, model.Server{URL: scheme + "://" + doc.Host + doc.BasePath})
+				}
+			}
+			return converted
 		}
 
 		pi.Get = convertOp(item.Get)
